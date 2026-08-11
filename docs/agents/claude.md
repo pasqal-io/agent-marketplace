@@ -4,7 +4,7 @@
 
 ```
 /plugin marketplace add pasqal-io/agent-marketplace
-/plugin install pasqal-agent@pasqal
+/plugin install neutral-atom-toolkit@pasqal
 ```
 
 While the repository is private, your git must be able to reach GitHub
@@ -18,7 +18,7 @@ distribute the plugin to everyone via **Organization settings → Plugins**
 claude --plugin-dir /path/to/agent-marketplace
 ```
 
-Then in the session: check the skills appear under `/pasqal-agent:*`, try a
+Then in the session: check the skills appear under `/neutral-atom-toolkit:*`, try a
 trigger phrase ("run a noise emulation"), and `/reload-plugins` after edits.
 
 ## Update

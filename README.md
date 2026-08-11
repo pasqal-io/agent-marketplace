@@ -1,9 +1,10 @@
 # Pasqal Agent Marketplace
 
-Agent skills for running Rydberg-atom QPU experiments end-to-end: from a paper
-or an idea to submission on Pasqal hardware and analysis of the results.
+Home of the **Neutral Atom Toolkit**: agent skills for running Rydberg-atom QPU
+experiments end-to-end — from a paper or an idea to submission on neutral-atom
+hardware and analysis of the results.
 
-The repository root **is** the `pasqal-agent` plugin (superpowers-style layout):
+The repository root **is** the `neutral-atom-toolkit` plugin (superpowers-style layout):
 `skills/` holds the skills, `.claude-plugin/` holds both the plugin manifest and
 the marketplace catalog.
 
@@ -11,11 +12,11 @@ the marketplace catalog.
 
 ```
 /plugin marketplace add pasqal-io/agent-marketplace
-/plugin install pasqal-agent@pasqal
+/plugin install neutral-atom-toolkit@pasqal
 ```
 
-Skills are namespaced after install: `/pasqal-agent:qpu-submit`,
-`/pasqal-agent:noise-emulate`, etc. Claude also invokes them automatically from
+Skills are namespaced after install: `/neutral-atom-toolkit:qpu-submit`,
+`/neutral-atom-toolkit:noise-emulate`, etc. Claude also invokes them automatically from
 context ("submit this to the QPU", "run a noise emulation", …).
 
 While the repository is private, your git must be authenticated to GitHub

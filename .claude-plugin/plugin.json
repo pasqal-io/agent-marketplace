@@ -1,6 +1,6 @@
 {
-  "name": "pasqal-agent",
-  "description": "Pasqal Agent — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation (local / SLURM / cloud) → submission to FRESNEL_CAN1 (Pasqal Cloud) or Ruby (CEA/TGCC) → harvest & analysis.",
+  "name": "neutral-atom-toolkit",
+  "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation (local / SLURM / cloud) → submission to FRESNEL_CAN1 (Pasqal Cloud) or Ruby (CEA/TGCC) → harvest & analysis.",
   "version": "2.0.0",
   "author": {
     "name": "Pasqal"

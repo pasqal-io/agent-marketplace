@@ -2,7 +2,7 @@
 
 ## Repository layout
 
-The repo root is the `pasqal-agent` plugin:
+The repo root is the `neutral-atom-toolkit` plugin:
 
 ```
 .claude-plugin/
