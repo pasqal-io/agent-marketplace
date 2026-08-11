@@ -4,27 +4,35 @@ Home of the **Neutral Atom Toolkit**: agent skills for running Rydberg-atom QPU
 experiments end-to-end — from a paper or an idea to submission on neutral-atom
 hardware and analysis of the results.
 
-The repository root **is** the `neutral-atom-toolkit` plugin (superpowers-style layout):
-`skills/` holds the skills, `.claude-plugin/` holds both the plugin manifest and
-the marketplace catalog.
-
-## Install (Claude Code)
+The repository root **is** the `neutral-atom-toolkit` plugin (superpowers-style
+layout). One shared `skills/` directory follows the
+[Agent Skills](https://agentskills.io) open standard — all paths inside skills
+are relative to each skill's directory, no harness-specific variables — and
+thin per-agent manifests adapt it to each harness:
 
 ```
-/plugin marketplace add pasqal-io/agent-marketplace
-/plugin install neutral-atom-toolkit@pasqal
+skills/            the 7 skills (shared by every agent)
+.claude-plugin/    Claude Code plugin manifest + self-hosted marketplace catalog
+.codex-plugin/     OpenAI Codex manifest
+.kimi-plugin/      Kimi Code manifest (+ Kimi tool mapping)
+docs/agents/       per-agent install guides and adapter notes
 ```
 
-Skills are namespaced after install: `/neutral-atom-toolkit:qpu-submit`,
-`/neutral-atom-toolkit:noise-emulate`, etc. Claude also invokes them automatically from
+## Install
+
+| Agent | How |
+|---|---|
+| **Claude Code** | `/plugin marketplace add pasqal-io/agent-marketplace` then `/plugin install neutral-atom-toolkit@pasqal` |
+| **Kimi Code** | `/plugins install https://github.com/pasqal-io/agent-marketplace`, then `/new` |
+| **Codex** | manifest ready; discoverable in the Codex marketplace once this repo is public — [details](docs/agents/codex.md) |
+
+Skills are namespaced after install (e.g. `/neutral-atom-toolkit:qpu-submit`,
+`/neutral-atom-toolkit:noise-emulate`) and are also invoked automatically from
 context ("submit this to the QPU", "run a noise emulation", …).
 
 While the repository is private, your git must be authenticated to GitHub
-(SSH key or `gh auth login`) for the marketplace add to work.
-
-**Kimi Code**: `/plugins install https://github.com/pasqal-io/agent-marketplace`
-(then `/new`). **Codex**: manifest ready, discoverable once the repo is public —
-see [docs/agents/](docs/agents/) for details and other agents.
+(SSH key or `gh auth login`) for the installs to work. See
+[docs/agents/](docs/agents/) for all agents and adapter-author notes.
 
 ## Skills
 
