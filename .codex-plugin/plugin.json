@@ -1,0 +1,40 @@
+{
+  "name": "neutral-atom-toolkit",
+  "version": "2.0.0",
+  "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
+  "author": {
+    "name": "Pasqal",
+    "url": "https://github.com/pasqal-io"
+  },
+  "homepage": "https://github.com/pasqal-io/agent-marketplace",
+  "repository": "https://github.com/pasqal-io/agent-marketplace",
+  "license": "Apache-2.0",
+  "keywords": [
+    "quantum-computing",
+    "neutral-atoms",
+    "rydberg",
+    "pulser",
+    "qpu",
+    "emulation",
+    "physics"
+  ],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "Neutral Atom Toolkit",
+    "shortDescription": "Run neutral-atom QPU experiments end-to-end: spec, emulate, submit, analyze",
+    "longDescription": "Use the Neutral Atom Toolkit to turn a paper or an idea into an experiment spec, generate the Pulser sequence, validate it on cloud emulators, run noise emulations (locally, on SLURM, or on Pasqal Cloud), submit to a QPU (Pasqal Cloud devices, or Ruby at CEA/TGCC over SSH), and analyze the returned bitstrings against the noise model.",
+    "developerName": "Pasqal",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run a noise emulation of my Pulser sequence.",
+      "Turn this paper into an experiment spec and validate it on the emulator."
+    ],
+    "websiteURL": "https://github.com/pasqal-io/agent-marketplace"
+  }
+}

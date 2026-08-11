@@ -1,0 +1,33 @@
+{
+  "name": "neutral-atom-toolkit",
+  "version": "2.0.0",
+  "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
+  "author": {
+    "name": "Pasqal"
+  },
+  "homepage": "https://github.com/pasqal-io/agent-marketplace",
+  "license": "Apache-2.0",
+  "keywords": [
+    "quantum-computing",
+    "neutral-atoms",
+    "rydberg",
+    "pulser",
+    "qpu",
+    "emulation",
+    "physics"
+  ],
+  "skills": "./skills/",
+  "skillInstructions": "Kimi Code tool mapping for Neutral Atom Toolkit skills:\n\n- Skills may reference `${CLAUDE_PLUGIN_ROOT}` in paths. If it appears unsubstituted, resolve it to this plugin's installation directory (the repository root containing `skills/`).\n- When a skill says to ask the user which option to use (e.g. noise-emulate's execution-mode question: local / SLURM / Pasqal Cloud), call Kimi Code's `AskUserQuestion` tool with 2-4 concrete options, recommended option first and suffixed `(Recommended)`. Fall back to asking in plain text only if `AskUserQuestion` is unavailable.\n- When a skill says to use the `Read` tool, use Kimi Code's `Read`; shell commands go through `Bash`; content search through `Grep`; file discovery through `Glob`; URL fetches through `FetchURL`.\n- Long-running cloud polls (EMU batches, QPU jobs): prefer running the provided support scripts with `Bash` in the background or with generous timeouts, and re-poll with each script's `--resume` flag where offered rather than resubmitting.\n- Credentials are never hardcoded: respect the documented order (PASQAL_* environment variables, then ~/.pasqal_credentials.json). Never echo secrets.",
+  "interface": {
+    "displayName": "Neutral Atom Toolkit",
+    "shortDescription": "Run neutral-atom QPU experiments end-to-end: spec, emulate, submit, analyze",
+    "longDescription": "Use the Neutral Atom Toolkit to turn a paper or an idea into an experiment spec, generate the Pulser sequence, validate it on cloud emulators, run noise emulations (locally, on SLURM, or on Pasqal Cloud), submit to a QPU (Pasqal Cloud devices, or Ruby at CEA/TGCC over SSH), and analyze the returned bitstrings against the noise model.",
+    "developerName": "Pasqal",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/pasqal-io/agent-marketplace"
+  }
+}

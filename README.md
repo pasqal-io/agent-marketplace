@@ -22,7 +22,9 @@ context ("submit this to the QPU", "run a noise emulation", …).
 While the repository is private, your git must be authenticated to GitHub
 (SSH key or `gh auth login`) for the marketplace add to work.
 
-For other agents (Cursor, Codex, …) see [docs/agents/](docs/agents/).
+**Kimi Code**: `/plugins install https://github.com/pasqal-io/agent-marketplace`
+(then `/new`). **Codex**: manifest ready, discoverable once the repo is public —
+see [docs/agents/](docs/agents/) for details and other agents.
 
 ## Skills
 

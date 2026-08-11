@@ -10,6 +10,11 @@ else
   echo "  (claude CLI not found — skipping manifest validation; CI runs it)"
 fi
 
+echo "── Manifest JSON syntax (all agent adapters)"
+for f in .claude-plugin/*.json .codex-plugin/plugin.json .kimi-plugin/plugin.json; do
+  python3 -m json.tool "$f" >/dev/null || { echo "✘ invalid JSON: $f"; exit 1; }
+done
+
 echo "── Python syntax (templates excluded — they contain <<PLACEHOLDER>> markers)"
 find skills -name '*.py' -not -path '*/templates/*' -print0 | xargs -0 -n1 python3 -m py_compile
 find skills -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
