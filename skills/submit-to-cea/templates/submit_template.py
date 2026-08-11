@@ -83,9 +83,10 @@ def setup_pasqal_connection(logger):
             username=os.getenv("PASQAL_USERNAME"),
             password=os.getenv("PASQAL_PASSWORD"),
             project_id=os.getenv("PASQAL_PROJECT_ID"),
+            region=os.getenv("PASQAL_REGION"),
         )
         logger.info("Connected to Pasqal Cloud")
-        device = connection.fetch_available_devices()["FRESNEL_CAN1"]
+        device = connection.fetch_available_devices()[os.getenv("PASQAL_DEVICE", "FRESNEL_CAN1")]
         device.print_specs()
         return connection, device
     except Exception as e:

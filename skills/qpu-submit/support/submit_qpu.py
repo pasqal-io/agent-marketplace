@@ -299,8 +299,9 @@ def main():
     # ── Connect ───────────────────────────────────────────────────────────────
     print("Connecting to Pasqal Cloud SDK...")
     creds  = _load_credentials()
+    region = os.environ.get("PASQAL_REGION") or creds.get("region")
     sdk    = SDK(username=creds["username"], project_id=creds["project_id"],
-                 password=creds["password"])
+                 password=creds["password"], region=region)
     specs  = sdk.get_device_specs_dict()
     device = deserialize_device(specs[args.device])
     C6     = device.interaction_coeff

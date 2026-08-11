@@ -196,7 +196,7 @@ def plot(qpu_path: Path, emu_path: Path, out_path: Path,
         if has_qpu_matched else "nominal params (no QPU manifest)"
     )
     fig.suptitle(
-        f"N={qpu_N}×{qpu_N} quench — QPU (FRESNEL_CAN1) vs noisy EMU\n"
+        f"N={qpu_N}×{qpu_N} quench — QPU vs noisy EMU\n"
         f"$h_x/J={qpu_hx:.1f}$   {kw_str}   n_traj={n_traj}   EMU: {matched_note}",
         fontsize=9,
     )

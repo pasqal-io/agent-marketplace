@@ -50,14 +50,15 @@ _CLOCK_NS = 4  # FC1 sequence durations must be multiples of 4 ns
 
 def _load_credentials():
     """Priority: PASQAL_* env vars → ~/.pasqal_credentials.json."""
+    region = os.environ.get("PASQAL_REGION")
     env = {k: os.environ.get(f"PASQAL_{k.upper()}")
            for k in ("username", "password", "project_id")}
     if all(env.values()):
-        return env["username"], env["password"], env["project_id"]
+        return env["username"], env["password"], env["project_id"], region
     cred = Path.home() / ".pasqal_credentials.json"
     if cred.exists():
         d = json.loads(cred.read_text())
-        return d["username"], d["password"], d["project_id"]
+        return d["username"], d["password"], d["project_id"], region or d.get("region")
     raise FileNotFoundError(
         "Pasqal Cloud credentials not found. Either set PASQAL_USERNAME, "
         "PASQAL_PASSWORD and PASQAL_PROJECT_ID, or create "
@@ -169,15 +170,17 @@ def main():
     builder     = getattr(mod, args.fn_name)
     compute_obs = mod.compute_observable
 
-    username, password, project_id = _load_credentials()
+    username, password, project_id, region = _load_credentials()
     from pulser_pasqal import PasqalCloud
     from pasqal_cloud import SDK, EmulatorType, CreateJob
     from pulser.backend import EmulationConfig
     from pulser.backend.default_observables import BitStrings
 
-    conn   = PasqalCloud(username=username, password=password, project_id=project_id)
+    conn   = PasqalCloud(username=username, password=password, project_id=project_id,
+                         region=region)
     device = conn.fetch_available_devices()[args.device_name]
-    sdk    = SDK(username=username, password=password, project_id=project_id)
+    sdk    = SDK(username=username, password=password, project_id=project_id,
+                 region=region)
 
     noise, noise_params = _cloud_noise_model(device, args.T2, args.temperature,
                                              args.detuning_sigma)

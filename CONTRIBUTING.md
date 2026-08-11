@@ -44,6 +44,9 @@ docs/agents/          per-agent installation notes
    - Pasqal Cloud credentials: `PASQAL_USERNAME` / `PASQAL_PASSWORD` /
      `PASQAL_PROJECT_ID` env vars, then `~/.pasqal_credentials.json` (chmod 600).
      Never any other mechanism, never hardcoded.
+   - Device selection: default `FRESNEL_CAN1`, always overridable (`--device` /
+     `--device-name` / `spec["device"]`); region via `PASQAL_REGION` (`fr`
+     default, `sa` for SA1). Never hardcode a device inside a script body.
    - Cluster specifics (SLURM partition/account, remote hosts) are always
      user-supplied variables with neutral defaults — never bake in a site value.
 

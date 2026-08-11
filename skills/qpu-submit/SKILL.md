@@ -1,13 +1,17 @@
 ---
 name: qpu-submit
-description: Submit a Pulser EOM quench sequence to the FRESNEL_CAN1 QPU on the Pasqal Cloud, including an automatic pre-calibration batch (Rydberg spectroscopy + Rabi oscillations on a 7-atom triangular lattice). Handles the full workflow end-to-end — calibration, experiment submission, result collection, and optionally a comparison plot with noise-model emulation. Triggered by phrases like "submit to QPU", "run on QPU", "send to cloud QPU", "QPU experiment", "compare QPU with noise model".
+description: Submit a Pulser EOM quench sequence to a QPU on the Pasqal Cloud (FRESNEL_CAN1 by default; SA1 via --device and PASQAL_REGION=sa), including an automatic pre-calibration batch (Rydberg spectroscopy + Rabi oscillations on a 7-atom triangular lattice). Handles the full workflow end-to-end — calibration, experiment submission, result collection, and optionally a comparison plot with noise-model emulation. Triggered by phrases like "submit to QPU", "run on QPU", "send to cloud QPU", "QPU experiment", "compare QPU with noise model".
 argument-hint: "[physics-params or description]"
 ---
 
 # qpu-submit
 
-This skill submits an EOM quench experiment to the FRESNEL_CAN1 QPU with a
-pre-calibration batch. The calibration measures Rabi and Rydberg spectroscopy
+This skill submits an EOM quench experiment to a Pasqal Cloud QPU with a
+pre-calibration batch. Device selection: `--device` (default `FRESNEL_CAN1`);
+for **SA1** also set `PASQAL_REGION=sa` and use a project with SA1 access. The
+workflow assumes an EOM-capable rydberg_global channel — check the live specs of
+any other target first. **Ruby (CEA)** is not on the Pasqal Cloud: use the
+`submit-to-cea` skill instead. The calibration measures Rabi and Rydberg spectroscopy
 on a fixed 7-atom triangular lattice, extracts omega and detuning offsets, and
 injects compensated values into the main experiment jobs.
 
@@ -253,7 +257,7 @@ python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/plot_qpu_vs_emu.py \
 
 | Issue | Fix |
 |-------|-----|
-| `FRESNEL_CAN1 not available` | QPU may be offline. Check `sdk.get_device_specs_dict().keys()`. |
+| `<device> not available` | QPU may be offline, or wrong region (SA1 needs `PASQAL_REGION=sa`). Check `sdk.get_device_specs_dict().keys()`. |
 | Calibration fit fails | Try `--no-calibration` to skip and use nominal values. The fit can fail if queue noise is high; re-run calibration alone. |
 | Jobs stuck in PENDING | Normal — QPU has a queue. Use `--wait` on `collect_qpu.py` to poll automatically. |
 | Large delta_offset from calibration | If `|delta_offset|/(2π) > 0.5 MHz`, flag to the user — this is above typical drift and may indicate a hardware issue. |

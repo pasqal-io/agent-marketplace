@@ -32,7 +32,7 @@ For other agents (Cursor, Codex, …) see [docs/agents/](docs/agents/).
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec | Python + `pulser` |
 | `validate-emu` | Cloud EMU_MPS noiseless + noisy scan → go/no-go for QPU | Pasqal Cloud account |
 | `noise-emulate` | Noise emulation with the live device noise model. Asks where to run: **locally**, **via SLURM on a GPU cluster (recommended)**, or **via Pasqal Cloud** (no GPU needed) | Pasqal Cloud account; GPU/cluster only for the first two modes |
-| `qpu-submit` | Calibrated submission to FRESNEL_CAN1 (Pasqal Cloud), collection, comparison plots | Pasqal Cloud account with FC1 access |
+| `qpu-submit` | Calibrated submission to a Pasqal Cloud QPU (default FRESNEL_CAN1; SA1 via `PASQAL_REGION=sa`), collection, comparison plots | Pasqal Cloud account with QPU access |
 | `submit-to-cea` | Parametric experiments on Ruby (CEA/TGCC) over SSH — includes a first-time-access guide (GENCI project, TGCC account, SSH setup) | A TGCC account; the skill walks new users through getting one |
 | `harvest-and-analyze` | Collect QPU bitstrings, compute observable, accept/reject vs EMU | Pasqal Cloud account |
 
@@ -52,7 +52,8 @@ For other agents (Cursor, Codex, …) see [docs/agents/](docs/agents/).
    export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
    ```
 
-   or `~/.pasqal_credentials.json` (`chmod 600`).
+   or `~/.pasqal_credentials.json` (`chmod 600`). Targeting **SA1**? Also set
+   `PASQAL_REGION=sa` (or `"region": "sa"` in the credentials file).
    **Never commit credentials to this or any repo.**
 
 3. **For `submit-to-cea` only** — a TGCC account and an `irene` alias in

@@ -176,7 +176,7 @@ def _noise_box_text(nm_json: str) -> str:
     n_psd = len(nm_dict.get("detuning_hf", []))
 
     return (
-        f"FRESNEL_CAN1 noise model\n"
+        f"Device noise model\n"
         f"  σ_Ω = {nm_dict.get('amp_sigma', 0):.4f}   "
         f"σ_δ = {nm_dict.get('detuning_sigma', 0):.3f} rad/µs\n"
         f"  γ_z = {nm_dict.get('dephasing_rate', 0):.4f}   "
@@ -344,7 +344,7 @@ def plot(result_path: Path, out_path: Path, coverage: float = 0.75):
         )
 
     # ── Title ──────────────────────────────────────────────────────────────
-    title_parts = ["FRESNEL_CAN1 noise emulation"]
+    title_parts = ["Neutral-atom noise emulation"]
     if seq_kw:
         title_parts.append("  |  " + "  ".join(f"{k}={v}" for k, v in seq_kw.items()))
     if sq and L:

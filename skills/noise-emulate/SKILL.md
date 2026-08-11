@@ -1,14 +1,23 @@
 ---
 name: noise-emulate
-description: Run a noise emulation of a Pulser sequence using the FRESNEL_CAN1 noise model fetched live from the Pasqal Cloud SDK. Three execution modes — local machine, SLURM GPU cluster (recommended), or Pasqal Cloud EMU_MPS emulators. Produces noiseless + noisy curves with a quantile envelope. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise model", "noise envelope", "run on GPU with noise".
+description: Run a noise emulation of a Pulser sequence using the target device's noise model fetched live from the Pasqal Cloud SDK (FRESNEL_CAN1 by default; SA1 supported). Three execution modes — local machine, SLURM GPU cluster (recommended), or Pasqal Cloud EMU_MPS emulators. Produces noiseless + noisy curves with a quantile envelope. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise model", "noise envelope", "run on GPU with noise".
 argument-hint: "[sequence-description-or-file]"
 ---
 
 # noise-emulate
 
-Emulate a Pulser sequence's time evolution with the FRESNEL_CAN1 noise model
-(fetched live from the Pasqal Cloud — includes SPAM, amplitude, dephasing,
-detuning, Doppler, relaxation). The user never needs to touch the Python
+Emulate a Pulser sequence's time evolution with the target device's noise
+model (fetched live from the Pasqal Cloud — includes SPAM, amplitude, dephasing,
+detuning, Doppler, relaxation).
+
+**Choosing the device** — all modes accept `--device-name` (default `FRESNEL_CAN1`):
+- **FRESNEL_CAN1** (default): no extra setup.
+- **SA1**: pass `--device-name SA1` and set `PASQAL_REGION=sa` (SA1 lives in the
+  `sa` cloud region and is invisible without it); your project must have SA1
+  access. Verify the exact device key with `sdk.get_device_specs_dict().keys()`.
+- **Ruby (CEA/TGCC)**: not on the Pasqal Cloud SDK — no live noise model is
+  available. QPU runs go through `submit-to-cea`; for emulation of Ruby-style
+  sequences, build against `AnalogDevice` constraints instead. The user never needs to touch the Python
 scripts: this skill reads their sequence, writes the builder, runs everything,
 and shows the result.
 
@@ -223,7 +232,7 @@ Save figures as `.png` only.
 ## Step 4 — Report to the user
 
 1. The noise model values printed during the run (copy the table) — these come
-   as-shipped from the live FRESNEL_CAN1 device spec.
+   as-shipped from the live device spec.
 2. Key observations: how wide is the noise band, does the noiseless curve lie
    within it, signal retention at the peak.
 3. If `--cal-offsets` was used and the calibration band is much wider than the
@@ -237,7 +246,7 @@ Save figures as `.png` only.
 | Issue | Fix |
 |-------|-----|
 | `Pasqal credentials not found` | See **First-time setup** above |
-| `FRESNEL_CAN1 not in available devices` | Cloud SDK connection failed or device hidden from the project; retry / check project |
+| `<device> not in available devices` | Cloud SDK connection failed or device hidden from the project (for SA1: is `PASQAL_REGION=sa` set?); retry / check project |
 | `build_sequence not found` | Pass `--fn-name <name>` |
 | Builder returned a parametric sequence | Call `.build(...)` inside the builder |
 | GPU OOM (local/SLURM) | Reduce `--max-chi`; start at 64–128 |

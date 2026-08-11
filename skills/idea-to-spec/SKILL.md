@@ -24,7 +24,7 @@ and everything downstream works without modification.
     "arxiv_id": "XXXX.XXXXX",
     "year": 2024
   },
-  "device": "FRESNEL_CAN1",
+  "device": "FRESNEL_CAN1",     // or "SA1" (needs PASQAL_REGION=sa); Ruby runs route via submit-to-cea
   "register": {
     "geometry": "triangular_rhombus",
     "N_atoms": 36,

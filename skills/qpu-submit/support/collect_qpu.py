@@ -154,8 +154,9 @@ def main():
     from pasqal_cloud import SDK
     from pulser.json.abstract_repr.deserializer import deserialize_device
     creds = _load_credentials()
+    region = os.environ.get("PASQAL_REGION") or creds.get("region")
     sdk   = SDK(username=creds["username"], project_id=creds["project_id"],
-                password=creds["password"])
+                password=creds["password"], region=region)
 
     # ── Fetch SPAM parameters from device spec (unless overridden) ────────────
     if args.eps is None or args.eprime is None:

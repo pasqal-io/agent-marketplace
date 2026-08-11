@@ -157,7 +157,7 @@ Summarise:
 | Issue | Fix |
 |---|---|
 | `Pasqal credentials not found` | Create `~/.pasqal_credentials.json` (see `noise-emulate` setup) |
-| `FRESNEL_CAN1 not in available devices` | Cloud connection failed or device offline. Retry. |
+| `<device> not in available devices` | Cloud connection failed or device offline; for SA1, is `PASQAL_REGION=sa` set? Retry. |
 | `build_sequence` not found in seq file | Check `spec["builder_fn"]` matches the function name |
 | `seq.to_abstract_repr()` fails | Sequence violates device constraints — check spacing and duration |
 | All observables are NaN | `compute_observable` returns nan for empty counts; check batch status |

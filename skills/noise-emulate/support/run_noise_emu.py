@@ -218,8 +218,9 @@ def fetch_fcan1(device_name="FRESNEL_CAN1",
     import dataclasses
     from pasqal_cloud import SDK
     creds  = _load_credentials()
+    region = os.environ.get("PASQAL_REGION") or creds.get("region")
     sdk    = SDK(username=creds["username"], project_id=creds["project_id"],
-                 password=creds["password"])
+                 password=creds["password"], region=region)
     specs  = sdk.get_device_specs_dict()
     if device_name not in specs:
         raise ValueError(f"{device_name} not in available devices: {list(specs.keys())}")
