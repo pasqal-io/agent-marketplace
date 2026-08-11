@@ -23,8 +23,12 @@ and shows the result.
 
 ## Support scripts
 
+Paths like `support/…` below are relative to **this skill's directory** —
+expand them to the skill's absolute location when running commands from your
+project directory (keep outputs like `--out-dir` in your project, not the plugin).
+
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/
+support/
   run_noise_emu.py          ← MPS trajectory runner (local + SLURM modes)
   plot_noise_emu.py         ← trajectory envelope figure
   submit_slurm.sh           ← turnkey SLURM launcher (one GPU job per trajectory)
@@ -74,7 +78,7 @@ then `chmod 600 ~/.pasqal_credentials.json`.
 ```bash
 python3 -m venv ~/pulser-venv
 source ~/pulser-venv/bin/activate
-pip install -r ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/requirements.txt
+pip install -r support/requirements.txt
 ```
 Tested versions (2026-06): pulser 1.8.0, pasqal-cloud 0.22.0, emu-mps 2.7.5,
 torch 2.9.0. For GPU, install PyTorch for your CUDA version from pytorch.org first.
@@ -148,7 +152,7 @@ density if no observable is specified, and say so.
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
-python ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/run_noise_emu.py \
+python support/run_noise_emu.py \
     --seq-file    seq_builder.py \
     --fn-name     build_sequence \
     --seq-kwargs  '{"N": 6, "hx": 4.0, "t": 4000}' \
@@ -176,7 +180,7 @@ SEQKWARGS='{"N":6,"hx":4.0,"t":4000}' \
 OUTDIR=results/run1 \
 NTRAJ=40 CHI=128 \
 PARTITION=<your_partition> GRES=gpu:a100:1 ACCOUNT=<your_account> \
-bash ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/submit_slurm.sh
+bash support/submit_slurm.sh
 ```
 
 The launcher (1) fetches the noise model once on the login node (compute nodes
@@ -194,7 +198,7 @@ convergence at the longest evolution time.
 ### Mode 3 — Pasqal Cloud
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/run_noise_emu_cloud.py \
+python support/run_noise_emu_cloud.py \
     --seq-file   my_experiment_sequence.py \
     --seq-kwargs '{"N": 5, "hx": 6.0}' \
     --t-max      4000 \
@@ -216,11 +220,11 @@ session dies mid-poll, re-run with `--resume` and the same `--out-dir`.
 
 ```bash
 # local / SLURM (.npz):
-python ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/plot_noise_emu.py \
+python support/plot_noise_emu.py \
     --result results/FCAN1_*.npz --out results/noise_plot.png --coverage 0.75
 
 # cloud (.json):
-python ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/plot_noise_emu_cloud.py \
+python support/plot_noise_emu_cloud.py \
     --results results/noise_emu_cloud/noise_emu_cloud.json \
     --out     results/noise_emu_cloud/noise_emu_cloud.png
 ```

@@ -34,10 +34,12 @@ docs/agents/          per-agent installation notes
      YAML (two flow sequences) and silently strips ALL metadata at runtime.
      CI rejects unquoted hints.
 
-3. **Paths**: reference files inside the plugin as
-   `${CLAUDE_PLUGIN_ROOT}/skills/<name>/...` — never absolute paths, never
-   `~/.claude/skills/...`. Scripts locate siblings relative to themselves
-   (`$(dirname "${BASH_SOURCE[0]}")` / `Path(__file__).parent`).
+3. **Paths**: reference bundled files **relative to the skill's directory**
+   (`support/foo.py`, `templates/bar.sh`) with a note that they resolve against
+   the skill's location — never absolute paths, never `~/.claude/skills/...`,
+   and never harness-specific variables like `${CLAUDE_PLUGIN_ROOT}` (CI rejects
+   them; they break Codex/Kimi/Cursor portability). Scripts locate siblings
+   relative to themselves (`$(dirname "${BASH_SOURCE[0]}")` / `Path(__file__).parent`).
 
 4. **Environment conventions**:
    - Python venv: `${PULSER_VENV:-$HOME/pulser-venv}`.

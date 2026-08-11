@@ -56,7 +56,7 @@ TGCC access is granted per person, per project. If the user has never connected:
    ssh irene "cd ~ && unzip -o Pulser-1.6.5.zip && unzip -o Pulser-myQLM-0.8.3.zip"
    ssh irene "mkdir -p ~/cea_deploy"
    # Copy the env setup script and run it inside the container:
-   scp ${CLAUDE_PLUGIN_ROOT}/skills/submit-to-cea/support/setup_cea_env.sh irene:~/cea_deploy/
+   scp support/setup_cea_env.sh irene:~/cea_deploy/
    ssh irene 'pcocc-rs run ccc-quantum -- bash cea_deploy/setup_cea_env.sh'
    ```
 
@@ -135,11 +135,14 @@ Ask the user for the following (offer sensible defaults):
 
 ## Phase 3 — Generate files locally
 
+Template and support paths below (`templates/…`, `support/…`) are relative to
+**this skill's directory** — expand them to its absolute location.
+
 Create `cea_bundle_<name>/` in the current working directory.
 
 ### 3.1 — submit_<name>.py
 
-Read template: `${CLAUDE_PLUGIN_ROOT}/skills/submit-to-cea/templates/submit_template.py`
+Read template: `templates/submit_template.py`
 
 Replace every `<<PLACEHOLDER>>`:
 
@@ -159,7 +162,7 @@ Write to `cea_bundle_<name>/cea_deploy/submit_<name>.py`.
 
 ### 3.2 — launch_cea_jobs.sh
 
-Read template: `${CLAUDE_PLUGIN_ROOT}/skills/submit-to-cea/templates/launch_template.sh`
+Read template: `templates/launch_template.sh`
 
 Replace:
 - `<<EXPERIMENT_NAME>>` → experiment name
@@ -171,7 +174,7 @@ Write to `cea_bundle_<name>/cea_deploy/launch_cea_jobs.sh`.
 
 ### 3.3 — submit_cea.sh
 
-Read template: `${CLAUDE_PLUGIN_ROOT}/skills/submit-to-cea/templates/submit_cea_template.sh`
+Read template: `templates/submit_cea_template.sh`
 
 Replace:
 - `<<EXPERIMENT_NAME>>` → experiment name
@@ -183,7 +186,7 @@ Write to `cea_bundle_<name>/cea_deploy/submit_cea.sh`.
 
 ### 3.4 — utils/sequence_utils.py with new builder
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/skills/submit-to-cea/support/utils/sequence_utils.py` verbatim
+1. Read `support/utils/sequence_utils.py` verbatim
 2. Append the new builder function at the very end (separated by two blank lines)
 
 Write to `cea_bundle_<name>/cea_deploy/utils/sequence_utils.py`.
@@ -191,7 +194,7 @@ Write to `cea_bundle_<name>/cea_deploy/utils/sequence_utils.py`.
 ### 3.5 — Copy supporting files
 
 ```bash
-SKILL_DIR="${CLAUDE_PLUGIN_ROOT}/skills/submit-to-cea"
+SKILL_DIR="<absolute path to this skill's directory>"
 BUNDLE=cea_bundle_<name>
 
 cp $SKILL_DIR/support/utils/__init__.py       $BUNDLE/cea_deploy/utils/__init__.py

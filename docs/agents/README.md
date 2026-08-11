@@ -18,7 +18,6 @@ Claude Code and increasingly by other coding agents.
 Some skill content currently uses Claude Code-specific mechanics that other
 agents do not resolve:
 
-- `${CLAUDE_PLUGIN_ROOT}` path substitution in SKILL.md bodies,
 - the `AskUserQuestion` interactive tool (used e.g. by `noise-emulate` for
   backend selection — other agents should fall back to asking in plain text),
 - Claude-specific frontmatter extensions (`argument-hint`,

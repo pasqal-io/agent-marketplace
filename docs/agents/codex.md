@@ -16,10 +16,3 @@ public and submitted to `openai/plugins`. While the repository is private, the
 manifest is in place but the toolkit is not yet discoverable in Codex — check
 Codex's documentation for custom/private plugin sources, or use Claude Code /
 Kimi Code in the meantime.
-
-## Known limitation
-
-Skill bodies reference support files via `${CLAUDE_PLUGIN_ROOT}`, which Codex
-does not substitute. Until the skills are fully path-neutralized (tracked in
-[README.md](README.md)), instruct the agent that this variable means the
-plugin's installation directory.

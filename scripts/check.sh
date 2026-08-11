@@ -24,6 +24,11 @@ if grep -rnEI "(password|token|api_key)[[:space:]]*[:=][[:space:]]*['\"][^'\"$<{
   echo "✘ potential secret found"; exit 1
 fi
 
+echo "── Path portability (no harness-specific variables in skills)"
+if grep -rn "CLAUDE_PLUGIN_ROOT" skills; then
+  echo "✘ skills must use paths relative to the skill directory (see CONTRIBUTING)"; exit 1
+fi
+
 echo "── Frontmatter sanity (argument-hint must be quoted — YAML flow-seq trap)"
 if grep -rn '^argument-hint: \[' skills --include=SKILL.md; then
   echo "✘ unquoted argument-hint found (breaks YAML when two [..] groups are present)"; exit 1

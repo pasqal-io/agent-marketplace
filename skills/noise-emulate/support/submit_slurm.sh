@@ -14,7 +14,7 @@
 #   SEQKWARGS='{"N":6,"hx":4.0,"t":4000}' \
 #   OUTDIR=results/my_run \
 #   NTRAJ=40 \
-#   bash "${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/submit_slurm.sh"
+#   bash <skill-dir>/support/submit_slurm.sh
 #
 # Overridable env vars (defaults in brackets):
 #   FN_NAME [build_sequence]  NTRAJ [20]  CHI [128]  NTIMES [75]  DT [10]

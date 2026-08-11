@@ -15,8 +15,12 @@ and decide whether the signal survives FC1 noise well enough to justify QPU shot
 
 ## Support scripts
 
+Paths like `support/…` below are relative to **this skill's directory** —
+expand them to the skill's absolute location when running commands from your
+project directory (keep outputs like `--out-dir` in your project, not the plugin).
+
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/validate-emu/support/
+support/
   run_emu_scan.py      ← cloud scan submission, polling, observable computation
   plot_emu_scan.py     ← scan curve figure
 ```
@@ -54,7 +58,7 @@ If it fails, stop and fix the sequence file before proceeding.
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
-python ${CLAUDE_PLUGIN_ROOT}/skills/validate-emu/support/run_emu_scan.py \
+python support/run_emu_scan.py \
     --spec     <experiment_name>_spec.json \
     --seq-file <experiment_name>_sequence.py \
     --out-dir  <spec.output_dir>/emu/ \
@@ -79,7 +83,7 @@ subset of fields cloud EMU_MPS supports. The effective values are recorded in
 **Typical wall time**: a few minutes to a few hours depending on cloud queue depth.
 Run in the background for large scans:
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/validate-emu/support/run_emu_scan.py ... \
+python support/run_emu_scan.py ... \
     > <spec.output_dir>/emu/run.log 2>&1 &
 tail -f <spec.output_dir>/emu/run.log
 ```
@@ -89,7 +93,7 @@ tail -f <spec.output_dir>/emu/run.log
 ## Step 3 — Plot the scan
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/validate-emu/support/plot_emu_scan.py \
+python support/plot_emu_scan.py \
     --noiseless <spec.output_dir>/emu/emu_noiseless.json \
     --noisy     <spec.output_dir>/emu/emu_noise.json \
     --out       <spec.output_dir>/emu/emu_scan.png \

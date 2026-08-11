@@ -17,9 +17,13 @@ injects compensated values into the main experiment jobs.
 
 ## Support scripts
 
+Paths like `support/…` below are relative to **this skill's directory** —
+expand them to the skill's absolute location when running commands from your
+project directory (keep outputs like `--out-dir` in your project, not the plugin).
+
 All scripts live in:
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/
+support/
   submit_qpu.py        ← calibration + submission
   collect_qpu.py       ← result collection (async)
   plot_qpu_vs_emu.py   ← QPU + emulation comparison figure
@@ -52,7 +56,7 @@ R = (hx × 2 × C6 / (4 × omega))^(1/6)
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
-python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/submit_qpu.py \
+python support/submit_qpu.py \
     --N 5 \
     --hx 6.0 \
     --omega 12.566370614359172 \
@@ -105,11 +109,11 @@ print(f"{done}/{len(batch.ordered_jobs)} jobs done")
 
 **Collect when ready:**
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/collect_qpu.py \
+python support/collect_qpu.py \
     --manifest results/qpu/hx6_N5/QPU_N5_hx6.0_t4000_<timestamp>_manifest.json
 
 # Or wait until all jobs finish (polls every 60 s):
-python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/collect_qpu.py \
+python support/collect_qpu.py \
     --manifest results/qpu/hx6_N5/..._manifest.json \
     --wait
 ```
@@ -127,7 +131,7 @@ Saves a `.npz` alongside the manifest with:
 If a noise-model emulation `.npz` is available from the `noise-emulate` skill:
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/plot_qpu_vs_emu.py \
+python support/plot_qpu_vs_emu.py \
     --qpu results/qpu/hx6_N5/QPU_N5_hx6.0_t4000_<timestamp>_manifest.npz \
     --emu results/emu/FCAN1_N5_hx6.0_t4000_ntraj40_chi512_<timestamp>.npz \
     --out results/comparison_hx6_N5.png \
@@ -220,7 +224,7 @@ def build_sequence(
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
-python ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/run_noise_emu.py \
+python ../noise-emulate/support/run_noise_emu.py \
     --seq-file    seq_builder.py \
     --fn-name     build_sequence \
     --seq-kwargs  '{"N": 5, "hx": 6.0, "t": 4000}' \
@@ -234,7 +238,7 @@ python ${CLAUDE_PLUGIN_ROOT}/skills/noise-emulate/support/run_noise_emu.py \
 ### Run QPU submission
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/submit_qpu.py \
+python support/submit_qpu.py \
     --N 5 --hx 6.0 --t-max 4000 --shots 300 --n-times 75 \
     --out-dir results/qpu/hx6_N5/
 ```
@@ -242,10 +246,10 @@ python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/submit_qpu.py \
 ### Wait for QPU results, collect, and plot
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/collect_qpu.py \
+python support/collect_qpu.py \
     --manifest results/qpu/hx6_N5/QPU_N5_hx6.0_..._manifest.json --wait
 
-python ${CLAUDE_PLUGIN_ROOT}/skills/qpu-submit/support/plot_qpu_vs_emu.py \
+python support/plot_qpu_vs_emu.py \
     --qpu results/qpu/hx6_N5/QPU_N5_hx6.0_..._manifest.npz \
     --emu results/emu/FCAN1_N5_hx6.0_t4000_ntraj40_chi512_<timestamp>.npz \
     --out results/comparison_hx6_N5.png

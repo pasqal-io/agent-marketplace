@@ -62,8 +62,7 @@ Study these before writing. They are the ground truth for FC1-compatible code.
 | Ring S(k) structure factor | `chiral_potts_n21_sequence.py::structure_factor_k` |
 | `with_automatic_layout` guard | `chiral_potts_n21_sequence.py::build_ring_register` |
 
-The `references/` directory is bundled with this skill at:
-`${CLAUDE_PLUGIN_ROOT}/skills/spec-to-sequence/references/`
+The `references/` directory is bundled inside this skill's own directory.
 
 ---
 

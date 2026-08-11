@@ -18,9 +18,9 @@ each new user must still provide.
 
 ## Changes made during extraction
 
-1. **Paths**: all skill-internal references use `${CLAUDE_PLUGIN_ROOT}` (resolved
-   by Claude Code inside plugins); scripts locate their siblings relative to
-   themselves.
+1. **Paths**: all skill-internal references are relative to the skill's own
+   directory (portable across agent harnesses); scripts locate their siblings
+   relative to themselves.
 2. **Python venv**: parameterized as `${PULSER_VENV:-~/pulser-venv}`.
 3. **Credentials**: uniform loading everywhere — `PASQAL_USERNAME` /
    `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID` env vars, then

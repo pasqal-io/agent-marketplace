@@ -13,8 +13,12 @@ EMU baseline. The accept/reject decision is: does QPU agree with the noise model
 
 ## Support scripts
 
+Paths like `support/…` below are relative to **this skill's directory** —
+expand them to the skill's absolute location when running commands from your
+project directory (keep outputs like `--out-dir` in your project, not the plugin).
+
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/harvest-and-analyze/support/
+support/
   harvest_qpu.py       ← collect, compute observable, compare, verdict
   plot_qpu_vs_emu.py   ← QPU vs noiseless/noisy EMU figure
 ```
@@ -61,7 +65,7 @@ reports their status. Re-run later to fill gaps.
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
-python ${CLAUDE_PLUGIN_ROOT}/skills/harvest-and-analyze/support/harvest_qpu.py \
+python support/harvest_qpu.py \
     --spec      <experiment_name>_spec.json \
     --seq-file  <experiment_name>_sequence.py \
     --batch-ids <spec.output_dir>/qpu/batch_ids.json \
@@ -110,7 +114,7 @@ doesn't match either format, reformat it before running.
 ## Step 3 — Generate the comparison figure
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/skills/harvest-and-analyze/support/plot_qpu_vs_emu.py \
+python support/plot_qpu_vs_emu.py \
     --qpu       <spec.output_dir>/qpu/qpu_results.json \
     --noiseless <spec.output_dir>/emu/emu_noiseless.json \
     --noisy     <spec.output_dir>/emu/emu_noise.json \

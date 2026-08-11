@@ -2,8 +2,8 @@
 
 The Kimi manifest lives at `.kimi-plugin/plugin.json`. It points Kimi Code at
 the shared `skills/` directory and adds Kimi-specific tool mapping via
-`skillInstructions` (including how to resolve `${CLAUDE_PLUGIN_ROOT}` paths and
-which tool to use for the noise-emulate backend question).
+`skillInstructions` (tool mapping, e.g. which tool to use for the
+noise-emulate backend question).
 
 ## Install
 
