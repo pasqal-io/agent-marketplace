@@ -106,8 +106,8 @@ The script:
 }
 ```
 
-If the batch_ids file from `qpu-submit` or another launcher script
-doesn't match either format, reformat it before running.
+`qpu-submit` writes `per_point`. A different launcher script producing neither
+format must be reformatted before running.
 
 ---
 

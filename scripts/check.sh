@@ -20,8 +20,8 @@ echo "── Manifest conformance (versions aligned, Codex catalog schema)"
 python3 scripts/check_manifests.py
 
 echo "── Python syntax (templates excluded — they contain <<PLACEHOLDER>> markers)"
-find skills -name '*.py' -not -path '*/templates/*' -print0 | xargs -0 -n1 python3 -m py_compile
-find skills -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+find skills examples -name '*.py' -not -path '*/templates/*' -print0 | xargs -0 -n1 python3 -m py_compile
+find skills examples -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 
 echo "── Secret scan"
 if grep -rnEI "(password|token|api_key)[[:space:]]*[:=][[:space:]]*['\"][^'\"$<{]|glpat-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH) PRIVATE" skills .claude-plugin; then

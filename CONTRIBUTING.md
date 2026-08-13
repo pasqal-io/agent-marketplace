@@ -19,9 +19,15 @@ skills/<name>/
   support/            scripts the skill runs (Python/bash)
   templates/          files the skill instantiates
   references/         reference implementations the skill reads
+examples/<name>/      worked experiments: a spec + sequence pair, as the
+                      pipeline would produce them
 scripts/check.sh      repo health checks (CI runs this)
 docs/agents/          per-agent installation notes
 ```
+
+Skills carry no experiment of their own. Physics belongs in `examples/`, reached
+through the `experiment_spec.json` contract — see
+`examples/square_lattice_eom_quench/README.md` for why.
 
 ## Adding or changing a skill
 

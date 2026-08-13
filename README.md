@@ -41,7 +41,7 @@ See [docs/agents/](docs/agents/) for all agents and adapter-author notes.
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec | Python + `pulser` |
 | `validate-emu` | Cloud EMU_MPS noiseless + noisy scan → go/no-go for QPU | Pasqal Cloud account |
 | `noise-emulate` | Noise emulation with the live device noise model. Asks where to run: **locally**, **via SLURM on a GPU cluster (recommended)**, or **via Pasqal Cloud** (no GPU needed) | Pasqal Cloud account; GPU/cluster only for the first two modes |
-| `qpu-submit` | Calibrated submission to a Pasqal Cloud QPU (default FRESNEL_CAN1; SA1 via `PASQAL_REGION=sa`), collection, comparison plots | Pasqal Cloud account with QPU access |
+| `qpu-submit` | Calibrated submission of a spec + sequence to a Pasqal Cloud QPU (default FRESNEL_CAN1; SA1 via `PASQAL_REGION=sa`) | Pasqal Cloud account with QPU access |
 | `submit-to-cea` | Parametric experiments on Ruby (CEA/TGCC) over SSH — includes a first-time-access guide (GENCI project, TGCC account, SSH setup) | A TGCC account; the skill walks new users through getting one |
 | `harvest-and-analyze` | Collect QPU bitstrings, compute observable, accept/reject vs EMU | Pasqal Cloud account |
 

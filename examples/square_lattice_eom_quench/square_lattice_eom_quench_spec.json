@@ -1,0 +1,50 @@
+{
+  "experiment_name": "square_lattice_eom_quench",
+  "version": "1.0",
+  "paper": {
+    "title": "Transverse-field Ising quench on a square Rydberg lattice",
+    "authors": "unpublished — internal test case",
+    "arxiv_id": null,
+    "year": null
+  },
+  "device": "FRESNEL_CAN1",
+  "register": {
+    "geometry": "square",
+    "N_atoms": 25,
+    "builder_params": {
+      "L": 5,
+      "spacing_note": "derived from hx, omega and C6 by the builder, not fixed here"
+    }
+  },
+  "channel": {
+    "type": "rydberg_global",
+    "eom_mode": true
+  },
+  "pulse": {
+    "type": "eom_quench",
+    "omega_max_mhz": 2.0
+  },
+  "scan": {
+    "variable": "t_ns",
+    "values": [16, 100, 300, 600, 1000, 1500, 2000, 2600, 3200, 4000],
+    "fixed_params": {
+      "N": 5,
+      "hx": 6.0,
+      "omega_max_mhz": 2.0
+    }
+  },
+  "observable": {
+    "type": "occupation",
+    "description": "lattice-averaged Rydberg occupation <n> vs quench duration",
+    "fn_name": "compute_observable",
+    "expected_max": 0.5
+  },
+  "validation": {
+    "noise_retention_min": 0.5
+  },
+  "shots_per_point": 300,
+  "output_dir": "results/square_lattice_eom_quench",
+  "sequence_file": "square_lattice_eom_quench_sequence.py",
+  "builder_fn": "build_sequence",
+  "_notes": "hx/J = 6 is the paramagnetic regime, where the FC1 noise model tracks hardware most closely — the reason this case was used to validate the pipeline. The lattice spacing is not a free parameter: the builder derives it from hx, omega and the live C6 so that the interaction sets the requested hx/J. The original submission scanned 75 time points in a single parametric batch; this spec uses 10 points because the pipeline submits one batch per scan point."
+}

@@ -63,7 +63,7 @@ python run_noise_emu.py \\
     --n-times     75 \\
     --out-dir     results/ \\
     --cal-offsets '{"omega_offset": 0.03, "delta_offset": 0.2, "R_offset": 0.01}' \\
-    --qpu-manifest results/qpu/QPU_N5_hx6.0_..._manifest.json
+    --qpu-manifest results/<experiment>/qpu/batch_ids.json
 """
 
 import argparse
@@ -463,7 +463,7 @@ def main():
                              '"R_offset": 0.01}\'. '
                              'Each param is swept at [nominal−mag, nominal+mag].')
     parser.add_argument("--qpu-manifest", default=None,
-                        help='Path to QPU manifest JSON from submit_qpu.py. When given, '
+                        help='Path to batch_ids.json from submit_qpu.py. When given, '
                              'runs an additional N noisy trajectories at the measured '
                              'calibration offsets so the emulation matches what the QPU '
                              'actually executed.')
@@ -695,6 +695,11 @@ def main():
             "delta_offset": delta_off / (2 * np.pi),   # rad/µs → MHz-like builder units
             "R_offset":     r_off,
         }
+        # qpu-submit records the kwargs it actually passed to the builder. Prefer
+        # them: the derivation above cannot know about a compensation capped at
+        # the channel maximum, and replaying an uncapped Ω would compare the
+        # emulation against a sequence the QPU never ran.
+        qpu_offset_kw.update(qpu_manifest.get("builder_kwargs", {}))
 
         print(f"\n{'='*62}")
         print(f"  QPU manifest: {Path(args.qpu_manifest).name}")
