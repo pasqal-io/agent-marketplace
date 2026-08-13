@@ -14,6 +14,7 @@ thin per-agent manifests adapt it to each harness:
 skills/            the 7 skills (shared by every agent)
 .claude-plugin/    Claude Code plugin manifest + self-hosted marketplace catalog
 .codex-plugin/     OpenAI Codex manifest
+.agents/plugins/   Codex marketplace catalog
 .kimi-plugin/      Kimi Code manifest (+ Kimi tool mapping)
 docs/agents/       per-agent install guides and adapter notes
 ```
@@ -24,15 +25,13 @@ docs/agents/       per-agent install guides and adapter notes
 |---|---|
 | **Claude Code** | `/plugin marketplace add pasqal-io/agent-marketplace` then `/plugin install neutral-atom-toolkit@pasqal` |
 | **Kimi Code** | `/plugins install https://github.com/pasqal-io/agent-marketplace`, then `/new` |
-| **Codex** | manifest ready; discoverable in the Codex marketplace once this repo is public — [details](docs/agents/codex.md) |
+| **Codex** | `codex plugin marketplace add pasqal-io/agent-marketplace`, then install from the Plugins view — [details](docs/agents/codex.md) |
 
 Skills are namespaced after install (e.g. `/neutral-atom-toolkit:qpu-submit`,
 `/neutral-atom-toolkit:noise-emulate`) and are also invoked automatically from
 context ("submit this to the QPU", "run a noise emulation", …).
 
-While the repository is private, your git must be authenticated to GitHub
-(SSH key or `gh auth login`) for the installs to work. See
-[docs/agents/](docs/agents/) for all agents and adapter-author notes.
+See [docs/agents/](docs/agents/) for all agents and adapter-author notes.
 
 ## Skills
 
@@ -75,6 +74,16 @@ While the repository is private, your git must be authenticated to GitHub
 claude --plugin-dir .          # sandbox session, nothing installed
 bash scripts/check.sh          # manifest validation + syntax + secret scan
 ```
+
+## Background
+
+The methodology these skills implement — an agentic workflow that carries a
+neutral-atom experiment from a paper to hardware, with emulation gating every
+QPU submission — is described in:
+
+> C. Dalyac, A. Dauphin, L. Henriet, C. Jurczak,
+> *Lowering the implementation barrier of neutral-atom quantum computing with
+> agentic workflows*, [arXiv:2607.25834](https://arxiv.org/abs/2607.25834) (2026).
 
 ## Contributing
 

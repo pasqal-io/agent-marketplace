@@ -7,9 +7,9 @@ Claude Code and increasingly by other coding agents.
 
 | Agent | Status | Notes |
 |---|---|---|
-| Claude Code | ✅ supported | [claude.md](claude.md) — marketplace install or `--plugin-dir` |
+| Claude Code | ✅ supported | [claude-code.md](claude-code.md) — marketplace install or `--plugin-dir` |
 | Kimi Code | ✅ manifest + docs | [kimi.md](kimi.md) — `.kimi-plugin/plugin.json`, installs from the repo URL |
-| OpenAI Codex | ⚠️ manifest ready, not yet discoverable | [codex.md](codex.md) — `.codex-plugin/plugin.json`; marketplace listing needs the repo public + submission to `openai/plugins` |
+| OpenAI Codex | ✅ manifest + catalog | [codex.md](codex.md) — `.codex-plugin/plugin.json` + `.agents/plugins/marketplace.json`, installs as a git-hosted marketplace |
 | Cursor | 🚧 planned | adapter dir + install docs to be added |
 | Others (OpenCode, …) | 🚧 planned | contributions welcome |
 

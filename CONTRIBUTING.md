@@ -8,6 +8,12 @@ The repo root is the `neutral-atom-toolkit` plugin:
 .claude-plugin/
   plugin.json         plugin manifest (bump `version` to publish an update)
   marketplace.json    marketplace catalog (this repo lists itself via source "./")
+.codex-plugin/
+  plugin.json         Codex manifest (`"hooks": {}` suppresses hook auto-discovery)
+.agents/plugins/
+  marketplace.json    Codex marketplace catalog — the path Codex actually reads
+.kimi-plugin/
+  plugin.json         Kimi Code manifest + `skillInstructions` tool mapping
 skills/<name>/
   SKILL.md            frontmatter + instructions (the skill itself)
   support/            scripts the skill runs (Python/bash)
@@ -79,5 +85,16 @@ For behavior changes, smoke-test the touched path end-to-end where feasible
 
 ## Releasing
 
-Bump `version` in `.claude-plugin/plugin.json` in the same PR as the change.
-Users receive the update via `/plugin marketplace update pasqal`.
+The plugin version lives in **four** manifests and they must agree — `scripts/check.sh`
+fails the build if they drift:
+
+```
+.claude-plugin/plugin.json          version
+.claude-plugin/marketplace.json     metadata.version
+.codex-plugin/plugin.json           version
+.kimi-plugin/plugin.json            version
+```
+
+Bump all four in the same PR as the change. Users receive the update via
+`/plugin marketplace update pasqal` (Claude Code), a reinstall + `/new` (Kimi
+Code), or `codex plugin marketplace update` (Codex).

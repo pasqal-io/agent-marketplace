@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+
+# Per-user harness settings — contain local paths, never publishable
+.claude/settings.local.json

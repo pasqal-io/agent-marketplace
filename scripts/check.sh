@@ -11,9 +11,13 @@ else
 fi
 
 echo "── Manifest JSON syntax (all agent adapters)"
-for f in .claude-plugin/*.json .codex-plugin/plugin.json .kimi-plugin/plugin.json; do
+for f in .claude-plugin/*.json .codex-plugin/plugin.json .kimi-plugin/plugin.json \
+         .agents/plugins/marketplace.json; do
   python3 -m json.tool "$f" >/dev/null || { echo "✘ invalid JSON: $f"; exit 1; }
 done
+
+echo "── Manifest conformance (versions aligned, Codex catalog schema)"
+python3 scripts/check_manifests.py
 
 echo "── Python syntax (templates excluded — they contain <<PLACEHOLDER>> markers)"
 find skills -name '*.py' -not -path '*/templates/*' -print0 | xargs -0 -n1 python3 -m py_compile
