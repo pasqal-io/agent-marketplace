@@ -37,12 +37,12 @@ See [docs/agents/](docs/agents/) for all agents and adapter-author notes.
 
 | Skill | What it does | Needs |
 |---|---|---|
-| `idea-to-spec` | Turn a paper or an experiment idea into `experiment_spec.json` | nothing (internet for arXiv) |
+| `idea-to-spec` | Turn a paper, a patent, or an experiment idea into `experiment_spec.json` | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec | Python + `pulser` |
 | `validate-emu` | Cloud EMU_MPS noiseless + noisy scan → go/no-go for QPU | Pasqal Cloud account |
 | `noise-emulate` | Noise emulation with the live device noise model. Asks where to run: **locally**, **via SLURM on a GPU cluster (recommended)**, or **via Pasqal Cloud** (no GPU needed) | Pasqal Cloud account; GPU/cluster only for the first two modes |
 | `qpu-submit` | Calibrated submission of a spec + sequence to a Pasqal Cloud QPU (default FRESNEL_CAN1; SA1 via `PASQAL_REGION=sa`) | Pasqal Cloud account with QPU access |
-| `submit-to-cea` | Parametric experiments on Ruby (CEA/TGCC) over SSH — includes a first-time-access guide (GENCI project, TGCC account, SSH setup) | A TGCC account; the skill walks new users through getting one |
+| `submit-via-hpc` | Parametric experiments on a QPU behind an HPC cluster, over SSH — includes a first-time-access guide. Reference site: Ruby at CEA/TGCC | An account on the cluster; the skill walks new users through getting one |
 | `harvest-and-analyze` | Collect QPU bitstrings, compute observable, accept/reject vs EMU | Pasqal Cloud account |
 
 ## One-time setup
@@ -65,8 +65,9 @@ See [docs/agents/](docs/agents/) for all agents and adapter-author notes.
    `PASQAL_REGION=sa` (or `"region": "sa"` in the credentials file).
    **Never commit credentials to this or any repo.**
 
-3. **For `submit-to-cea` only** — a TGCC account and an `irene` alias in
-   `~/.ssh/config`; the skill's "Getting access" section covers onboarding.
+3. **For `submit-via-hpc` only** — an account on the target cluster and an ssh
+   alias for it in `~/.ssh/config`; the skill's "Getting access" section covers
+   onboarding at the reference site (TGCC).
 
 ## Dry-running the plugin
 

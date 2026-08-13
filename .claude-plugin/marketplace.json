@@ -11,7 +11,7 @@
     {
       "name": "neutral-atom-toolkit",
       "source": "./",
-      "description": "Neutral Atom Toolkit — the full QPU pipeline: idea-to-spec, spec-to-sequence, validate-emu, noise-emulate (local / SLURM / Pasqal Cloud), qpu-submit (FRESNEL_CAN1), submit-to-cea (Ruby at TGCC), harvest-and-analyze.",
+      "description": "Neutral Atom Toolkit — the full QPU pipeline: idea-to-spec, spec-to-sequence, validate-emu, noise-emulate (local / SLURM / cloud), qpu-submit (cloud API), submit-via-hpc (cluster over SSH), harvest-and-analyze.",
       "category": "science"
     }
   ]

@@ -131,11 +131,44 @@ def check_codex_catalog() -> None:
             )
 
 
+def check_skill_names() -> None:
+    """A skill whose frontmatter `name` differs from its directory is not
+    addressable: the harness lists it under one name and resolves paths under
+    the other. Renaming a skill directory without the frontmatter is the easy
+    way to get there."""
+    for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        directory = skill_md.parent.name
+        fields: dict[str, str] = {}
+        for line in skill_md.read_text().splitlines()[1:]:
+            if line.startswith("---"):
+                break
+            for key in ("name", "description"):
+                if line.startswith(f"{key}:"):
+                    fields[key] = line.split(":", 1)[1].strip()
+
+        declared = fields.get("name")
+        if declared is None:
+            errors.append(f"skills/{directory}/SKILL.md: no `name` in frontmatter")
+        elif declared != directory:
+            errors.append(f"skills/{directory}/SKILL.md: name is {declared!r}, "
+                          f"must match the directory name {directory!r}")
+
+        # The description is the only thing a model sees before invoking, and
+        # the Agent Skills standard caps it at 500 characters.
+        description = fields.get("description")
+        if not description:
+            errors.append(f"skills/{directory}/SKILL.md: no `description`")
+        elif len(description) > 500:
+            errors.append(f"skills/{directory}/SKILL.md: description is "
+                          f"{len(description)} characters, limit is 500")
+
+
 check_versions()
 check_codex_catalog()
+check_skill_names()
 
 if errors:
     for err in errors:
         print(f"✘ {err}")
     sys.exit(1)
-print("  versions aligned, Codex catalog conforms")
+print("  versions aligned, Codex catalog conforms, skill frontmatter valid")

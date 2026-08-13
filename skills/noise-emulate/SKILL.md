@@ -1,6 +1,6 @@
 ---
 name: noise-emulate
-description: Run a noise emulation of a Pulser sequence using the target device's noise model fetched live from the Pasqal Cloud SDK (FRESNEL_CAN1 by default; SA1 supported). Three execution modes — local machine, SLURM GPU cluster (recommended), or Pasqal Cloud EMU_MPS emulators. Produces noiseless + noisy curves with a quantile envelope. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise model", "noise envelope", "run on GPU with noise".
+description: Emulate a Pulser sequence's time evolution under the target device's live noise model, producing noiseless and noisy trajectory curves with a quantile envelope. Asks where to run — this machine, a SLURM GPU cluster, or cloud emulators. Use this to study how noise shapes a signal over time; use validate-emu to decide whether an experiment is worth submitting. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise envelope", "run on GPU with noise".
 argument-hint: "[sequence-description-or-file]"
 ---
 
@@ -15,11 +15,12 @@ detuning, Doppler, relaxation).
 - **SA1**: pass `--device-name SA1` and set `PASQAL_REGION=sa` (SA1 lives in the
   `sa` cloud region and is invisible without it); your project must have SA1
   access. Verify the exact device key with `sdk.get_device_specs_dict().keys()`.
-- **Ruby (CEA/TGCC)**: not on the Pasqal Cloud SDK — no live noise model is
-  available. QPU runs go through `submit-to-cea`; for emulation of Ruby-style
-  sequences, build against `AnalogDevice` constraints instead. The user never needs to touch the Python
-scripts: this skill reads their sequence, writes the builder, runs everything,
-and shows the result.
+- **Devices not on the cloud SDK** (an on-premise QPU reached through a cluster,
+  for instance): no live noise model is available. Build against `AnalogDevice`
+  constraints instead, and submit through `submit-via-hpc`.
+
+The user never needs to touch the Python scripts: this skill reads their
+sequence, writes the builder, runs everything, and shows the result.
 
 ## Support scripts
 
@@ -41,7 +42,9 @@ support/
 
 ## Step 0 — Ask the user how to run
 
-**Always ask this first** (use AskUserQuestion if interactive):
+**Always ask this first.** Present the three options as a choice — use your
+harness's interactive question mechanism if it has one, plain text otherwise —
+with the recommended option marked:
 
 > Where should the emulation run?
 > 1. **Locally** — on this machine. Fine for small systems / quick tests; a CUDA GPU
@@ -99,7 +102,7 @@ def build_sequence(
     hx:           float = 4.0,
     t:            int   = 4000,     # pulse duration in ns
     omega_offset: float = 1.0,      # multiplicative Ω scale
-    delta_offset: float = 0.0,      # additive δ in rad/µs
+    delta_offset: float = 0.0,      # additive δ in MHz
     R_offset:     float = 1.0,      # multiplicative lattice spacing scale
     **kwargs,
 ) -> pulser.Sequence: ...
@@ -163,7 +166,7 @@ python support/run_noise_emu.py \
     --cal-offsets '{"omega_offset": 0.03, "delta_offset": 0.2, "R_offset": 0.01}'
 ```
 
-`--cal-offsets` adds a sensitivity band: ±3% on ω, ±0.2 rad/µs on δ, ±1% on R
+`--cal-offsets` adds a sensitivity band: ±3% on ω, ±0.2 MHz on δ, ±1% on R
 (6 extra noiseless runs). If a QPU manifest from `qpu-submit` exists, ask the
 user whether to add `--qpu-manifest <path>` — this runs the noisy trajectories
 at the measured calibrated parameters for a fair comparison with QPU data.

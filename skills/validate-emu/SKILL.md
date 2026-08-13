@@ -1,13 +1,13 @@
 ---
 name: validate-emu
-description: Run a cloud EMU_MPS scan (noiseless + noisy) for an experiment defined by an experiment_spec.json and sequence file, then make a go/no-go decision for QPU submission based on signal retention through FC1 noise. Triggered by phrases like "validate with EMU", "run EMU scan", "check noise retention", "should I submit to QPU", "validate before QPU", "EMU validation".
+description: Scan an experiment defined by an experiment_spec.json and its sequence file on cloud emulators, noiseless and noisy, then return a go/no-go decision on whether the signal survives device noise well enough to be worth hardware time. This is the gate before any QPU submission, not the submission itself. Triggered by phrases like "validate with EMU", "run EMU scan", "check noise retention", "is this worth submitting to hardware", "validate before QPU", "EMU validation".
 argument-hint: "[spec-file] [seq-file]"
 ---
 
 # validate-emu
 
 Run noiseless + noisy EMU_MPS cloud scans, compute the target observable,
-and decide whether the signal survives FC1 noise well enough to justify QPU shots.
+and decide whether the signal survives device noise well enough to justify QPU shots.
 
 **Rule: never submit to QPU without a passing validate-emu verdict first.**
 
@@ -67,7 +67,7 @@ python support/run_emu_scan.py \
 ```
 
 The script:
-1. Fetches the live FC1 device from the cloud
+1. Fetches the live device from the cloud
 2. Builds a non-parametric sequence for each scan point (calls `build_sequence(**params)`)
 3. Submits noiseless + noisy EMU_MPS batches for each point in parallel (non-blocking)
 4. Saves `batch_ids.json` immediately (crash recovery)
@@ -137,7 +137,7 @@ Summarise:
 2. Noisy peak and retention fraction
 3. Go/no-go verdict with reasoning
 4. Path to the plot
-5. If GO: **Next step** is QPU submission via `qpu-submit` (FC1) or `submit-to-cea` (Ruby)
+5. If GO: **Next step** is QPU submission via `qpu-submit` (cloud API) or `submit-via-hpc` (cluster over SSH)
 6. If NO-GO: concrete suggestion for how to improve signal retention
 
 ---

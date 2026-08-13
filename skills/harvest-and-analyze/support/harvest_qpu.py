@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Collect QPU results and compare to EMU baseline.
 
-Reads QPU batch IDs (written by qpu-submit or submit-to-cea), pulls bitstrings
+Reads QPU batch IDs (written by qpu-submit or submit-via-hpc), pulls bitstrings
 from Pasqal Cloud, computes the observable, and compares to the EMU scan from
 validate-emu. Writes a final accept/reject verdict.
 
