@@ -55,6 +55,29 @@ transcribed from a vendor's docs:
 | `submit-via-hpc` | Parametric experiments on a QPU behind an HPC cluster, over SSH — includes a first-time-access guide. Reference site: Ruby at CEA/TGCC | An account on the cluster; the skill walks new users through getting one |
 | `harvest-and-analyze` | Collect QPU bitstrings, compute observable, accept/reject vs EMU | Pasqal Cloud account |
 
+## Worked examples
+
+`examples/` holds experiments as the pipeline would produce them — an
+`experiment_spec.json` and a `*_sequence.py` exporting `build_sequence()` and
+`compute_observable()`. The skills themselves contain no experiment: physics
+lives here, reached through that contract.
+
+| Example | Physics | Observable |
+|---|---|---|
+| [`literature_z2_reproduction`](examples/literature_z2_reproduction/) | Z₂ ordering and Kibble-Zurek scaling on a 56-atom ring — Keesling *et al.*, Nature **568**, 207 (2019) | correlation length ξ from the connected correlator G(r) |
+| [`triangular_lattice_phases`](examples/triangular_lattice_phases/) | √3×√3 three-sublattice order on a 49-atom triangular patch — Guo *et al.*, [arXiv:2302.08963](https://arxiv.org/abs/2302.08963) | ⟨\|m\|⟩, the per-shot sublattice order parameter |
+| [`square_lattice_eom_quench`](examples/square_lattice_eom_quench/) | transverse-field Ising quench, 25 atoms; unpublished, an end-to-end pipeline test | lattice-averaged occupation ⟨n⟩ |
+
+Each sequence file self-tests when run directly — no QPU and no credentials
+needed — by checking its observable against states whose value is known
+analytically. `scripts/check.sh` runs all three.
+
+Two of them are reproductions of published work, and each README also records the
+**earlier iteration that was rejected** and why: the observable that could not
+resolve the phase, the contract the builder did not satisfy, the pointers into
+documents that never existed. The rejected versions survive as reference patterns
+under `skills/spec-to-sequence/references/`.
+
 ## One-time setup
 
 1. **Python environment** — a venv with `pulser`, `pulser-pasqal`, `pasqal-cloud`,

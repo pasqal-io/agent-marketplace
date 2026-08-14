@@ -18,5 +18,11 @@ jobs:
           node-version: "20"
       - name: Install Claude Code CLI (for manifest validation)
         run: npm install -g @anthropic-ai/claude-code
+      - name: Install Pulser (for the example smoke tests)
+        # Pinned deliberately: the examples assert on device constants Pulser
+        # ships (AnalogDevice's C6 sets the printed R_b/a, its 38 µm radial cap
+        # is what the 56-atom ring is expected to be refused by). A Pulser bump
+        # can move those numbers, so it should arrive as its own PR.
+        run: pip install "pulser==1.9.0"
       - name: Run repo checks
         run: bash scripts/check.sh

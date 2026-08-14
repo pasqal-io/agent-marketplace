@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Static conformance checks for the manifests, the skills and the shared modules.
 
-Five things no harness CLI checks for us:
+Seven things no harness CLI checks for us:
 
 1. The plugin version is repeated in five manifests. Nothing keeps them in
    sync, so a release bump that touches one file ships a lying manifest to the
@@ -22,6 +22,12 @@ Five things no harness CLI checks for us:
    `support/` directory, because a skill must keep working when installed on
    its own. Nothing stops the copies from drifting, and drifting credential
    handling is how a security policy silently applies to only some scripts.
+6. The dependency arrow runs one way: an example cites a skill, never the
+   reverse. A skill that imported from `examples/` would break the moment a
+   harness installed it alone, which is the normal case.
+7. Every example is a spec + sequence pair named after its directory. The
+   filenames appear in documented commands and inside the spec itself, so a
+   half-finished rename leaves both pointing at nothing.
 
 Schema references: https://agent-plugins.org/specification
                    https://developers.openai.com/codex/plugins/build
@@ -297,12 +303,78 @@ def check_vendored_modules() -> None:
                 "— import it from pasqal_auth instead")
 
 
+def check_example_isolation() -> None:
+    """`examples/` must never become a dependency of `skills/`.
+
+    A skill has to keep working when a harness installs it on its own, with no
+    repository around it, so an example may cite a skill but never the reverse.
+    The ban is on *executable* references — an import or a script path makes the
+    skill fail outright, whereas a Markdown link is documentation and degrades
+    only cosmetically. `scripts/` is deliberately exempt: it is repo tooling that
+    never ships to a harness, and CI has to reach the examples to run them.
+    """
+    dependency = re.compile(
+        r"\bfrom\s+examples\b|\bimport\s+examples\b|(?:\.\./)*examples/")
+    for path in sorted((ROOT / "skills").rglob("*")):
+        if not path.is_file() or path.suffix not in {".py", ".sh"}:
+            continue
+        text = path.read_text(errors="replace")
+        for match in dependency.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            errors.append(
+                f"{path.relative_to(ROOT)}:{line}: reaches into examples/ — a "
+                "skill installed on its own has no examples/ directory. Move "
+                "what it needs into the skill, or drop the reference.")
+
+
+def check_examples() -> None:
+    """Each example is a spec + sequence pair the pipeline could have produced.
+
+    The three filenames are load-bearing: every README documents commands that
+    pass them to the skills by name, and `sequence_file` is how a spec finds its
+    builder. A rename that updates the directory but not the spec leaves both
+    silently pointing at nothing.
+    """
+    root = ROOT / "examples"
+    if not root.is_dir():
+        errors.append("examples/: missing")
+        return
+    for directory in sorted(p for p in root.iterdir() if p.is_dir()):
+        name = directory.name
+        expected = {
+            "README.md": "explains what the experiment is and why it is here",
+            f"{name}_spec.json": "the spec, as idea-to-spec would emit it",
+            f"{name}_sequence.py": "build_sequence + compute_observable",
+        }
+        for filename, role in expected.items():
+            if not (directory / filename).is_file():
+                errors.append(f"examples/{name}/: missing {filename} ({role})")
+
+        spec_path = directory / f"{name}_spec.json"
+        if not spec_path.is_file():
+            continue
+        try:
+            spec = json.loads(spec_path.read_text())
+        except json.JSONDecodeError as exc:
+            errors.append(f"examples/{name}/{spec_path.name}: invalid JSON — {exc}")
+            continue
+        for field, want in (("experiment_name", name),
+                            ("sequence_file", f"{name}_sequence.py"),
+                            ("builder_fn", "build_sequence")):
+            if spec.get(field) != want:
+                errors.append(
+                    f"examples/{name}/{spec_path.name}: {field} is "
+                    f"{spec.get(field)!r}, expected {want!r}")
+
+
 check_versions()
 check_codex_catalog()
 check_agent_plugin_manifest()
 check_skill_names()
 check_skill_portability()
 check_agents_index()
+check_example_isolation()
+check_examples()
 check_vendored_modules()
 
 if errors:
@@ -310,4 +382,5 @@ if errors:
         print(f"✘ {err}")
     sys.exit(1)
 print("  versions aligned, catalogs conform, skill frontmatter valid, "
-      "skills harness-neutral, AGENTS.md complete, vendored modules identical")
+      "skills harness-neutral, AGENTS.md complete, examples self-contained, "
+      "vendored modules identical")

@@ -1,8 +1,10 @@
-"""Parametric Pulser sequence for Example 3: chiral-Potts Kibble-Zurek.
+"""Parametric Pulser sequence for chiral-Potts Kibble-Zurek — reference pattern.
 
-Implements the protocol designed in
-notes/example3_chiral_potts_design_2026-05-24.md, derived by the
-agent from Nyckees, Colbois & Mila, arXiv:2008.08408.
+Protocol derived from Nyckees, Colbois & Mila, arXiv:2008.08408.
+
+Reference material, not a runnable pipeline artifact: this module predates the
+`build_sequence()` / `compute_observable()` contract and satisfies neither.
+Borrow the ring register and the ramp stack from it; do not submit it.
 
 Sweep a 1D Rydberg chain across the Z3 -> disordered transition with
 a linear detuning ramp. Vary the sweep duration tau geometrically
@@ -11,7 +13,7 @@ bitstrings yield the period-3 structure factor S(k=2pi/3), and its
 scaling with tau tests the chiral-Potts universality class.
 
 Usage:
-    from sequences.chiral_potts_n21_sequence import (
+    from chiral_potts_n21_sequence import (
         build_para_chiral_potts_sequence, TAUS_NS,
     )
     seq = build_para_chiral_potts_sequence(
@@ -22,8 +24,7 @@ Usage:
     # tau gets bound at submission time, as the single swept Variable.
 
 The sequence has ONE declared Variable: `tau_ns`. All other
-parameters are fixed at construction. This matches the V2 bundle
-template's expectation of "one Variable per swept axis".
+parameters are fixed at construction: one Variable per swept axis.
 """
 from __future__ import annotations
 import numpy as np
@@ -76,8 +77,10 @@ def build_register(n_atoms: int = DEFAULT_N,
     xs = (np.arange(n_atoms) - (n_atoms - 1) / 2.0) * spacing_um
     qubits = {f"q{i}": (float(xs[i]), 0.0) for i in range(n_atoms)}
     reg = Register(qubits)
-    # Pad to satisfy Ruby/FRESNEL filling-fraction constraint (KNOWN_ISSUES #2).
-    # Skip for VirtualDevice (e.g. MockDevice) used in local sims.
+    # Real devices place atoms on trap layouts, so an arbitrary register has to
+    # be mapped onto one; virtual devices (e.g. MockDevice) have no layout.
+    # NOTE: with_automatic_layout may reorder qubits. An observable that indexes
+    # atoms by position must check that, or it will read the wrong sites.
     if device is not None:
         from pulser.devices._device_datacls import Device, VirtualDevice
         if isinstance(device, Device):
@@ -203,8 +206,9 @@ def build_para_chiral_potts_ring_sequence(
     * `device` — a Pulser `Device` object obtained from the live SDK; takes
       precedence over `device_str` when both are given.
 
-    Per KNOWN_ISSUES #18, prefer the SDK-fetched real device for any sequence
-    bound for QPU OR EMU (so the same builder is used both ways).
+    Prefer the SDK-fetched real device for any sequence bound for QPU or EMU, so
+    that the same builder is used both ways and the emulation matches the
+    hardware it is meant to predict.
     """
     pulser, Pulse, _, Sequence, RampWaveform, ConstantWaveform = _pulser()
 

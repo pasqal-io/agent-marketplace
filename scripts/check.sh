@@ -24,8 +24,28 @@ echo "── Python syntax (templates excluded — they contain <<PLACEHOLDER>> 
 find skills examples -name '*.py' -not -path '*/templates/*' -print0 | xargs -0 -n1 python3 -m py_compile
 find skills examples -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 
+echo "── Example smoke tests (the only place the physics actually runs)"
+# Each example's sequence file self-tests when executed: it builds the sequence
+# from its own spec and checks compute_observable against states whose value is
+# known analytically. Needs Pulser, so it is skipped rather than faked when the
+# environment has none — set PULSER_VENV to point at one. CI pins Pulser (see
+# .github/workflows/ci.yml) because the assertions read device constants from it.
+example_python="$(command -v python3)"
+for candidate in "${PULSER_VENV:-}/bin/python" "$HOME/pulser-venv/bin/python"; do
+  [ -x "$candidate" ] && { example_python="$candidate"; break; }
+done
+if "$example_python" -c "import pulser" >/dev/null 2>&1; then
+  for seq in examples/*/*_sequence.py; do
+    echo "   $seq"
+    ( cd "$(dirname "$seq")" && "$example_python" "$(basename "$seq")" >/dev/null ) \
+      || { echo "✘ example smoke test failed: $seq"; exit 1; }
+  done
+else
+  echo "  (pulser not importable — skipping; CI installs it)"
+fi
+
 echo "── Secret scan"
-if grep -rnEI "(password|token|api_key)[[:space:]]*[:=][[:space:]]*['\"][^'\"$<{]|glpat-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH) PRIVATE" skills .claude-plugin; then
+if grep -rnEI "(password|token|api_key)[[:space:]]*[:=][[:space:]]*['\"][^'\"$<{]|glpat-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH) PRIVATE" skills examples .claude-plugin; then
   echo "✘ potential secret found"; exit 1
 fi
 

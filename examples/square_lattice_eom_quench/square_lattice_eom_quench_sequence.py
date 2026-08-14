@@ -121,5 +121,17 @@ if __name__ == "__main__":
     seq  = build_sequence(device=None, **{**scan["fixed_params"], scan["variable"]: mid})
     n    = len(seq.register.qubit_ids)
     print(f"Sequence OK: {seq.get_duration()} ns, {n} atoms")
-    print(f"compute_observable (vacuum): {compute_observable({'0'*n: 100}):.4f}  (expect 0)")
-    print(f"compute_observable (all up): {compute_observable({'1'*n: 100}):.4f}  (expect 1)")
+
+    # Asserted, not just printed: a value nobody compares lets a broken
+    # observable pass CI while still looking plausible.
+    failures = []
+    for label, counts, want in (("vacuum", {"0" * n: 100}, 0.0),
+                                ("all up", {"1" * n: 100}, 1.0)):
+        got = compute_observable(counts)
+        ok = abs(got - want) <= 1e-12
+        print(f"  {'ok  ' if ok else 'FAIL'} compute_observable ({label}): "
+              f"{got:.4f} (expect {want:.4f})")
+        if not ok:
+            failures.append(label)
+    if failures:
+        raise SystemExit(f"✘ compute_observable wrong for: {', '.join(failures)}")

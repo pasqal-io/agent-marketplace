@@ -42,6 +42,11 @@ Skills carry no experiment of their own. Physics belongs in `examples/`, reached
 through the `experiment_spec.json` contract — see
 `examples/square_lattice_eom_quench/README.md` for why.
 
+The dependency arrow runs one way: an example may cite a skill, never the
+reverse. CI rejects an import or a script path from `skills/` into `examples/`,
+because a skill installed on its own — the normal case — has no `examples/`
+directory next to it. A Markdown link is documentation and is allowed.
+
 Code shared between skills is **vendored**: one byte-identical copy per
 `support/` directory (today, `pasqal_auth.py`). A skill has to keep working when
 a harness installs it alone, and `support/` is what gets copied to a cluster, so
@@ -101,6 +106,32 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
    scan; review your diff for the rest.
 
 7. **Figures**: save `.png` only.
+
+## Adding an example
+
+An example is three files named after its directory —
+`examples/<name>/{README.md, <name>_spec.json, <name>_sequence.py}` — and CI
+checks that the spec's `experiment_name`, `sequence_file` and `builder_fn` agree
+with them. The README documents commands that pass those filenames to the skills,
+so a half-finished rename breaks both.
+
+The sequence file **must self-test under `if __name__ == "__main__"`, and must
+exit non-zero when a check fails.** `scripts/check.sh` runs every example, and
+this is the only place in the repo where the physics actually executes — QPU
+submission is never part of CI. Compare the observable against states whose value
+you can derive by hand (a vacuum, a saturated register, a perfectly ordered
+pattern, an analytically solvable ensemble) rather than against a number a
+previous run happened to print. A value that is printed but not compared lets a
+broken observable pass while still looking plausible.
+
+State the finite-size floor of your observable if it has one. ⟨|m|⟩ in
+`triangular_lattice_phases` reads 0.18 on a *disordered* 49-atom array, so a
+measurement of 0.18 is no evidence of order; the smoke test prints the floor next
+to the measurement so the comparison cannot be skipped.
+
+If the register was sized against Pulser's bundled device rather than live device
+specifications, say so in `_notes` — `validate-emu` runs against the real device
+and will reject a spec that only fits the stand-in.
 
 ## Before opening a PR
 
