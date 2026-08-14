@@ -5,6 +5,10 @@
 The repo root is the `neutral-atom-toolkit` plugin:
 
 ```
+plugin.json           Agent Plugins 1.0 manifest (root; closed schema)
+AGENTS.md             skill index for harnesses with no skill mechanism
+GEMINI.md             one-line include of AGENTS.md, declared by the line below
+gemini-extension.json Gemini CLI extension manifest
 .claude-plugin/
   plugin.json         plugin manifest (bump `version` to publish an update)
   marketplace.json    marketplace catalog (this repo lists itself via source "./")
@@ -23,7 +27,16 @@ examples/<name>/      worked experiments: a spec + sequence pair, as the
                       pipeline would produce them
 scripts/check.sh      repo health checks (CI runs this)
 docs/agents/          per-agent installation notes
+docs/harness-compatibility.md      which agents work, and how
+docs/porting-to-a-new-harness.md   how to add one
 ```
+
+`skills/` is shared verbatim by every harness and **never forked**. Skills name
+*actions* ("ask the user", "run this script"), never a harness's tool; a tool
+mapping belongs in that harness's adapter manifest — see
+`.kimi-plugin/plugin.json`'s `skillInstructions`. CI rejects proprietary tool
+names, harness-specific variables and private config paths anywhere under
+`skills/`, and rejects a skill missing from `AGENTS.md`.
 
 Skills carry no experiment of their own. Physics belongs in `examples/`, reached
 through the `experiment_spec.json` contract — see
@@ -103,16 +116,20 @@ For behavior changes, smoke-test the touched path end-to-end where feasible
 
 ## Releasing
 
-The plugin version lives in **four** manifests and they must agree — `scripts/check.sh`
+The plugin version lives in **six** manifests and they must agree — `scripts/check.sh`
 fails the build if they drift:
 
 ```
+plugin.json                         version
 .claude-plugin/plugin.json          version
 .claude-plugin/marketplace.json     metadata.version
 .codex-plugin/plugin.json           version
 .kimi-plugin/plugin.json            version
+gemini-extension.json               version
 ```
 
-Bump all four in the same PR as the change. Users receive the update via
-`/plugin marketplace update pasqal` (Claude Code), a reinstall + `/new` (Kimi
-Code), or `codex plugin marketplace update` (Codex).
+Bump all six in the same PR as the change; a new manifest goes into
+`VERSION_FIELDS` in `scripts/check_manifests.py` in the same PR, or it ships
+stale. Users receive the update via `/plugin marketplace update pasqal` (Claude
+Code), a reinstall + `/new` (Kimi Code), `codex plugin marketplace update`
+(Codex), or `gemini extensions update` (Gemini CLI).

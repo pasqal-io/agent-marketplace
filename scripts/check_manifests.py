@@ -1,21 +1,30 @@
 #!/usr/bin/env python3
-"""Static conformance checks for the manifests and the shared support modules.
+"""Static conformance checks for the manifests, the skills and the shared modules.
 
-Three things no harness CLI checks for us:
+Five things no harness CLI checks for us:
 
-1. The plugin version is repeated in four manifests. Nothing keeps them in
+1. The plugin version is repeated in five manifests. Nothing keeps them in
    sync, so a release bump that touches one file ships a lying manifest to the
-   other three harnesses.
+   other four harnesses.
 2. The Codex marketplace catalog (`.agents/plugins/marketplace.json`) has
    required fields and closed enums. Codex reads that path — not
    `.claude-plugin/marketplace.json`, which is only a legacy fallback — and a
    missing field means the plugin simply does not appear.
-3. Modules shared between skills are vendored, one byte-identical copy per
+3. The root `plugin.json` follows the Agent Plugins standard, whose schema is
+   *closed*: an unknown top-level key is a violation, not an extension. That
+   one file is the manifest every conformant client must check, so a typo in it
+   costs several harnesses at once.
+4. Nothing under `skills/` may name a proprietary tool or a harness-specific
+   variable. `skills/` is shared verbatim by every harness and never forked; a
+   single `${CLAUDE_PLUGIN_ROOT}` or `AskUserQuestion` silently makes one skill
+   Claude-only. See docs/porting-to-a-new-harness.md.
+5. Modules shared between skills are vendored, one byte-identical copy per
    `support/` directory, because a skill must keep working when installed on
    its own. Nothing stops the copies from drifting, and drifting credential
    handling is how a security policy silently applies to only some scripts.
 
-Schema reference: https://developers.openai.com/codex/plugins/build
+Schema references: https://agent-plugins.org/specification
+                   https://developers.openai.com/codex/plugins/build
 """
 
 from __future__ import annotations
@@ -30,10 +39,20 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # manifest path -> dotted path to the version string
 VERSION_FIELDS = {
+    "plugin.json": "version",
     ".claude-plugin/plugin.json": "version",
     ".claude-plugin/marketplace.json": "metadata.version",
     ".codex-plugin/plugin.json": "version",
     ".kimi-plugin/plugin.json": "version",
+    "gemini-extension.json": "version",
+}
+
+# Agent Plugins 1.0 — the manifest every conformant client must read.
+AGENT_PLUGIN_MANIFEST = "plugin.json"
+AGENT_PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+AGENT_PLUGIN_FIELDS = {
+    "$schema", "name", "version", "description", "author",
+    "homepage", "repository", "license", "keywords", "extensions",
 }
 
 CODEX_CATALOG = ".agents/plugins/marketplace.json"
@@ -55,6 +74,25 @@ CODEX_AUTHENTICATION = {"ON_INSTALL", "ON_USE"}
 
 # Modules vendored byte-identical into every skill's support/ directory.
 VENDORED_MODULES = ("pasqal_auth.py",)
+
+# Nothing under skills/ may name one harness's tools or variables. Each entry is
+# a pattern and what to write instead; the message is what a contributor reads.
+HARNESS_SPECIFIC = (
+    (r"\$\{?(CLAUDE|CODEX|KIMI|CURSOR|GEMINI|COPILOT)_[A-Z_]+",
+     "harness-specific variable — locate files relative to the skill directory "
+     "instead (Path(__file__).parent / $(dirname \"${BASH_SOURCE[0]}\"))"),
+    (r"\b(AskUserQuestion|TodoWrite|WebFetch|WebSearch|NotebookEdit|SlashCommand)\b",
+     "proprietary tool name — name the action instead (\"ask the user\", "
+     "\"fetch the URL\"); the tool mapping belongs in the adapter manifest"),
+    (r"~/\.(claude|codex|cursor|gemini)\b|\.claude/skills|\.cursor/rules",
+     "path inside one harness's private directory"),
+    (r"^\s*/plugin(s)? (install|marketplace)\b",
+     "harness-specific install command — installation belongs in "
+     "docs/harness-compatibility.md, not in a skill"),
+)
+
+# Text files worth scanning under skills/. Anything else is data or a binary.
+TEXT_SUFFIXES = {".md", ".py", ".sh", ".txt", ".json", ".yaml", ".yml"}
 
 errors: list[str] = []
 
@@ -140,6 +178,63 @@ def check_codex_catalog() -> None:
             )
 
 
+def check_agent_plugin_manifest() -> None:
+    """The root manifest is the one file every Agent Plugins client must read,
+    and its schema is closed — an unknown top-level key is a spec violation, so
+    a stray field is reported and ignored rather than honoured."""
+    manifest = load(AGENT_PLUGIN_MANIFEST)
+    if not manifest:
+        return
+
+    schema = manifest.get("$schema")
+    if schema != AGENT_PLUGIN_SCHEMA:
+        errors.append(f"{AGENT_PLUGIN_MANIFEST}: `$schema` is {schema!r}, must be "
+                      f"exactly {AGENT_PLUGIN_SCHEMA!r} — clients select their "
+                      "validation rules from it and reject anything else")
+
+    unknown = sorted(set(manifest) - AGENT_PLUGIN_FIELDS)
+    if unknown:
+        errors.append(f"{AGENT_PLUGIN_MANIFEST}: unknown top-level field(s) "
+                      f"{unknown} — the Agent Plugins schema is closed; "
+                      "client-specific data goes under `extensions`")
+
+    # Skills are discovered from skills/ by fixed convention, not declared.
+    name = manifest.get("name")
+    declared = load(".claude-plugin/plugin.json").get("name")
+    if declared and name != declared:
+        errors.append(f"{AGENT_PLUGIN_MANIFEST}: name is {name!r}, but "
+                      f".claude-plugin/plugin.json says {declared!r}")
+
+
+def check_skill_portability() -> None:
+    """`skills/` is shared verbatim by every harness and never forked, so a
+    proprietary tool name or a harness-specific variable in there quietly makes
+    one skill work on one agent only."""
+    for path in sorted((ROOT / "skills").rglob("*")):
+        if not path.is_file() or path.suffix not in TEXT_SUFFIXES:
+            continue
+        text = path.read_text(errors="replace")
+        for pattern, why in HARNESS_SPECIFIC:
+            for match in re.finditer(pattern, text, re.M):
+                line = text.count("\n", 0, match.start()) + 1
+                errors.append(f"{path.relative_to(ROOT)}:{line}: "
+                              f"{match.group(0).strip()!r} — {why}")
+
+
+def check_agents_index() -> None:
+    """AGENTS.md is the toolkit's index for harnesses with no skill mechanism.
+    A skill missing from it is invisible to them."""
+    index = ROOT / "AGENTS.md"
+    if not index.is_file():
+        errors.append("AGENTS.md: missing — tier-C harnesses have no other "
+                      "way to learn the skills exist")
+        return
+    text = index.read_text()
+    for skill in sorted(p.name for p in (ROOT / "skills").iterdir() if p.is_dir()):
+        if skill not in text:
+            errors.append(f"AGENTS.md: does not mention skill {skill!r}")
+
+
 def check_skill_names() -> None:
     """A skill whose frontmatter `name` differs from its directory is not
     addressable: the harness lists it under one name and resolves paths under
@@ -204,12 +299,15 @@ def check_vendored_modules() -> None:
 
 check_versions()
 check_codex_catalog()
+check_agent_plugin_manifest()
 check_skill_names()
+check_skill_portability()
+check_agents_index()
 check_vendored_modules()
 
 if errors:
     for err in errors:
         print(f"✘ {err}")
     sys.exit(1)
-print("  versions aligned, Codex catalog conforms, skill frontmatter valid, "
-      "vendored modules identical")
+print("  versions aligned, catalogs conform, skill frontmatter valid, "
+      "skills harness-neutral, AGENTS.md complete, vendored modules identical")

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "neutral-atom-toolkit",
+  "version": "1.0.0",
+  "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
+  "author": {
+    "name": "Pasqal",
+    "url": "https://github.com/pasqal-io"
+  },
+  "homepage": "https://github.com/pasqal-io/agent-marketplace",
+  "repository": "https://github.com/pasqal-io/agent-marketplace",
+  "license": "Apache-2.0",
+  "keywords": [
+    "quantum-computing",
+    "neutral-atoms",
+    "rydberg",
+    "pulser",
+    "qpu",
+    "emulation",
+    "physics"
+  ]
+}

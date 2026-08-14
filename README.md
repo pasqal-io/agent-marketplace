@@ -7,15 +7,19 @@ hardware and analysis of the results.
 The repository root **is** the `neutral-atom-toolkit` plugin (superpowers-style
 layout). One shared `skills/` directory follows the
 [Agent Skills](https://agentskills.io) open standard — all paths inside skills
-are relative to each skill's directory, no harness-specific variables — and
-thin per-agent manifests adapt it to each harness:
+are relative to each skill's directory, no harness-specific variables, never
+forked per agent — and thin manifests adapt it to each harness:
 
 ```
-skills/            the 7 skills (shared by every agent)
+skills/            the 7 skills (shared verbatim by every agent)
+plugin.json        Agent Plugins 1.0 manifest — the one file every conformant
+                   client must read (Cursor, VS Code, Copilot, Codex, Kiro)
+AGENTS.md          skill index for agents with no plugin mechanism at all
 .claude-plugin/    Claude Code plugin manifest + self-hosted marketplace catalog
 .codex-plugin/     OpenAI Codex manifest
 .agents/plugins/   Codex marketplace catalog
 .kimi-plugin/      Kimi Code manifest (+ Kimi tool mapping)
+gemini-extension.json + GEMINI.md   Gemini CLI extension (includes AGENTS.md)
 docs/agents/       per-agent install guides and adapter notes
 ```
 
@@ -26,12 +30,18 @@ docs/agents/       per-agent install guides and adapter notes
 | **Claude Code** | `/plugin marketplace add pasqal-io/agent-marketplace` then `/plugin install neutral-atom-toolkit@pasqal` |
 | **Kimi Code** | `/plugins install https://github.com/pasqal-io/agent-marketplace`, then `/new` |
 | **Codex** | `codex plugin marketplace add pasqal-io/agent-marketplace`, then install from the Plugins view — [details](docs/agents/codex.md) |
+| **Cursor / VS Code / Copilot** | via the root `plugin.json` — Cursor: Customize → Install; VS Code: set `chat.plugins.enabled`, then **Chat: Install Plugin From Source** |
+| **Gemini CLI** | `gemini extensions install https://github.com/pasqal-io/agent-marketplace` |
+| **OpenCode** | `git clone`, then `ln -s "$PWD/skills" ~/.agents/skills` |
 
 Skills are namespaced after install (e.g. `/neutral-atom-toolkit:qpu-submit`,
 `/neutral-atom-toolkit:noise-emulate`) and are also invoked automatically from
 context ("submit this to the QPU", "run a noise emulation", …).
 
-See [docs/agents/](docs/agents/) for all agents and adapter-author notes.
+Full matrix, including what has been exercised and what has only been
+transcribed from a vendor's docs:
+[docs/harness-compatibility.md](docs/harness-compatibility.md). Adding an agent:
+[docs/porting-to-a-new-harness.md](docs/porting-to-a-new-harness.md).
 
 ## Skills
 

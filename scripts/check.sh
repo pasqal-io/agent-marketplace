@@ -11,12 +11,13 @@ else
 fi
 
 echo "── Manifest JSON syntax (all agent adapters)"
-for f in .claude-plugin/*.json .codex-plugin/plugin.json .kimi-plugin/plugin.json \
+for f in plugin.json gemini-extension.json .claude-plugin/*.json \
+         .codex-plugin/plugin.json .kimi-plugin/plugin.json \
          .agents/plugins/marketplace.json; do
   python3 -m json.tool "$f" >/dev/null || { echo "✘ invalid JSON: $f"; exit 1; }
 done
 
-echo "── Manifest conformance (versions aligned, Codex catalog schema)"
+echo "── Manifest, skill and portability conformance"
 python3 scripts/check_manifests.py
 
 echo "── Python syntax (templates excluded — they contain <<PLACEHOLDER>> markers)"
@@ -26,11 +27,6 @@ find skills examples -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || 
 echo "── Secret scan"
 if grep -rnEI "(password|token|api_key)[[:space:]]*[:=][[:space:]]*['\"][^'\"$<{]|glpat-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH) PRIVATE" skills .claude-plugin; then
   echo "✘ potential secret found"; exit 1
-fi
-
-echo "── Path portability (no harness-specific variables in skills)"
-if grep -rn "CLAUDE_PLUGIN_ROOT" skills; then
-  echo "✘ skills must use paths relative to the skill directory (see CONTRIBUTING)"; exit 1
 fi
 
 echo "── Frontmatter sanity (argument-hint must be quoted — YAML flow-seq trap)"
