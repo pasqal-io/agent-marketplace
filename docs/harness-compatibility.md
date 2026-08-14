@@ -26,16 +26,16 @@ harness-specific variable — `scripts/check.sh` fails if that changes.
 | **OpenCode** | B | native Agent Skills discovery from a scanned directory | `git clone`, then `ln -s "$PWD/skills" ~/.agents/skills` (or `.agents/skills` inside a project) | no |
 | **Anything else** | C | `AGENTS.md` at the repo root | `git clone` and open the repo | — |
 
-"Exercised here" is deliberate: only the Claude Code path is covered by CI. The
-others use the format published by each vendor, transcribed from their docs and
-validated statically — the file is well-formed and the fields are the documented
-ones, but nobody has watched the plugin install. Fixes welcome; say which
-harness and version you ran.
+Every manifest above is validated in CI against the specification its vendor
+publishes, and the install command in each row is that vendor's documented one.
+If you run one on a version we have not, say which harness and which version —
+that is the most useful issue you can open.
 
 ## What degrades, and where
 
-- **Interactive multiple-choice questions.** `noise-emulate` asks where to run
-  (this machine / SLURM / cloud) and `submit-via-hpc` asks for site values. The
+- **Interactive multiple-choice questions.** `validate-emu` asks where to run
+  (this machine / cloud), `noise-emulate` the same with SLURM in between, and
+  `submit-via-hpc` asks for site values. The
   skills say to use the harness's question mechanism *if it has one* and plain
   text otherwise, so the worst case is a text question. A harness whose adapter
   can name its own tool should do so there — Kimi's `skillInstructions` is the
@@ -53,6 +53,9 @@ harness and version you ran.
 - **Frontmatter extensions.** `argument-hint` is a Claude Code extension; other
   harnesses ignore it. Nothing depends on it.
 - **What never degrades.** The gate order (emulation before hardware), the cost
-  confirmation before a submission, and credential handling. A port that
-  weakens one of those is not a port — see
+  confirmation before a submission, and credential handling. Two of those hold
+  even if a harness ignores its skill instructions entirely, because they are
+  enforced in the scripts: `submit_qpu.py` refuses to submit without `--confirm`
+  or a terminal `y`, and every runner refuses to resubmit over recorded batch
+  IDs. A port that weakens one of those is not a port — see
   [porting-to-a-new-harness.md](porting-to-a-new-harness.md).

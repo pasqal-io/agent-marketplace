@@ -1,15 +1,16 @@
 ---
 name: validate-emu
-description: Scan an experiment defined by an experiment_spec.json and its sequence file on cloud emulators, noiseless and noisy, then return a go/no-go decision on whether the signal survives device noise well enough to be worth hardware time. This is the gate before any QPU submission, not the submission itself. Triggered by phrases like "validate with EMU", "run EMU scan", "check noise retention", "is this worth submitting to hardware", "validate before QPU", "EMU validation".
+description: Scan an experiment_spec.json and its sequence file, noiseless and noisy, and return a go/no-go decision on whether the signal survives device noise well enough to be worth hardware time. Asks where to run: locally (free, small registers, offered first) or on cloud emulators at the real size. This is the gate before a QPU submission, not the submission. Triggered by phrases like "validate with EMU", "run an emulation scan", "check noise retention", "is this worth submitting to hardware".
 argument-hint: "[spec-file] [seq-file]"
 ---
 
 # validate-emu
 
-Run noiseless + noisy EMU_MPS cloud scans, compute the target observable,
-and decide whether the signal survives device noise well enough to justify QPU shots.
+Run noiseless + noisy scans of a spec, compute the target observable, and decide
+whether the signal survives device noise well enough to justify QPU shots.
 
-**Rule: never submit to QPU without a passing validate-emu verdict first.**
+**Rule: never submit to QPU without a passing cloud verdict first** — see the
+scope note at the end of Step 2a for why a local GO is not that verdict.
 
 ---
 
@@ -21,13 +22,15 @@ project directory (keep outputs like `--out-dir` in your project, not the plugin
 
 ```
 support/
+  run_local_scan.py    ← local emulator scan, no account, no cost (start here)
   run_emu_scan.py      ← cloud scan submission, polling, observable computation
-  plot_emu_scan.py     ← scan curve figure
+  plot_emu_scan.py     ← scan curve figure (reads either scan's output)
   pasqal_auth.py       ← Pasqal Cloud credential loading (shared, do not edit here)
 ```
 
 Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`
-Credentials: `$PASQAL_USERNAME` / `$PASQAL_PASSWORD` / `$PASQAL_PROJECT_ID`, or `~/.pasqal_credentials.json`
+Credentials (cloud mode only): `$PASQAL_USERNAME` / `$PASQAL_PASSWORD` /
+`$PASQAL_PROJECT_ID`, or `~/.pasqal_credentials.json`
 
 ---
 
@@ -42,7 +45,7 @@ Check both files exist and that `spec["sequence_file"]` matches the actual filen
 
 ## Step 1 — Verify sequence smoke test
 
-Before submitting anything to the cloud:
+Before emulating anything:
 
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
@@ -54,7 +57,58 @@ If it fails, stop and fix the sequence file before proceeding.
 
 ---
 
-## Step 2 — Run the EMU scan
+## Step 2 — Ask where to run, and offer local first
+
+Both modes produce the same three files, so nothing downstream cares which ran.
+Ask the user, and say what each one buys:
+
+| | **2a — this machine** | **2b — cloud emulator** |
+|---|---|---|
+| Needs | nothing but the Python environment | an account with emulator access |
+| Register | up to ~14 atoms (exact state vector) | the real size, up to N ≳ 60–100 |
+| Noise | a documented stand-in, or the live model with `--live-device` | the live device's own model |
+| Cost | seconds to minutes, free | queue time, metered |
+| Answers | is the implementation right, does the observable move | does the signal survive real noise at real size |
+
+**Default to 2a when the register is small enough or can be shrunk for a check,
+and run 2b before recommending hardware.** A user without an account can still
+get everything 2a gives — say so rather than stopping at the credential error.
+
+---
+
+## Step 2a — Local scan (no account, no cost)
+
+```bash
+source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
+
+python support/run_local_scan.py \
+    --spec       <experiment_name>_spec.json \
+    --seq-file   <experiment_name>_sequence.py \
+    --out-dir    <spec.output_dir>/emu_local/ \
+    [--shots 200] [--noiseless-only] \
+    [--seq-kwargs '{"N": 3}']      # shrink the register for the check
+```
+
+Exact state-vector emulation, so cost is 2^N: the script refuses past
+`--max-atoms` (default 14) rather than hanging, and names the two paths that
+handle larger registers. If the spec's register is too big, do not raise the
+limit — pass `--seq-kwargs` with whatever parameter your builder uses to reduce
+it, and report that the check ran downsized.
+
+`--live-device` fetches the real device's specs and noise model and still
+emulates locally. That costs no emulator time, only credentials, and is the
+sharpest local check available.
+
+**Scope.** `verdict.json` from this mode carries `"gates_hardware": false`. A
+local GO means the implementation is sound and the observable responds to the
+scan — a genuine result, and the cheapest way to find the errors that would
+otherwise be found with paid shots. It does not mean the signal survives on
+hardware at the real size, which is Step 2b's question. Never present a local GO
+to the user as authorisation to submit.
+
+---
+
+## Step 2b — Cloud scan (real size, live noise model)
 
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
@@ -94,8 +148,8 @@ of memory, somewhere around **N ≳ 60–100 atoms** — the exact point depends
 entangled the state gets, not on N alone. A no-go verdict on a register that
 large is not automatically physics: check the batch actually completed before
 reporting it, and tell the user which of the two you are looking at. For a
-register in that range, run the scan at a smaller N first to confirm the
-observable behaves as expected.
+register in that range, confirm the observable behaves as expected at a smaller N
+first — that is exactly what Step 2a is for, and it costs nothing.
 
 **Typical wall time**: a few minutes to a few hours depending on cloud queue depth.
 Run in the background for large scans:
@@ -133,6 +187,12 @@ Read `verdict.json`:
 }
 ```
 
+A local verdict carries two extra fields — `"scope": "local emulator"` and
+`"gates_hardware": false` — plus a `reasons` line for every way it falls short of
+the cloud verdict (downsized register, stand-in noise model). **Read them before
+quoting the verdict.** "GO, locally, on 9 of the 25 atoms, with a stand-in noise
+model" is a useful sentence; "GO" on its own, from that file, is a false one.
+
 **GO** — signal survives noise, QPU submission is justified.
 **NO-GO** — signal too degraded. Options:
 - Reduce system size (smaller N → less decoherence)
@@ -150,26 +210,40 @@ Read `verdict.json`:
 ## Step 5 — Report
 
 Summarise:
-1. Noiseless peak observable value and at which scan point
-2. Noisy peak and retention fraction
-3. Go/no-go verdict with reasoning
-4. Path to the plot
-5. If GO: **Next step** is QPU submission via `qpu-submit` (cloud API) or `submit-via-hpc` (cluster over SSH)
-6. If NO-GO: concrete suggestion for how to improve signal retention
+1. Which mode ran, at what register size, with which noise model
+2. Noiseless peak observable value and at which scan point
+3. Noisy peak and retention fraction
+4. Go/no-go verdict with reasoning, and its scope
+5. Path to the plot
+6. If GO **from the cloud scan**: **Next step** is QPU submission via
+   `qpu-submit` (cloud API) or `submit-via-hpc` (cluster over SSH)
+7. If GO **from the local scan**: next step is the cloud scan at the real size,
+   which is what a hardware recommendation needs
+8. If NO-GO: concrete suggestion for how to improve signal retention
 
 ---
 
 ## Output layout
 
 ```
-<output_dir>/emu/
-  batch_ids.json       submitted batch IDs (noiseless + noisy per scan point)
+<output_dir>/emu_local/          Step 2a
   emu_noiseless.json   {records: [{scan_value, observable, n_shots, batch_id}...]}
+  emu_noise.json       same format, noisy — with noise_params.source
+  verdict.json         {go, reasons, scope, gates_hardware, retention, ...}
+  emu_scan.png         noiseless + noisy scan curves
+
+<output_dir>/emu/                Step 2b
+  batch_ids.json       submitted batch IDs (noiseless + noisy per scan point)
+  emu_noiseless.json   same schema as above
   emu_noise.json       same format, noisy backend
   verdict.json         {go, reasons, nl_max, n_max, retention}
   emu_scan.png         noiseless + noisy scan curves
   run.log              (if run in background)
 ```
+
+Keep the two directories apart. Same filenames, different authority: overwriting
+the cloud verdict with a local one destroys the only file that can justify a
+submission.
 
 ---
 
@@ -177,7 +251,8 @@ Summarise:
 
 | Issue | Fix |
 |---|---|
-| `Pasqal Cloud credentials incomplete` | Export `PASQAL_USERNAME` / `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID`, or see `noise-emulate` first-time setup |
+| `Pasqal Cloud credentials incomplete` | Export `PASQAL_USERNAME` / `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID`, or see `noise-emulate` first-time setup. No account? Step 2a needs none |
+| `N atoms is past the local emulator's reach` | Expected above ~14 atoms. Shrink the register with `--seq-kwargs` for the local check, or run Step 2b at the real size — do not raise `--max-atoms` |
 | `<device> not in available devices` | Cloud connection failed or device offline; for SA1, is `PASQAL_REGION=sa` set? Retry. |
 | `build_sequence` not found in seq file | Check `spec["builder_fn"]` matches the function name |
 | `seq.to_abstract_repr()` fails | Sequence violates device constraints — check spacing and duration |

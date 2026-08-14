@@ -169,6 +169,22 @@ def correlation_function(counts: dict[str, int],
                      for r in range(n_atoms // 2 + 1)])
 
 
+def register_size_from_counts(counts: dict[str, int]) -> int:
+    """Register size read off the shots, not assumed from the module constant.
+
+    The same sequence file is emulated at reduced N — locally, where 56 atoms do
+    not fit, or on a device that caps out lower — and the bitstrings get shorter
+    with it. An observable that kept comparing against `_N_ATOMS` would skip
+    every shot and return nan, which reads as "no signal" rather than "wrong
+    size": a downsized run would look like failed physics. Take the modal length,
+    so a handful of truncated detections cannot redefine the register.
+    """
+    weight: dict[int, int] = {}
+    for bitstring, count in counts.items():
+        weight[len(bitstring)] = weight.get(len(bitstring), 0) + count
+    return max(weight, key=weight.get) if weight else 0
+
+
 def compute_observable(counts: dict[str, int]) -> float:
     """Z₂ correlation length ξ, in lattice sites.
 
@@ -180,19 +196,23 @@ def compute_observable(counts: dict[str, int]) -> float:
     correlation length is indistinguishable from true long-range order here, and
     reporting `inf` would poison the downstream scan comparison.
     """
-    total = sum(count for bits, count in counts.items() if len(bits) >= _N_ATOMS)
+    n_atoms = register_size_from_counts(counts)
+    if n_atoms < 4:                      # too short to fit three usable radii
+        return float("nan")
+
+    total = sum(count for bits, count in counts.items() if len(bits) >= n_atoms)
     if total == 0:
         return float("nan")
 
-    correlator = correlation_function(counts, _N_ATOMS)
-    ceiling = _N_ATOMS / 2.0
+    correlator = correlation_function(counts, n_atoms)
+    ceiling = n_atoms / 2.0
 
     # Connected correlators are averages of bounded products, so their standard
     # error scales as 1/sqrt(shots); 2σ is where the tail stops carrying signal.
     noise_floor = 2.0 / np.sqrt(total)
 
     usable_r, usable_log = [], []
-    for r in range(1, _N_ATOMS // 2 + 1):
+    for r in range(1, n_atoms // 2 + 1):
         magnitude = abs(correlator[r])
         if not np.isfinite(magnitude) or magnitude < noise_floor:
             break
@@ -288,6 +308,24 @@ if __name__ == "__main__":
     # subtracted, which would turn G into a plain occupation product.
     _expect("single domain, G(1) (nothing fluctuates)",
             correlation_function({even: 500}, _N_ATOMS)[1], 0.0, 1e-12, failures)
+
+    # The same observable on a smaller ring, because every route to hardware
+    # passes through a downsized run: an exact local emulator holds nothing like
+    # 56 atoms. N is inferred from the bitstring length, so this is the check
+    # that the inference works — reading it from the module constant instead
+    # skips every shot and returns nan, which reads as "no order" rather than
+    # "wrong size". G(r) = (-1)^r/4 is N-independent for perfect Z₂ order; the ξ
+    # ceiling is not, and must follow the ring it was measured on.
+    small = 20
+    even_small = "".join("1" if i % 2 == 0 else "0" for i in range(small))
+    ideal_small = {even_small: 500,
+                   even_small.translate(str.maketrans("01", "10")): 500}
+    g_small = correlation_function(ideal_small, small)
+    for r in (1, 2):
+        _expect(f"N=20 ring, ideal Z₂, G({r})", g_small[r], 0.25 * (-1) ** r,
+                1e-9, failures)
+    _expect("N=20 ring, ξ capped at its own N/2", compute_observable(ideal_small),
+            small / 2, 1e-9, failures)
 
     rng = np.random.default_rng(0)
     for target, tol in ((2.0, 0.15), (4.0, 0.40)):

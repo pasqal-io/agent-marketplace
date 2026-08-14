@@ -275,6 +275,29 @@ Two things to get right in the comparisons:
   coordinates by bitstring index, check that the register's `qubit_ids` order
   and coordinates survived `with_automatic_layout` — a reordering returns a
   plausible wrong number rather than failing.
+- **Derive the register size from the shots, never from a module constant.**
+  `compute_observable(counts)` receives no geometry, so it is tempting to close
+  over the spec's N. Do not: the same file is emulated at reduced size on the way
+  to hardware — locally, where 49 atoms are out of reach, or on a device that
+  caps lower — and every shot then fails the length check and is skipped. The
+  function returns `nan`, which reads as *no signal* rather than *wrong size*, so
+  a downsized run looks like failed physics and the real defect is invisible.
+  Read the size off the counts instead, take the modal bitstring length so a few
+  truncated detections cannot redefine the register, and return `nan` only when
+  the length is genuinely inconsistent with any register you could have built:
+
+  ```python
+  def register_size_from_counts(counts: dict[str, int]) -> int:
+      weight: dict[int, int] = {}
+      for bitstring, count in counts.items():
+          weight[len(bitstring)] = weight.get(len(bitstring), 0) + count
+      return max(weight, key=weight.get) if weight else 0
+  ```
+
+  Then add a smoke-test case at a *second* size — a 3×3 patch beside the 7×7 —
+  so the inference is exercised rather than assumed. Quantities that scale
+  together often cancel and need no adjustment: for a wavevector K ∝ 1/a and
+  positions r ∝ a, K·r is spacing-independent. Say which ones you checked.
 
 ---
 

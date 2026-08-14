@@ -12,6 +12,8 @@ results/
 *_results/
 batch_ids.json
 verdict.json
+qpu_counts.json
+qpu_results.json
 *.npz
 *.png
 

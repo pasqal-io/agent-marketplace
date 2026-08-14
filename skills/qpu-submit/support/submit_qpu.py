@@ -19,8 +19,13 @@ Usage:
         --spec       experiment_spec.json \\
         --seq-file   my_experiment_sequence.py \\
         --out-dir    results/my_experiment/qpu/ \\
+        --confirm \\
         [--shots 300] [--device FRESNEL_CAN1] \\
         [--no-calibration] [--calib-poll 60] [--wait]
+
+Nothing is submitted until the shot count has been approved: the script prints
+the plan, then either reads a yes at the terminal or requires --confirm, which
+stands for a go-ahead the user gave in the conversation.
 
 Outputs (in --out-dir):
     batch_ids.json       per_point batch IDs + calibration block (written
@@ -32,6 +37,8 @@ import argparse
 import importlib.util
 import inspect
 import json
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -54,6 +61,39 @@ def _load_seq_module(path: str):
 # ── Calibration ────────────────────────────────────────────────────────────────
 
 CALIB_OFFSET_PARAMS = ("omega_offset", "delta_offset")
+
+# Calibration batch size. Named here because two places need it: the builder
+# below, and the cost the user approves before anything is submitted.
+CALIB_N_DET, CALIB_N_RABI_EARLY, CALIB_N_RABI_LATE = 30, 8, 12
+CALIB_SHOTS  = 20
+CALIB_N_JOBS = CALIB_N_DET + CALIB_N_RABI_EARLY + CALIB_N_RABI_LATE
+
+
+def _confirm_submission(plan: str, confirmed: bool) -> None:
+    """Refuse to spend hardware shots that nobody approved.
+
+    The plan is printed either way, so the numbers are on the record whether the
+    user says yes at a prompt or the agent passes --confirm after being told to
+    go ahead in the conversation. With no terminal there is nobody to ask, and
+    the wrong default there is an agent buying shots on its own behalf — so the
+    absence of an answer is a refusal, not a yes.
+    """
+    print(plan, flush=True)
+    if confirmed:
+        print("  approved by --confirm\n", flush=True)
+        return
+    if not sys.stdin.isatty():
+        raise SystemExit(
+            "✘ nothing has approved this submission, and there is no terminal "
+            "to ask at.\n"
+            "  Show the plan above to the user, get an explicit go-ahead, then "
+            "re-run with --confirm.\n"
+            "  If any of those numbers or the device changed since they agreed, "
+            "ask again: the\n"
+            "  earlier go-ahead was for a different submission.")
+    if input("  Submit this to hardware? [y/N] ").strip().lower() not in ("y", "yes"):
+        raise SystemExit("✘ aborted — nothing was submitted.")
+    print(flush=True)
 
 
 def _check_builder_accepts_offsets(build_sequence) -> None:
@@ -101,7 +141,8 @@ def make_calibration_parametric(omega: float, device) -> tuple:
     seq.add_eom_pulse("ising", duration=dt, phase=0.0)
     seq.disable_eom_mode("ising")
 
-    N_det, N_rabi_early, N_rabi_late, shots = 30, 8, 12, 20
+    N_det, N_rabi_early, N_rabi_late, shots = (
+        CALIB_N_DET, CALIB_N_RABI_EARLY, CALIB_N_RABI_LATE, CALIB_SHOTS)
     tpi_int  = int(round(np.pi / omega * 1e3))          # ns
     det_scan = np.linspace(-1.5*omega, 2.5*omega, N_det).astype(float)
 
@@ -269,6 +310,10 @@ def main():
                     help="calibration poll interval in seconds (default 60)")
     ap.add_argument("--wait",            action="store_true",
                     help="wait for every experiment job to complete before returning")
+    ap.add_argument("--confirm",         action="store_true",
+                    help="the user has seen the shot count and approved this "
+                         "submission. Without it the script prints the plan and "
+                         "asks at the terminal, or refuses if there is none.")
     args = ap.parse_args()
 
     spec = json.loads(Path(args.spec).read_text())
@@ -303,6 +348,27 @@ def main():
     values      = scan["values"]
     fixed       = scan.get("fixed_params", {})
 
+    # Everything in the plan comes from the spec, so the gate runs before the
+    # sequence file is imported, before the credentials are read and before the
+    # cloud is contacted: declining costs nothing and reveals nothing.
+    calib_shots = 0 if args.no_calibration else CALIB_N_JOBS * CALIB_SHOTS
+    plan = "\n".join([
+        f"=== qpu-submit: {spec['experiment_name']} — submission plan ===",
+        f"  device            {device_name}"
+        + ("   (region: SA1)" if os.environ.get("PASQAL_REGION") == "sa" else ""),
+        f"  scan              {variable} ∈ {values}",
+        f"  batches           {len(values)}  (one per scan point)",
+        f"  shots per batch   {shots}",
+        f"  experiment shots  {len(values) * shots}",
+        f"  calibration       {CALIB_N_JOBS} jobs × {CALIB_SHOTS} shots "
+        f"= {calib_shots} shots" if calib_shots
+        else "  calibration       skipped (--no-calibration): jobs run at nominal Ω and δ",
+        f"  TOTAL QPU SHOTS   {len(values) * shots + calib_shots}",
+        "",
+        "  Metered, and a submitted batch cannot be recalled.",
+    ])
+    _confirm_submission(plan, args.confirm)
+
     mod            = _load_seq_module(args.seq_file)
     build_sequence = getattr(mod, spec.get("builder_fn", "build_sequence"))
     if not args.no_calibration:
@@ -318,10 +384,10 @@ def main():
                          f"Available: {sorted(specs)}")
     device = deserialize_device(specs[device_name])
 
-    print(f"=== qpu-submit: {spec['experiment_name']} ===")
-    print(f"  device={device_name}  C6={device.interaction_coeff:.0f} rad·µm⁶/µs")
-    print(f"  {variable} ∈ {values}")
-    print(f"  {len(values)} batches × {shots} shots = {len(values)*shots} QPU shots\n")
+    # The plan the user approved was priced from the spec; this is the live
+    # device it will actually run on.
+    print(f"  live device {device_name}: C6={device.interaction_coeff:.0f} "
+          f"rad·µm⁶/µs, max {device.max_atom_num} atoms\n")
 
     # ── Calibration ───────────────────────────────────────────────────────────
     offsets = {"omega_offset": 1.0, "delta_offset": 0.0}

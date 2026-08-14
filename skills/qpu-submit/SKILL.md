@@ -49,8 +49,22 @@ Say those four numbers back to the user, name the device, and wait for
 confirmation. If they change the scan, the shots or the device afterwards,
 confirm again — the previous go-ahead was for a different submission.
 
-Do not submit to hardware before `validate-emu` has returned a GO for this
-spec. If no emulation has been run, say so and offer to run it first.
+**The script enforces this, it does not trust you to.** `submit_qpu.py` prints
+that plan itself and then stops: it submits only with `--confirm`, or with a
+`y` typed at a terminal. Run without a terminal and without the flag — the
+normal case for an agent — and it exits non-zero having contacted nothing, not
+even the credential store. So pass `--confirm` **only** to carry a go-ahead the
+user actually gave you, in this conversation, for these numbers. Getting the
+plan wrong is cheap; getting the flag wrong spends someone's shots.
+
+The same rule covers a re-run after a plan change: new numbers, new go-ahead.
+
+Do not submit to hardware before `validate-emu` has returned a GO for this spec.
+If no emulation has been run, say so and offer to run it first. Check the verdict
+you are relying on: `validate-emu`'s local mode writes the same `verdict.json`
+with `"gates_hardware": false`, because it ran a stand-in noise model and often a
+smaller register. That file is not a green light for shots — the cloud verdict at
+the real size is.
 
 ---
 
@@ -82,11 +96,14 @@ source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 python support/submit_qpu.py \
     --spec      <experiment_name>_spec.json \
     --seq-file  <experiment_name>_sequence.py \
-    --out-dir   <spec.output_dir>/qpu/
+    --out-dir   <spec.output_dir>/qpu/ \
+    --confirm                       # only with the user's go-ahead (Step 0)
 ```
 
 Options: `--shots`, `--device`, `--no-calibration`, `--calib-poll` (seconds,
-default 60), `--wait`.
+default 60), `--wait`. Drop `--confirm` to see the plan and the total shot count
+without submitting anything — that is the cheapest way to check the numbers you
+are about to quote to the user.
 
 What the script does:
 

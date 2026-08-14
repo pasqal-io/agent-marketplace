@@ -19,6 +19,9 @@ Usage:
         [--bootstrap 300]
 
 Outputs (in --out-dir):
+    qpu_counts.json     raw bitstring counts per scan point, exactly as the
+                        device returned them — written before anything is
+                        derived from them
     qpu_results.json    observable scan curve with bootstrap errors
     verdict.json        {accept, reasons, max_deviation_sigma, ...}
 """
@@ -87,6 +90,7 @@ def _collect_per_point(sdk, batch_ids_data: dict, obs_fn, n_boot: int) -> list:
             "n_unique":    len(counts),
             "batch_id":    bid,
             "status":      job.status,
+            "counts":      counts,
         })
         print(f"  collected {entry['scan_value']:>8}  obs={obs:.4f} ± {err:.4f}"
               f"  ({sum(counts.values())} shots)", flush=True)
@@ -114,6 +118,7 @@ def _collect_parametric(sdk, batch_ids_data: dict, obs_fn, scan_var: str,
             "n_unique":    len(counts),
             "batch_id":    bid,
             "status":      job.status,
+            "counts":      counts,
         })
         print(f"  collected {val:>8}  obs={obs:.4f} ± {err:.4f}"
               f"  ({sum(counts.values())} shots)", flush=True)
@@ -154,12 +159,33 @@ def main():
         qpu_records = _collect_parametric(sdk, batch_data, obs_fn, scan_var,
                                           args.bootstrap)
 
+    # Raw bitstrings first, and in their own file. The observable is a *choice*:
+    # re-analysing this run with a different one, or with a corrected
+    # compute_observable, must not require the cloud a second time — a batch is
+    # not guaranteed to still be readable, and those shots were paid for once.
+    # Everything below this line is a transformation of this file.
+    raw_keys = ("scan_value", "batch_id", "status", "counts")
+    (out / "qpu_counts.json").write_text(json.dumps({
+        "ts":           time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "experiment":   spec["experiment_name"],
+        "device":       spec["device"],
+        "scan_variable": scan_var,
+        "content":      "raw bitstring counts as returned by the device, untransformed",
+        "records":      [{k: r[k] for k in raw_keys} for r in qpu_records],
+    }, indent=2))
+    print(f"  raw bitstrings → {out / 'qpu_counts.json'}")
+
+    for record in qpu_records:
+        del record["counts"]
+
     (out / "qpu_results.json").write_text(json.dumps({
         "ts":           time.strftime("%Y-%m-%dT%H:%M:%S"),
         "experiment":   spec["experiment_name"],
         "device":       spec["device"],
         "scan_variable": scan_var,
         "n_bootstrap":  args.bootstrap,
+        "derived_from": "qpu_counts.json",
+        "observable_fn": f"{Path(args.seq_file).name}:compute_observable",
         "records":      qpu_records,
     }, indent=2))
 

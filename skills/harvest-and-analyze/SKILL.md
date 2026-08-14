@@ -78,11 +78,19 @@ python support/harvest_qpu.py \
 The script:
 1. Connects to Pasqal Cloud
 2. Pulls bitstrings for each batch (handles both `per_point` and `parametric` formats)
-3. Calls `compute_observable(counts)` from the sequence file
-4. Computes bootstrap error bars (300 resamples by default)
-5. Loads `emu_noise.json` from `--emu-dir` as the comparison baseline
-6. Accepts if max QPU deviation < 2σ from noisy EMU prediction
-7. Writes `qpu_results.json` + `verdict.json`
+3. **Writes `qpu_counts.json` — the raw counts, before anything is derived**
+4. Calls `compute_observable(counts)` from the sequence file
+5. Computes bootstrap error bars (300 resamples by default)
+6. Loads `emu_noise.json` from `--emu-dir` as the comparison baseline
+7. Accepts if max QPU deviation < 2σ from noisy EMU prediction
+8. Writes `qpu_results.json` + `verdict.json`
+
+Step 3 is deliberately first. The observable is a *choice*, and choices get
+revised: re-analysing this run with a corrected `compute_observable` must not
+require the cloud a second time, because a batch is not guaranteed to still be
+readable and those shots were paid for once. When you report results, keep the
+distinction visible — `qpu_counts.json` is what the machine returned,
+`qpu_results.json` is what your analysis made of it.
 
 **Batch ID formats supported:**
 
@@ -170,7 +178,9 @@ Summarise:
 ```
 <output_dir>/qpu/
   batch_ids.json        (written by qpu-submit / submit-via-hpc)
+  qpu_counts.json       raw bitstring counts per scan point, untransformed
   qpu_results.json      {records: [{scan_value, observable, obs_err, n_shots, ...}]}
+                        — derived from qpu_counts.json, names the observable used
   verdict.json          {accept, max_deviation_sigma, sigma_tolerance, reasons}
 
 <output_dir>/

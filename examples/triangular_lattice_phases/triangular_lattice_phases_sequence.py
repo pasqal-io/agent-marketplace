@@ -151,13 +151,40 @@ def order_parameter_per_shot(bitstring: str, coords: np.ndarray,
     return float(abs(amplitude)) * 3.0 / len(coords)
 
 
+def side_from_counts(counts: dict[str, int]) -> int:
+    """Rhombus side L read off the shots, not assumed from the module constant.
+
+    The same sequence file gets emulated at reduced L — locally, where 49 atoms
+    are far past an exact emulator's reach, or on a tighter device — and the
+    bitstrings shrink with it. Comparing against `_L` instead would skip every
+    shot and return nan, which reads as "no order" rather than "wrong size", so a
+    downsized check would look like failed physics. Returns 0 when the shot
+    length is not L², because then the geometry behind the bitstring is unknown
+    and guessing it would silently mislabel every atom's position.
+
+    The spacing needs no such treatment: K ∝ 1/a and r ∝ a, so K·r is unchanged
+    by it.
+    """
+    weight: dict[int, int] = {}
+    for bitstring, count in counts.items():
+        weight[len(bitstring)] = weight.get(len(bitstring), 0) + count
+    if not weight:
+        return 0
+    n_atoms = max(weight, key=weight.get)
+    side = int(round(np.sqrt(n_atoms)))
+    return side if side * side == n_atoms else 0
+
+
 def compute_observable(counts: dict[str, int]) -> float:
     """⟨|m|⟩ — the three-sublattice order parameter, averaged over shots.
 
     Shots whose bitstring is the wrong length are detection failures and are
     skipped rather than zero-padded, which would fake a disordered shot.
     """
-    coords = _rhombus_coords(_L, _SPACING_UM)
+    side = side_from_counts(counts)
+    if side == 0:
+        return float("nan")
+    coords = _rhombus_coords(side, _SPACING_UM)
     K = _ordering_wavevector(_SPACING_UM)
     total = 0
     acc = 0.0
@@ -227,6 +254,29 @@ if __name__ == "__main__":
     _expect("uncorrelated 1/3 filling, ⟨|m|⟩ at the finite-size floor",
             compute_observable(random_counts), float(np.sqrt(np.pi / (2 * N))),
             0.03, failures)
+
+    # Same observable at a second register size, because every route to hardware
+    # passes through a downsized run: a local emulator cannot hold 49 atoms. The
+    # side is inferred from the bitstring length, so this is the check that the
+    # inference works — before the fix it skipped every shot and returned nan,
+    # which reads as "no order" rather than "wrong size". L = 3 *is* a multiple
+    # of 3, so the sublattices are exactly equal and |m| lands on 1 rather than
+    # near it.
+    small = 3
+    n_small = small * small
+    sub_small = (2 * (np.arange(n_small) // small) + np.arange(n_small) % small) % 3
+    for s in (0, 2):
+        bits = "".join("1" if k == s else "0" for k in sub_small)
+        _expect(f"L=3 patch, perfect order, sublattice {s}, ⟨|m|⟩",
+                compute_observable({bits: 100}), 1.0, 1e-9, failures)
+    _expect("L=3 patch, disordered floor is higher (sqrt(pi/2N))",
+            compute_observable({
+                "".join("1" if rng.random() < 1 / 3 else "0" for _ in range(n_small)): 1
+                for _ in range(4000)}),
+            float(np.sqrt(np.pi / (2 * n_small))), 0.05, failures)
+    _expect("bitstring length that is no square register, ⟨|m|⟩ is nan",
+            float(np.isnan(compute_observable({"0" * 10: 100}))), 1.0, 0,
+            failures)
 
     if failures:
         raise SystemExit(f"✘ {len(failures)} check(s) failed: "

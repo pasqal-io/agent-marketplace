@@ -1,6 +1,7 @@
 {
   "experiment_name": "square_lattice_eom_quench",
   "version": "1.0",
+  "objective": "Exercise the pipeline end to end on a transverse-field Ising quench: does the lattice-averaged occupation <n> relax towards the plateau the noise model predicts at hx/J = 6?",
   "paper": {
     "title": "Transverse-field Ising quench on a square Rydberg lattice",
     "authors": "unpublished — internal test case",
@@ -46,5 +47,21 @@
   "output_dir": "results/square_lattice_eom_quench",
   "sequence_file": "square_lattice_eom_quench_sequence.py",
   "builder_fn": "build_sequence",
+  "open_questions": [
+    {
+      "field": "scan.values",
+      "question": "the original run scanned 75 time points in one parametric batch; 10 are kept here because this pipeline submits one batch per point. Is 10 enough to resolve the approach to the plateau?",
+      "provisional": 10,
+      "why": "10 batches x 300 shots is the smallest scan that still shows the relaxation",
+      "impact": "sets the time resolution; more points cost proportionally more QPU shots"
+    },
+    {
+      "field": "scan.fixed_params.hx",
+      "question": "hx/J = 6 was chosen because the noise model tracks hardware best there, not because the physics is most interesting there. Keep it, or move closer to the critical point?",
+      "provisional": 6.0,
+      "why": "this case exists to validate the pipeline, so agreement with the noise model is the point",
+      "impact": "nearer criticality the quench is more sensitive to noise and a QPU-vs-EMU disagreement gets harder to attribute"
+    }
+  ],
   "_notes": "hx/J = 6 is the paramagnetic regime, where the FC1 noise model tracks hardware most closely — the reason this case was used to validate the pipeline. The lattice spacing is not a free parameter: the builder derives it from hx, omega and the live C6 so that the interaction sets the requested hx/J. The original submission scanned 75 time points in a single parametric batch; this spec uses 10 points because the pipeline submits one batch per scan point."
 }

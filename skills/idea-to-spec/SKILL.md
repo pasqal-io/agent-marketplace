@@ -20,6 +20,7 @@ modification.
 {
   "experiment_name": "short_snake_case",
   "version": "1.0",
+  "objective": "one sentence: the scientific question this experiment answers",
   "paper": {
     "title": "...",
     "authors": "First Author et al.",
@@ -66,13 +67,55 @@ modification.
   "output_dir": "results/<experiment_name>",
   "sequence_file": "<experiment_name>_sequence.py",
   "builder_fn": "build_sequence",
+  "open_questions": [
+    {
+      "field": "pulse.omega_max_mhz",
+      "question": "the paper gives Ω/2π only for the calibration figure — is 2.0 MHz the protocol value?",
+      "provisional": 2.0,
+      "why": "needed to build a sequence at all; taken from Fig. 2b",
+      "impact": "sets R_b, so it moves the phase boundary the scan is looking for"
+    }
+  ],
   "_notes": "any caveats or scaling decisions"
 }
 ```
 
+`objective` is what a reviewer reads first and what the final analysis is judged
+against. `open_questions` is empty only when the source really answered
+everything — see below.
+
 **`geometry`** — one of: `square`, `chain`, `ring`, `triangular_rhombus`, `custom`
 **`pulse.type`** — one of: `adiabatic_ramp`, `eom_quench`
 **`observable.type`** — one of: `structure_factor`, `magnetization`, `occupation`, `custom`
+
+---
+
+## What the source does not say: ask, do not fill in
+
+A paper omits things. Some omissions are harmless, and some decide whether the
+experiment measures anything at all. Sort them, then act:
+
+- **Ask the user** whenever the missing value is a *scientific* choice: which
+  observable resolves the phase, which parameter the scan sweeps and over what
+  range, what the ordered phase is supposed to be, whether a reduced N still
+  answers the question. These belong to them — the whole point of this pipeline
+  is that they keep the physics decisions. Ask in one short batch rather than
+  one question at a time, name the alternatives you are weighing, and say what
+  each choice would change downstream.
+- **Read it off the device** for anything hardware: limits, C₆, channel maxima
+  (Step 3). Never a remembered constant.
+- **Then, and only then, choose a provisional value** — when the user has
+  deferred to you, or the question is too fine to be worth their turn — and
+  record it in `open_questions` with `provisional`, `why` and `impact`. A
+  provisional value that is written down is a reviewable assumption; the same
+  value chosen silently is a fabricated result waiting to happen.
+
+Never present an invented number as if the source had given it. If two readings
+of the paper are both defensible, that is an `open_questions` entry, not a coin
+flip. If the source contradicts itself, say so and quote both places.
+
+`open_questions` travels with the spec, so `validate-emu` and
+`harvest-and-analyze` can tell a surprising result from a shaky assumption.
 
 ---
 
@@ -183,15 +226,24 @@ Write `<experiment_name>_spec.json` to the working directory.
 Set `output_dir` to `results/<experiment_name>` relative to the working directory.
 Set `sequence_file` to `<experiment_name>_sequence.py`.
 
-Add a `"_notes"` field summarising any assumptions or scaling decisions.
+Add a `"_notes"` field summarising any assumptions or scaling decisions, and fill
+`open_questions` with everything still unresolved. Both are text the user is
+expected to correct: the spec is a draft to review, not an answer.
 
 ---
 
 ## Step 5 — Report
 
 Summarise:
-1. Paper → protocol translation (what was directly taken vs. adapted)
-2. Scaling decisions (if N was reduced)
-3. Device choice and compatibility
-4. Expected signal: describe qualitatively what the ordered phase looks like
-5. **Next step**: `spec-to-sequence` to generate the Pulser builder
+1. The objective, in the user's terms — if you cannot state it in one sentence,
+   the spec is not ready
+2. Paper → protocol translation (what was directly taken vs. adapted)
+3. Scaling decisions (if N was reduced)
+4. Device choice and compatibility
+5. Expected signal: describe qualitatively what the ordered phase looks like
+6. **Open questions and provisional values**, listed explicitly, each with what
+   it would change. Do not bury these in the file — a user who never reads
+   `open_questions` is the user who publishes an assumption as a measurement.
+   Say plainly which of them you want an answer to before spending emulator or
+   hardware time.
+7. **Next step**: `spec-to-sequence` to generate the Pulser builder

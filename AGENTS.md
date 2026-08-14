@@ -16,7 +16,7 @@ inline is how a submission gets billed for a wrong sequence.
 |---|---|---|
 | `idea-to-spec` | turn a paper, a patent, a PDF, an arXiv ID or a described protocol into a structured experiment | → `experiment_spec.json` |
 | `spec-to-sequence` | generate the Pulser code for a spec | spec → `*_sequence.py` |
-| `validate-emu` | decide whether an experiment is worth hardware time | spec + sequence → go/no-go |
+| `validate-emu` | decide whether an experiment is worth hardware time — locally first, in the cloud at the real size | spec + sequence → go/no-go |
 | `noise-emulate` | study how the device's noise shapes a signal over time | sequence → curves + envelope |
 | `qpu-submit` | run an experiment on a QPU reachable through a cloud API | spec + sequence → batch IDs |
 | `submit-via-hpc` | run one on a QPU reachable only over SSH through a cluster scheduler | sequence → remote jobs |
@@ -29,13 +29,22 @@ exporting `build_sequence(device=None, **params)` and
 `compute_observable(counts)`; they contain no experiment of their own — worked
 experiments live in `examples/`.
 
-Four rules hold whatever the harness:
+Five rules hold whatever the harness:
 
 - **Emulation precedes any QPU recommendation.** `validate-emu` is the gate, not
-  a formality. Never submit to hardware to "see what happens".
+  a formality. Never submit to hardware to "see what happens". Check which
+  verdict you have: the local mode writes `"gates_hardware": false`, because it
+  ran a stand-in noise model and usually a smaller register.
+- **Run it locally first.** Every step that can happen on the user's machine
+  should, before anything reaches a cloud emulator, a cluster or a QPU. It is
+  free, it is immediate, and it catches the implementation errors that are
+  otherwise found with paid shots. Say plainly what the local run does *not*
+  establish.
 - **QPU time is billed and finite.** Confirm the shot count, the number of
   points and the device with the user before submitting, and confirm again if
-  the plan changes.
+  the plan changes. This is enforced, not merely requested: `submit_qpu.py`
+  prints the plan and exits non-zero unless it is given `--confirm` or a `y` at
+  a terminal. Pass that flag only to carry a go-ahead the user actually gave.
 - **Credentials come from the environment.** `PASQAL_USERNAME`,
   `PASQAL_PASSWORD`, `PASQAL_PROJECT_ID`, resolved by
   `support/pasqal_auth.py`. Never hardcode, echo, log or commit one, and never

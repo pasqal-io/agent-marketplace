@@ -61,7 +61,17 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
    backend = separate skills (see `validate-emu` vs `noise-emulate`). If you
    cannot write the skill's description in one sentence without an "or", split it.
 
-2. **Frontmatter rules** (`SKILL.md` header):
+2. **Local first, remote when it matters.** Whatever a skill does, there should
+   be a way to run it on the user's own machine — smaller, rougher, free — before
+   anything reaches a cloud emulator, a cluster or a QPU. Someone with no account
+   should still get a real answer out of the toolkit, and someone with an account
+   should have found their implementation errors before paying for shots. Where
+   the local version is genuinely weaker, say so *in the artefact*, not just in
+   prose: `validate-emu`'s local verdict carries `"gates_hardware": false`. A
+   local mode that quietly claims the authority of the remote one is worse than
+   no local mode.
+
+3. **Frontmatter rules** (`SKILL.md` header):
    - `name`: kebab-case, matches the directory name.
    - `description`: what it does + explicit trigger phrases ("Triggered by
      phrases like …"). This is the ONLY thing the model sees before invoking —
@@ -70,14 +80,14 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
      YAML (two flow sequences) and silently strips ALL metadata at runtime.
      CI rejects unquoted hints.
 
-3. **Paths**: reference bundled files **relative to the skill's directory**
+4. **Paths**: reference bundled files **relative to the skill's directory**
    (`support/foo.py`, `templates/bar.sh`) with a note that they resolve against
    the skill's location — never absolute paths, never `~/.claude/skills/...`,
    and never harness-specific variables like `${CLAUDE_PLUGIN_ROOT}` (CI rejects
    them; they break Codex/Kimi/Cursor portability). Scripts locate siblings
    relative to themselves (`$(dirname "${BASH_SOURCE[0]}")` / `Path(__file__).parent`).
 
-4. **A SKILL.md and the files it ships describe each other.** CI checks both
+5. **A SKILL.md and the files it ships describe each other.** CI checks both
    directions: a cited `support/…` path must exist, and every file under
    `support/`, `templates/` or `references/` must be named somewhere in the
    SKILL.md. Nothing else indexes a skill's own files, so an undocumented one is
@@ -86,7 +96,7 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
    Paths written `<other-skill>/support/x.py` are placeholders for another
    skill's install location and are not checked.
 
-5. **Environment conventions**:
+6. **Environment conventions**:
    - Python venv: `${PULSER_VENV:-$HOME/pulser-venv}`.
    - Pasqal Cloud credentials: **`from pasqal_auth import load_credentials`**,
      never a loader of your own — CI rejects a second one. It resolves each
@@ -103,18 +113,18 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
    - Cluster specifics (SLURM partition/account, remote hosts) are always
      user-supplied variables with neutral defaults — never bake in a site value.
 
-6. **Pipeline contract**: skills interoperate through
+7. **Pipeline contract**: skills interoperate through
    `experiment_spec.json` (produced by `idea-to-spec`) and sequence files
    exporting `build_sequence(device=None, **params)` +
    `compute_observable(counts) -> float` (produced by `spec-to-sequence`).
    New pipeline skills should consume/produce these, not invent parallel formats.
 
-7. **No personal or site-specific information.** No usernames, personal
+8. **No personal or site-specific information.** No usernames, personal
    hostnames, allocation codes, tokens, or paths from anyone's machine — this
    repo is Apache-2.0 licensed and intended for distribution. CI runs a secret
    scan; review your diff for the rest.
 
-8. **Figures**: save `.png` only.
+9. **Figures**: save `.png` only.
 
 ## Adding an example
 
