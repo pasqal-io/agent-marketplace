@@ -130,5 +130,8 @@ QPU submission — is described in:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the skill-authoring conventions
 (frontmatter rules, path and credential conventions, intent-based skill
-granularity) and the PR checklist. `SHARING_NOTES.md` records provenance and
-per-skill requirements.
+granularity) and the PR checklist, and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for the ground rules.
+
+[SECURITY.md](SECURITY.md) covers how credentials are handled, what these skills
+can spend on your behalf, and how to report a vulnerability privately.

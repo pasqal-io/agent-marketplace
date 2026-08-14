@@ -81,6 +81,14 @@ detuning_sigma, SPAM p_fp/p_fn, relaxation_rate, amp_sigma), repackaged into the
 subset of fields cloud EMU_MPS supports. The effective values are recorded in
 `emu_noise.json` under `noise_params`.
 
+**Register size limit**: cloud EMU_MPS accuracy degrades, and the job can run out
+of memory, somewhere around **N ≳ 60–100 atoms** — the exact point depends on how
+entangled the state gets, not on N alone. A no-go verdict on a register that
+large is not automatically physics: check the batch actually completed before
+reporting it, and tell the user which of the two you are looking at. For a
+register in that range, run the scan at a smaller N first to confirm the
+observable behaves as expected.
+
 **Typical wall time**: a few minutes to a few hours depending on cloud queue depth.
 Run in the background for large scans:
 ```bash

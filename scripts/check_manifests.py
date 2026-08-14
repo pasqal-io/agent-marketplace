@@ -47,6 +47,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -425,14 +426,27 @@ def check_skill_references() -> None:
 
 
 def check_markdown_links() -> None:
-    """Every relative Markdown link must resolve.
+    """Every relative Markdown link must resolve, and to a file git actually ships.
 
     The docs cross-reference each other constantly — README to examples,
     examples to the reference implementations inside a skill, CONTRIBUTING to
     both — and a rename that misses one leaves a link that renders fine on
     GitHub and 404s on click. External URLs are not checked: CI must not depend
     on the network.
+
+    Existence on disk is not enough. A link to an untracked or ignored file
+    resolves perfectly for whoever wrote it and 404s for everyone else, which is
+    the one broken link a local check would never see. Directories are exempt —
+    git tracks files, not folders.
     """
+    tracked: set[str] | None = None
+    try:
+        out = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, check=True,
+                             capture_output=True, text=True).stdout
+        tracked = {p for p in out.split("\0") if p}
+    except (OSError, subprocess.CalledProcessError):
+        pass  # not a git checkout: the on-disk check below still applies
+
     link = re.compile(r"\[[^\]]*\]\(([^)#\s]+)(?:#[^)\s]*)?\)")
     for md in sorted(ROOT.rglob("*.md")):
         if ".git" in md.parts:
@@ -442,10 +456,20 @@ def check_markdown_links() -> None:
             target = match.group(1)
             if target.startswith(("http://", "https://", "mailto:")):
                 continue
-            if not (md.parent / target).exists():
-                line = text.count("\n", 0, match.start()) + 1
+            line = text.count("\n", 0, match.start()) + 1
+            resolved = md.parent / target
+            if not resolved.exists():
                 errors.append(f"{md.relative_to(ROOT)}:{line}: link target "
                               f"{target!r} does not exist")
+                continue
+            if tracked is None or resolved.is_dir():
+                continue
+            rel = resolved.resolve().relative_to(ROOT).as_posix()
+            if rel not in tracked:
+                errors.append(
+                    f"{md.relative_to(ROOT)}:{line}: link target {target!r} "
+                    "exists here but is not tracked by git — it would 404 for "
+                    "anyone else. Commit it, or drop the link.")
 
 
 def check_pulser_pins() -> None:

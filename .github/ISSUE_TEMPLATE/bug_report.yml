@@ -1,0 +1,47 @@
+name: Bug report
+description: A skill or script did not do what it says it does
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste credentials, batch IDs tied to a private project, or raw
+        result files. If the problem involves a credential, report it privately
+        instead — see SECURITY.md.
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and version
+      description: Which harness, and how the plugin was installed
+      placeholder: Claude Code 2.1.4, installed via /plugin marketplace add
+    validations:
+      required: true
+  - type: input
+    id: skill
+    attributes:
+      label: Skill
+      placeholder: qpu-submit
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened
+      description: Include the command you ran, or what you asked the agent for.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: >
+        The error and enough context to place it. Redact usernames, project IDs
+        and hostnames.
+      render: text
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: >
+        Pulser version, Python version, OS. `bash scripts/check.sh` output helps
+        if you have the repository checked out.

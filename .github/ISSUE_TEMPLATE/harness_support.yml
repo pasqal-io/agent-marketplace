@@ -1,0 +1,41 @@
+name: Harness support
+description: The plugin does not install or the skills are not found on some agent
+labels: [harness]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Support for several agents is transcribed from vendor documentation rather
+        than exercised — docs/harness-compatibility.md says which is which. A
+        report against an unexercised one is expected and useful.
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and version
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where it breaks
+      options:
+        - The plugin does not install
+        - It installs but no skills are listed
+        - Skills are listed but never invoked from context
+        - A skill runs but a bundled path does not resolve
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: detail
+    attributes:
+      label: What you did and what the agent said
+    validations:
+      required: true
+  - type: textarea
+    id: manifest
+    attributes:
+      label: Which manifest the agent reads, if you know
+      description: >
+        Adding an agent usually means one thin manifest, not a fork of `skills/` —
+        docs/porting-to-a-new-harness.md covers what that takes.
