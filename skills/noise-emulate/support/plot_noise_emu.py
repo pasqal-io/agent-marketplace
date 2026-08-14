@@ -46,7 +46,7 @@ def magnetisation(n_traj: np.ndarray, central_mask=None) -> np.ndarray:
     """
     n_traj : (n_runs, n_times, n_sites)
     Returns (n_runs, n_times) — spatially averaged ⟨σᶻ⟩ = 2⟨n⟩ − 1.
-    Convention: σᶻ = +1 for Rydberg, −1 for ground (same as analysis_utils).
+    Convention: σᶻ = +1 for Rydberg, −1 for ground.
     """
     sz = 2.0 * n_traj - 1.0          # (n_runs, n_times, n_sites)
     if central_mask is not None:

@@ -44,6 +44,22 @@ else
   echo "  (pulser not importable — skipping; CI installs it)"
 fi
 
+echo "── Support script wiring (--help must work with no credentials, no GPU)"
+# py_compile only parses. This imports each script for real and runs its argparse
+# setup, which is where a missing top-level import, a duplicate flag or a bad
+# default actually surfaces. --help never reaches the network, so no credentials
+# are involved — and none of these scripts may require any to print usage.
+if "$example_python" -c "import pulser" >/dev/null 2>&1; then
+  for script in skills/*/support/*.py; do
+    ( cd "$(dirname "$script")" && "$example_python" "$(basename "$script")" --help ) \
+      >/dev/null 2>/tmp/support_help.err \
+      || { echo "✘ $script --help failed:"; sed 's/^/    /' /tmp/support_help.err; exit 1; }
+  done
+  echo "  $(ls skills/*/support/*.py | wc -l | tr -d ' ') scripts importable and argparse-clean"
+else
+  echo "  (pulser not importable — skipping; CI installs it)"
+fi
+
 echo "── Secret scan"
 if grep -rnEI "(password|token|api_key)[[:space:]]*[:=][[:space:]]*['\"][^'\"$<{]|glpat-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH) PRIVATE" skills examples .claude-plugin; then
   echo "✘ potential secret found"; exit 1

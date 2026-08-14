@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Static conformance checks for the manifests, the skills and the shared modules.
 
-Seven things no harness CLI checks for us:
+Ten things no harness CLI checks for us:
 
 1. The plugin version is repeated in five manifests. Nothing keeps them in
    sync, so a release bump that touches one file ships a lying manifest to the
@@ -28,6 +28,15 @@ Seven things no harness CLI checks for us:
 7. Every example is a spec + sequence pair named after its directory. The
    filenames appear in documented commands and inside the spec itself, so a
    half-finished rename leaves both pointing at nothing.
+8. A SKILL.md and the files it ships describe each other exactly, in both
+   directions. Nothing else indexes `support/` or `templates/`, so a cited file
+   that is absent sends the model to run something that is not there, and a
+   shipped file nobody names is invisible and unmaintained.
+9. Relative Markdown links resolve. The docs cross-reference each other
+   heavily and a broken link renders fine on GitHub — it only fails on click.
+10. The tested Pulser version is one number. CI installs exactly one, the
+   examples assert on device constants that version ships, and any file
+   claiming to state a tested version has to name the same one.
 
 Schema references: https://agent-plugins.org/specification
                    https://developers.openai.com/codex/plugins/build
@@ -99,6 +108,14 @@ HARNESS_SPECIFIC = (
 
 # Text files worth scanning under skills/. Anything else is data or a binary.
 TEXT_SUFFIXES = {".md", ".py", ".sh", ".txt", ".json", ".yaml", ".yml"}
+
+# The Pulser version the toolkit is tested against is stated in prose in several
+# places that no tool keeps in sync. Each entry is a file and a pattern whose
+# first group is the version; they must all agree.
+PULSER_PIN_SOURCES = (
+    (".github/workflows/ci.yml", r'pip install "pulser==([0-9.]+)"'),
+    ("skills/noise-emulate/SKILL.md", r"CI pins pulser ([0-9.]+)"),
+)
 
 errors: list[str] = []
 
@@ -367,20 +384,116 @@ def check_examples() -> None:
                     f"{spec.get(field)!r}, expected {want!r}")
 
 
+def check_skill_references() -> None:
+    """A SKILL.md and the files it ships must describe each other exactly.
+
+    Both directions fail silently in their own way. A cited path that does not
+    exist sends the model to run a script that is not there — the failure the
+    audit found, and the reason it is checked mechanically now. A bundled file
+    that the SKILL.md never names is worse than dead weight: `support/` and
+    `templates/` are not indexed anywhere else, so an undocumented file is
+    invisible to the model that would use it and unmaintained by everyone else.
+
+    Paths written `<other-skill>/support/x.py` are deliberately skipped: the
+    angle brackets mark a placeholder for another skill's install location,
+    which is not resolvable from here and not this skill's to ship.
+    """
+    bundled = re.compile(
+        r"(?<![>/\w])(?:support|templates|references)/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+")
+    for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        directory = skill_md.parent
+        text = skill_md.read_text()
+
+        for match in bundled.finditer(text):
+            cited = match.group(0).rstrip(".,;:")
+            if not (directory / cited).exists():
+                line = text.count("\n", 0, match.start()) + 1
+                errors.append(
+                    f"skills/{directory.name}/SKILL.md:{line}: cites {cited!r}, "
+                    "which the skill does not ship")
+
+        for path in sorted(directory.rglob("*")):
+            if not path.is_file() or path.name == "SKILL.md":
+                continue
+            if "__pycache__" in path.parts:
+                continue
+            if path.name not in text:
+                errors.append(
+                    f"skills/{directory.name}/{path.relative_to(directory)}: "
+                    "shipped but never named in SKILL.md — document it there or "
+                    "delete it; nothing else indexes a skill's own files")
+
+
+def check_markdown_links() -> None:
+    """Every relative Markdown link must resolve.
+
+    The docs cross-reference each other constantly — README to examples,
+    examples to the reference implementations inside a skill, CONTRIBUTING to
+    both — and a rename that misses one leaves a link that renders fine on
+    GitHub and 404s on click. External URLs are not checked: CI must not depend
+    on the network.
+    """
+    link = re.compile(r"\[[^\]]*\]\(([^)#\s]+)(?:#[^)\s]*)?\)")
+    for md in sorted(ROOT.rglob("*.md")):
+        if ".git" in md.parts:
+            continue
+        text = md.read_text(errors="replace")
+        for match in link.finditer(text):
+            target = match.group(1)
+            if target.startswith(("http://", "https://", "mailto:")):
+                continue
+            if not (md.parent / target).exists():
+                line = text.count("\n", 0, match.start()) + 1
+                errors.append(f"{md.relative_to(ROOT)}:{line}: link target "
+                              f"{target!r} does not exist")
+
+
+def check_pulser_pins() -> None:
+    """One tested Pulser version, stated the same way everywhere.
+
+    These drifted before: CI ran one version while a skill documented another,
+    so a user following the docs installed something no test had exercised. The
+    examples assert on device constants Pulser ships, which is what makes the
+    number load-bearing rather than cosmetic. `requirements.txt` deliberately
+    keeps a floor rather than a pin — users are not forced onto one release —
+    and `submit-via-hpc` installs from offline zips on an air-gapped cluster,
+    where the version is whatever was last validated in that container.
+    """
+    found: dict[str, list[str]] = {}
+    for rel, pattern in PULSER_PIN_SOURCES:
+        path = ROOT / rel
+        if not path.is_file():
+            errors.append(f"{rel}: missing — it states the tested Pulser version")
+            continue
+        match = re.search(pattern, path.read_text())
+        if match is None:
+            errors.append(f"{rel}: no Pulser version matching /{pattern}/ — the "
+                          "pin was reworded; update PULSER_PIN_SOURCES with it")
+            continue
+        found.setdefault(match.group(1), []).append(rel)
+    if len(found) > 1:
+        detail = "; ".join(f"{v} in {', '.join(f)}" for v, f in sorted(found.items()))
+        errors.append(f"tested Pulser version diverges: {detail}. CI installs one "
+                      "version; anything the docs claim was tested must be it.")
+
+
 check_versions()
 check_codex_catalog()
 check_agent_plugin_manifest()
 check_skill_names()
 check_skill_portability()
+check_skill_references()
 check_agents_index()
+check_markdown_links()
 check_example_isolation()
 check_examples()
 check_vendored_modules()
+check_pulser_pins()
 
 if errors:
     for err in errors:
         print(f"✘ {err}")
     sys.exit(1)
 print("  versions aligned, catalogs conform, skill frontmatter valid, "
-      "skills harness-neutral, AGENTS.md complete, examples self-contained, "
-      "vendored modules identical")
+      "skills harness-neutral, bundled files documented, links resolve, "
+      "AGENTS.md complete, examples self-contained, vendored modules identical")

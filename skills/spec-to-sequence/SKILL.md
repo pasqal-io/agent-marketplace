@@ -228,6 +228,11 @@ def compute_observable(counts: dict[str, int]) -> float:
 
 ## Step 5 — Smoke test
 
+**Compare the observable against states whose value you can derive by hand, and
+exit non-zero when one moves.** A printed value nobody compares is not a test:
+it catches a crash and nothing else, so a sign error or a dropped term passes
+while still looking plausible.
+
 Add at the bottom of the file:
 
 ```python
@@ -238,14 +243,38 @@ if __name__ == "__main__":
     scan = spec["scan"]
     mid  = scan["values"][len(scan["values"])//2]
     params = {**scan["fixed_params"], scan["variable"]: mid}
+
     seq = build_sequence(device=None, **params)
     N   = len(seq.register.qubit_ids)
     print(f"Sequence OK: {seq.get_duration()} ns, {N} atoms")
-    counts = {"0" * N: 100}
-    print(f"compute_observable (vacuum): {compute_observable(counts):.4f}  (expect 0)")
+
+    failures = []
+    for label, counts, want, tol in [
+        ("vacuum",          {"0" * N: 100}, 0.0, 1e-12),
+        # add one perfectly ordered pattern, whose value you derived by hand
+    ]:
+        got = compute_observable(counts)
+        ok  = abs(got - want) <= tol
+        print(f"  {'ok  ' if ok else 'FAIL'} {label}: {got:+.4f} "
+              f"(expect {want:+.4f} ± {tol:g})")
+        if not ok:
+            failures.append(label)
+    if failures:
+        raise SystemExit(f"✘ compute_observable wrong for: {', '.join(failures)}")
 ```
 
-Run `python <experiment_name>_sequence.py` — must complete with no errors.
+Run `python <experiment_name>_sequence.py` — every line must read `ok`.
+
+Two things to get right in the comparisons:
+
+- **State the disordered floor** if the observable has one. An order parameter
+  built from a modulus does not go to zero on random data: ⟨|m|⟩ on an
+  uncorrelated array reads √(π/2N), which is 0.18 on 49 atoms. Print that floor
+  next to the measurement, or a null result reads as weak order.
+- **Assert what the observable silently assumes.** If it reconstructs atom
+  coordinates by bitstring index, check that the register's `qubit_ids` order
+  and coordinates survived `with_automatic_layout` — a reordering returns a
+  plausible wrong number rather than failing.
 
 ---
 

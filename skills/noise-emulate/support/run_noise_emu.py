@@ -76,7 +76,15 @@ from pathlib import Path
 import numpy as np
 import pulser
 from pulser.json.abstract_repr.deserializer import deserialize_device
-from emu_mps import MPSBackend, MPSConfig, Occupation, CorrelationMatrix, BitStrings
+try:
+    from emu_mps import MPSBackend, MPSConfig, Occupation, CorrelationMatrix, BitStrings
+except ModuleNotFoundError:
+    # emu-mps (and the torch build under it) is the heaviest dependency in the
+    # toolkit and this is the only script that needs it. Imported at module
+    # scope it made `--help` fail with a traceback instead of printing usage,
+    # and made every wiring check depend on a GPU-class install. main() reports
+    # the missing package once a run actually starts, which is where it belongs.
+    MPSBackend = MPSConfig = Occupation = CorrelationMatrix = BitStrings = None
 
 from pasqal_auth import load_credentials
 
@@ -205,7 +213,7 @@ def load_builder(seq_file: str, fn_name: str):
 
 # ── One MPS trajectory ─────────────────────────────────────────────────────────
 
-def run_one_trajectory(seq: pulser.Sequence, config: MPSConfig) -> tuple:
+def run_one_trajectory(seq: pulser.Sequence, config: "MPSConfig") -> tuple:
     """Run one MPS trajectory.
 
     Returns (n_occ, c_corr, times, total_duration, bitstrings), where bitstrings is a
@@ -216,7 +224,7 @@ def run_one_trajectory(seq: pulser.Sequence, config: MPSConfig) -> tuple:
     To get magnetisation use:  σᶻ = 2⟨n⟩ − 1
       → ground state (n=0) gives σᶻ = −1
       → Rydberg state (n=1) gives σᶻ = +1
-    This is the convention used throughout analysis_utils.py and plot_noise_emu.py.
+    This is the convention used throughout plot_noise_emu.py.
     Do NOT use 1 − 2⟨n⟩, which gives the wrong sign.
 
     Why bitstrings matter: ⟨n_i⟩ and ⟨n_i n_j⟩ are not enough for magnitude-averaged
@@ -378,6 +386,13 @@ def main():
                         help="Merge all partial_*.npz files in <out-dir> into a full .npz. "
                              "Run after all --run-id jobs complete.")
     args = parser.parse_args()
+
+    if MPSConfig is None:
+        raise SystemExit(
+            "emu-mps is not installed in this environment — install the skill's "
+            "dependencies first:\n"
+            "  pip install -r support/requirements.txt\n"
+            "For a run without emu-mps, use cloud mode (run_noise_emu_cloud.py).")
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

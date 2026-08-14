@@ -90,8 +90,12 @@ python3 -m venv ~/pulser-venv
 source ~/pulser-venv/bin/activate
 pip install -r support/requirements.txt
 ```
-Tested versions (2026-06): pulser 1.8.0, pasqal-cloud 0.22.0, emu-mps 2.7.5,
-torch 2.9.0. For GPU, install PyTorch for your CUDA version from pytorch.org first.
+CI pins pulser 1.9.0 and checks that sequences build and observables are correct
+against it. The full local stack — emu-mps 2.7.5, torch 2.9.0, pasqal-cloud
+0.22.0 — was last exercised end-to-end in 2026-06 against pulser 1.8.0, and has
+not been re-run since; treat a failure on a newer pulser as a version problem
+before assuming your sequence is wrong.
+For GPU, install PyTorch for your CUDA version from pytorch.org first.
 If a suitable venv already exists, point the skill at it with `export PULSER_VENV=<path>`.
 Cloud mode only needs `pulser`, `pulser-pasqal` and `pasqal-cloud` (no emu-mps/torch).
 
