@@ -23,10 +23,11 @@ project directory (keep outputs like `--out-dir` in your project, not the plugin
 support/
   run_emu_scan.py      ← cloud scan submission, polling, observable computation
   plot_emu_scan.py     ← scan curve figure
+  pasqal_auth.py       ← Pasqal Cloud credential loading (shared, do not edit here)
 ```
 
 Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`
-Credentials: `~/.pasqal_credentials.json` (or `$PASQAL_*` env vars)
+Credentials: `$PASQAL_USERNAME` / `$PASQAL_PASSWORD` / `$PASQAL_PROJECT_ID`, or `~/.pasqal_credentials.json`
 
 ---
 
@@ -160,7 +161,7 @@ Summarise:
 
 | Issue | Fix |
 |---|---|
-| `Pasqal credentials not found` | Create `~/.pasqal_credentials.json` (see `noise-emulate` setup) |
+| `Pasqal Cloud credentials incomplete` | Export `PASQAL_USERNAME` / `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID`, or see `noise-emulate` first-time setup |
 | `<device> not in available devices` | Cloud connection failed or device offline; for SA1, is `PASQAL_REGION=sa` set? Retry. |
 | `build_sequence` not found in seq file | Check `spec["builder_fn"]` matches the function name |
 | `seq.to_abstract_repr()` fails | Sequence violates device constraints — check spacing and duration |

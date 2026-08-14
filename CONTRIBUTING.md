@@ -29,6 +29,12 @@ Skills carry no experiment of their own. Physics belongs in `examples/`, reached
 through the `experiment_spec.json` contract — see
 `examples/square_lattice_eom_quench/README.md` for why.
 
+Code shared between skills is **vendored**: one byte-identical copy per
+`support/` directory (today, `pasqal_auth.py`). A skill has to keep working when
+a harness installs it alone, and `support/` is what gets copied to a cluster, so
+a single repo-level `lib/` would break both. Edit one copy, then copy it over the
+others — `scripts/check.sh` fails while they differ and names the odd ones out.
+
 ## Adding or changing a skill
 
 1. **One skill = one user intent.** Split skills by what the user asks for,
@@ -55,9 +61,15 @@ through the `experiment_spec.json` contract — see
 
 4. **Environment conventions**:
    - Python venv: `${PULSER_VENV:-$HOME/pulser-venv}`.
-   - Pasqal Cloud credentials: `PASQAL_USERNAME` / `PASQAL_PASSWORD` /
-     `PASQAL_PROJECT_ID` env vars, then `~/.pasqal_credentials.json` (chmod 600).
-     Never any other mechanism, never hardcoded.
+   - Pasqal Cloud credentials: **`from pasqal_auth import load_credentials`**,
+     never a loader of your own — CI rejects a second one. It resolves each
+     field from env vars, then the system keyring (password only), then
+     `~/.pasqal_credentials.json` (chmod 600), and returns exactly the keyword
+     arguments both clients take: `SDK(**load_credentials())`,
+     `PasqalCloud(**load_credentials())`. Never hardcode a credential.
+     The one exception is `submit-via-hpc/templates/submit_template.py`, which
+     runs inside a container on a compute node where no keyring exists; it reads
+     env vars only and says so in a comment.
    - Device selection: default `FRESNEL_CAN1`, always overridable (`--device` /
      `--device-name` / `spec["device"]`); region via `PASQAL_REGION` (`fr`
      default, `sa` for SA1). Never hardcode a device inside a script body.

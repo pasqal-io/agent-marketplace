@@ -21,6 +21,7 @@ project directory (keep outputs like `--out-dir` in your project, not the plugin
 support/
   harvest_qpu.py       ← collect, compute observable, compare, verdict
   plot_qpu_vs_emu.py   ← QPU vs noiseless/noisy EMU figure
+  pasqal_auth.py       ← Pasqal Cloud credential loading (shared, do not edit here)
 ```
 
 Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`

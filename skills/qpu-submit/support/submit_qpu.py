@@ -32,7 +32,6 @@ import argparse
 import importlib.util
 import inspect
 import json
-import os
 import time
 from pathlib import Path
 
@@ -42,19 +41,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
-
-def _load_credentials():
-    """Returns (username, password, project_id, region). region None = default 'fr';
-    set PASQAL_REGION=sa (or "region" in the credentials file) for SA1."""
-    region = os.environ.get("PASQAL_REGION")
-    cred = Path.home() / ".pasqal_credentials.json"
-    if cred.exists():
-        d = json.loads(cred.read_text())
-        return d["username"], d["password"], d["project_id"], region or d.get("region")
-    return (os.environ["PASQAL_USERNAME"],
-            os.environ["PASQAL_PASSWORD"],
-            os.environ["PASQAL_PROJECT_ID"],
-            region)
+from pasqal_auth import load_credentials
 
 
 def _load_seq_module(path: str):
@@ -300,12 +287,10 @@ def main():
     if not args.no_calibration:
         _check_builder_accepts_offsets(build_sequence)
 
-    username, password, project_id, region = _load_credentials()
     from pasqal_cloud import SDK, CreateJob
     from pulser.json.abstract_repr.deserializer import deserialize_device
 
-    sdk    = SDK(username=username, password=password, project_id=project_id,
-                 region=region)
+    sdk    = SDK(**load_credentials())
     specs  = sdk.get_device_specs_dict()
     if device_name not in specs:
         raise SystemExit(f"✘ device {device_name!r} not available in this project. "

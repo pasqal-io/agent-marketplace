@@ -70,8 +70,6 @@ import argparse
 import importlib.util
 import itertools
 import json
-import os
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -80,128 +78,7 @@ import pulser
 from pulser.json.abstract_repr.deserializer import deserialize_device
 from emu_mps import MPSBackend, MPSConfig, Occupation, CorrelationMatrix, BitStrings
 
-
-# ── Credentials ───────────────────────────────────────────────────────────────
-
-# Credential loading — priority order:
-#   1. Environment variables  (PASQAL_USERNAME, PASQAL_PASSWORD, PASQAL_PROJECT_ID)
-#   2. System keyring         (OS-encrypted; requires `pip install keyring`)
-#   3. ~/.pasqal_credentials.json  (non-password fields only; password warned if present)
-#   4. Interactive prompt          (interactive terminal only)
-#
-# Passwords are NEVER hardcoded and NEVER written to disk by this script.
-
-_CRED_FILE = Path.home() / ".pasqal_credentials.json"
-_KEYRING_SERVICE = "pasqal-cloud"
-
-
-def _keyring_get(key):
-    try:
-        import keyring
-        return keyring.get_password(_KEYRING_SERVICE, key)
-    except Exception:
-        return None
-
-
-def _keyring_set(key, value):
-    try:
-        import keyring
-        keyring.set_password(_KEYRING_SERVICE, key, value)
-        return True
-    except Exception:
-        return False
-
-
-def _prompt_secret(prompt):
-    """Read a secret without echoing it to the terminal."""
-    import getpass
-    return getpass.getpass(f"  {prompt}: ").strip()
-
-
-def _create_credentials_interactive():
-    """Guide the user through credential setup. Password goes to keyring or env var advice."""
-    print()
-    print("=" * 62)
-    print("  Pasqal Cloud credentials not found.")
-    print("  (One-time setup — password will NOT be written to disk)")
-    print("=" * 62)
-    print()
-    username   = input("  Pasqal Cloud username (email): ").strip()
-    project_id = input("  Pasqal Cloud project ID:       ").strip()
-    password   = _prompt_secret("Pasqal Cloud password (hidden)")
-
-    # Try to store password in system keyring (OS-encrypted)
-    if _keyring_set("password", password):
-        print("\n  Password saved to system keyring (OS-encrypted).")
-        # Save only non-sensitive fields to the JSON file
-        _CRED_FILE.write_text(json.dumps(
-            {"username": username, "project_id": project_id}, indent=2))
-        _CRED_FILE.chmod(0o600)
-        print(f"  Username/project_id saved → {_CRED_FILE}")
-    else:
-        # Keyring unavailable — advise env vars, don't write password to disk
-        print()
-        print("  ⚠  System keyring unavailable. Password NOT saved to disk.")
-        print("  Add these lines to your ~/.bashrc (or submit them in your SLURM script):")
-        print()
-        print(f'    export PASQAL_USERNAME="{username}"')
-        print(f'    export PASQAL_PASSWORD="<your_password>"')
-        print(f'    export PASQAL_PROJECT_ID="{project_id}"')
-        print()
-        print("  Use  read -s -p 'Password: ' PASQAL_PASSWORD && export PASQAL_PASSWORD")
-        print("  to set it without it appearing in your shell history.")
-        # Still save non-sensitive fields so they don't have to be re-entered
-        _CRED_FILE.write_text(json.dumps(
-            {"username": username, "project_id": project_id}, indent=2))
-        _CRED_FILE.chmod(0o600)
-        print(f"\n  Username/project_id saved → {_CRED_FILE}")
-
-    return {"username": username, "password": password, "project_id": project_id}
-
-
-def _load_credentials():
-    # 1. Environment variables — safest for SLURM/HPC, password never on disk
-    env_user  = os.environ.get("PASQAL_USERNAME")
-    env_pass  = os.environ.get("PASQAL_PASSWORD")
-    env_proj  = os.environ.get("PASQAL_PROJECT_ID")
-    if env_user and env_pass and env_proj:
-        return {"username": env_user, "password": env_pass, "project_id": env_proj}
-
-    # 2. System keyring + JSON file for non-sensitive fields
-    pw_keyring = _keyring_get("password")
-    if pw_keyring and _CRED_FILE.exists():
-        meta = json.loads(_CRED_FILE.read_text())
-        if "username" in meta and "project_id" in meta:
-            return {"username": meta["username"], "password": pw_keyring,
-                    "project_id": meta["project_id"]}
-
-    # 3. JSON file — warn if password is stored in plaintext there
-    if _CRED_FILE.exists():
-        import stat
-        mode = _CRED_FILE.stat().st_mode
-        if mode & (stat.S_IRGRP | stat.S_IROTH):
-            print(f"⚠  WARNING: {_CRED_FILE} is readable by others — run: chmod 600 {_CRED_FILE}")
-        creds = json.loads(_CRED_FILE.read_text())
-        if "password" in creds:
-            print("⚠  WARNING: password is stored in plaintext in "
-                  f"{_CRED_FILE}. Move it to the system keyring or "
-                  "use the PASQAL_PASSWORD environment variable instead.")
-        if all(k in creds for k in ("username", "password", "project_id")):
-            return creds
-
-    # 4. Interactive setup (only in an interactive terminal)
-    import sys
-    if sys.stdin.isatty():
-        return _create_credentials_interactive()
-
-    raise FileNotFoundError(
-        "Pasqal credentials not found. Options:\n"
-        "  A) Set environment variables:  PASQAL_USERNAME, PASQAL_PASSWORD, PASQAL_PROJECT_ID\n"
-        "  B) Run interactively to set up the system keyring:\n"
-        "     python run_noise_emu.py --save-noise-model --out-dir /tmp/test\n"
-        "  C) Store in ~/.pasqal_credentials.json (password in plaintext — not recommended):\n"
-        '     {"username": "...", "password": "...", "project_id": "..."}'
-    )
+from pasqal_auth import load_credentials
 
 
 # ── Optional noise overrides ────────────────────────────────────────────────────
@@ -217,10 +94,7 @@ def fetch_fcan1(device_name="FRESNEL_CAN1",
                 override_detuning_sigma=None):
     import dataclasses
     from pasqal_cloud import SDK
-    creds  = _load_credentials()
-    region = os.environ.get("PASQAL_REGION") or creds.get("region")
-    sdk    = SDK(username=creds["username"], project_id=creds["project_id"],
-                 password=creds["password"], region=region)
+    sdk    = SDK(**load_credentials())
     specs  = sdk.get_device_specs_dict()
     if device_name not in specs:
         raise ValueError(f"{device_name} not in available devices: {list(specs.keys())}")
@@ -447,7 +321,7 @@ def main():
     parser.add_argument("--max-chi",     type=int, default=128,
                         help="MPS max bond dimension (default: 128). Convergence-validated "
                              "for S(π,π)/2-point/local observables on systems up to 6×6 "
-                             "(noiseless S(π,π) agrees with χ=200 to ~0.05%; calibrated "
+                             "(noiseless S(π,π) agrees with χ=200 to ~0.05%%; calibrated "
                              "2026-06 on the t_fall sweep). For larger N, entanglement "
                              "entropy / full-distribution / higher-moment observables, or "
                              "longer anneals, raise to 200+ and re-validate.")

@@ -23,25 +23,12 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import os
 import time
 from pathlib import Path
 
 import numpy as np
 
-
-def _load_credentials():
-    """Returns (username, password, project_id, region). region None = default 'fr';
-    set PASQAL_REGION=sa (or "region" in the credentials file) for SA1."""
-    region = os.environ.get("PASQAL_REGION")
-    cred = Path.home() / ".pasqal_credentials.json"
-    if cred.exists():
-        d = json.loads(cred.read_text())
-        return d["username"], d["password"], d["project_id"], region or d.get("region")
-    return (os.environ["PASQAL_USERNAME"],
-            os.environ["PASQAL_PASSWORD"],
-            os.environ["PASQAL_PROJECT_ID"],
-            region)
+from pasqal_auth import load_credentials
 
 
 def _load_seq_module(path: str):
@@ -120,17 +107,15 @@ def main():
     build_sequence   = getattr(mod, spec.get("builder_fn", "build_sequence"))
     compute_obs      = mod.compute_observable
 
-    username, password, project_id, region = _load_credentials()
+    creds = load_credentials()
     from pulser_pasqal import PasqalCloud
     from pasqal_cloud import SDK, EmulatorType, CreateJob
     from pulser.backend import EmulationConfig
     from pulser.backend.default_observables import BitStrings
 
-    conn   = PasqalCloud(username=username, password=password, project_id=project_id,
-                         region=region)
+    conn   = PasqalCloud(**creds)
     device = conn.fetch_available_devices()[spec["device"]]
-    sdk    = SDK(username=username, password=password, project_id=project_id,
-                 region=region)
+    sdk    = SDK(**creds)
 
     noisy_cfg = None
     noise_params = None

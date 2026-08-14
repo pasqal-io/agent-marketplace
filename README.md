@@ -61,9 +61,16 @@ See [docs/agents/](docs/agents/) for all agents and adapter-author notes.
    export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
    ```
 
-   or `~/.pasqal_credentials.json` (`chmod 600`). Targeting **SA1**? Also set
-   `PASQAL_REGION=sa` (or `"region": "sa"` in the credentials file).
-   **Never commit credentials to this or any repo.**
+   Every skill resolves each field from the same three sources, in this order:
+   the environment variables above, then the system keyring (password only —
+   OS-encrypted, needs `pip install keyring`), then `~/.pasqal_credentials.json`
+   (`chmod 600`; a password stored there is plaintext and the skills say so).
+   Run any cloud-facing script in a terminal with nothing configured and it
+   offers a one-time keyring setup. Because resolution is per field, exporting
+   `PASQAL_PASSWORD` alone overrides a stale password in the file.
+
+   Targeting **SA1**? Also set `PASQAL_REGION=sa` (or `"region": "sa"` in the
+   credentials file). **Never commit credentials to this or any repo.**
 
 3. **For `submit-via-hpc` only** — an account on the target cluster and an ssh
    alias for it in `~/.ssh/config`; the skill's "Getting access" section covers

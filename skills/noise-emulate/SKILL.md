@@ -36,6 +36,7 @@ support/
   run_noise_emu_cloud.py    ← Pasqal Cloud EMU_MPS runner (cloud mode)
   plot_noise_emu_cloud.py   ← cloud results figure
   requirements.txt          ← Python dependencies (local/SLURM modes)
+  pasqal_auth.py            ← Pasqal Cloud credential loading (shared, do not edit here)
 ```
 
 ---
@@ -69,13 +70,19 @@ Then read the user's sequence carefully:
 
 ## First-time setup (all modes)
 
-**Pasqal Cloud credentials** (needed in every mode — the noise model is fetched live):
-either set `PASQAL_USERNAME` / `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID`, or create
-`~/.pasqal_credentials.json`:
-```json
-{"username": "your.email@example.com", "password": "...", "project_id": "your-project-uuid"}
+**Pasqal Cloud credentials** (needed in every mode — the noise model is fetched live).
+Each field is resolved independently: environment variables first, then the
+system keyring (password only), then `~/.pasqal_credentials.json`.
+```bash
+export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
 ```
-then `chmod 600 ~/.pasqal_credentials.json`.
+On a shared machine or in a SLURM script, prefer the environment variables —
+they are the only option that keeps the password off disk. Alternatively run
+any of the scripts below in a terminal with nothing configured: it offers a
+one-time setup that puts the password in the OS keyring and only the username
+and project ID in `~/.pasqal_credentials.json` (`chmod 600`). Storing the
+password in that file works too, and the scripts will warn you that it is
+plaintext.
 
 **Python environment** (local and SLURM modes):
 ```bash
@@ -252,7 +259,7 @@ Save figures as `.png` only.
 
 | Issue | Fix |
 |-------|-----|
-| `Pasqal credentials not found` | See **First-time setup** above |
+| `Pasqal Cloud credentials incomplete` | See **First-time setup** above; the message names the missing fields |
 | `<device> not in available devices` | Cloud SDK connection failed or device hidden from the project (for SA1: is `PASQAL_REGION=sa` set?); retry / check project |
 | `build_sequence not found` | Pass `--fn-name <name>` |
 | Builder returned a parametric sequence | Call `.build(...)` inside the builder |

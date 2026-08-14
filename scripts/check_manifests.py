@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Static conformance checks for the per-harness manifests.
+"""Static conformance checks for the manifests and the shared support modules.
 
-Two things no harness CLI checks for us:
+Three things no harness CLI checks for us:
 
 1. The plugin version is repeated in four manifests. Nothing keeps them in
    sync, so a release bump that touches one file ships a lying manifest to the
@@ -10,13 +10,19 @@ Two things no harness CLI checks for us:
    required fields and closed enums. Codex reads that path — not
    `.claude-plugin/marketplace.json`, which is only a legacy fallback — and a
    missing field means the plugin simply does not appear.
+3. Modules shared between skills are vendored, one byte-identical copy per
+   `support/` directory, because a skill must keep working when installed on
+   its own. Nothing stops the copies from drifting, and drifting credential
+   handling is how a security policy silently applies to only some scripts.
 
 Schema reference: https://developers.openai.com/codex/plugins/build
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -46,6 +52,9 @@ CODEX_CATEGORIES = {
 }
 CODEX_INSTALLATION = {"AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE"}
 CODEX_AUTHENTICATION = {"ON_INSTALL", "ON_USE"}
+
+# Modules vendored byte-identical into every skill's support/ directory.
+VENDORED_MODULES = ("pasqal_auth.py",)
 
 errors: list[str] = []
 
@@ -163,12 +172,44 @@ def check_skill_names() -> None:
                           f"{len(description)} characters, limit is 500")
 
 
+def check_vendored_modules() -> None:
+    """Every copy of a vendored module must be byte-identical, and no support
+    script may grow its own credential loader beside it."""
+    for module in VENDORED_MODULES:
+        copies = sorted((ROOT / "skills").glob(f"*/support/{module}"))
+        if not copies:
+            errors.append(f"vendored module {module} has no copies under skills/*/support/")
+            continue
+        by_digest: dict[str, list[str]] = {}
+        for copy in copies:
+            digest = hashlib.sha256(copy.read_bytes()).hexdigest()[:12]
+            by_digest.setdefault(digest, []).append(
+                str(copy.relative_to(ROOT)))
+        if len(by_digest) > 1:
+            detail = "; ".join(f"{d}: {', '.join(f)}" for d, f in sorted(by_digest.items()))
+            errors.append(
+                f"copies of {module} have diverged — {detail}. Copy the "
+                "corrected version over the others.")
+
+    # A second loader anywhere would apply a different policy to some scripts.
+    loader = re.compile(r"^\s*def _?load_credentials\b", re.M)
+    for script in sorted((ROOT / "skills").glob("*/support/*.py")):
+        if script.name in VENDORED_MODULES:
+            continue
+        if loader.search(script.read_text()):
+            errors.append(
+                f"{script.relative_to(ROOT)} defines its own credential loader "
+                "— import it from pasqal_auth instead")
+
+
 check_versions()
 check_codex_catalog()
 check_skill_names()
+check_vendored_modules()
 
 if errors:
     for err in errors:
         print(f"✘ {err}")
     sys.exit(1)
-print("  versions aligned, Codex catalog conforms, skill frontmatter valid")
+print("  versions aligned, Codex catalog conforms, skill frontmatter valid, "
+      "vendored modules identical")

@@ -26,25 +26,12 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import os
 import time
 from pathlib import Path
 
 import numpy as np
 
-
-def _load_credentials():
-    """Returns (username, password, project_id, region). region None = default 'fr';
-    set PASQAL_REGION=sa (or "region" in the credentials file) for SA1."""
-    region = os.environ.get("PASQAL_REGION")
-    cred = Path.home() / ".pasqal_credentials.json"
-    if cred.exists():
-        d = json.loads(cred.read_text())
-        return d["username"], d["password"], d["project_id"], region or d.get("region")
-    return (os.environ["PASQAL_USERNAME"],
-            os.environ["PASQAL_PASSWORD"],
-            os.environ["PASQAL_PROJECT_ID"],
-            region)
+from pasqal_auth import load_credentials
 
 
 def _load_seq_module(path: str):
@@ -155,10 +142,8 @@ def main():
     mod      = _load_seq_module(args.seq_file)
     obs_fn   = mod.compute_observable
 
-    username, password, project_id, region = _load_credentials()
     from pasqal_cloud import SDK
-    sdk = SDK(username=username, password=password, project_id=project_id,
-              region=region)
+    sdk = SDK(**load_credentials())
 
     print(f"=== harvest-and-analyze: {spec['experiment_name']} ===")
     fmt = batch_data.get("format", "per_point")

@@ -28,6 +28,7 @@ project directory (keep outputs like `--out-dir` in your project, not the plugin
 ```
 support/
   submit_qpu.py        ← calibration + submission
+  pasqal_auth.py       ← Pasqal Cloud credential loading (shared, do not edit here)
 ```
 
 Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`

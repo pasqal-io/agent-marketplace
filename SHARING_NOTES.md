@@ -22,11 +22,11 @@ each new user must still provide.
    directory (portable across agent harnesses); scripts locate their siblings
    relative to themselves.
 2. **Python venv**: parameterized as `${PULSER_VENV:-~/pulser-venv}`.
-3. **Credentials**: uniform loading everywhere — `PASQAL_USERNAME` /
-   `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID` env vars, then
-   `~/.pasqal_credentials.json` (the local/SLURM noise-emulate runner also
-   supports the OS keyring and an interactive first-run setup). No repo-specific
-   credential loaders.
+3. **Credentials**: one loader, `support/pasqal_auth.py` — env vars, then the OS
+   keyring (password only), then `~/.pasqal_credentials.json`, then an
+   interactive first-run setup at a terminal. Per-field resolution, so
+   `PASQAL_PASSWORD` alone overrides a stale password in the file. CI rejects a
+   second loader.
 4. **Noise model**: emulations use the **as-shipped device noise model** fetched
    live from the SDK. No baked-in calibration overrides; individual fields can
    be overridden per run via CLI flags for sensitivity studies. Effective values
