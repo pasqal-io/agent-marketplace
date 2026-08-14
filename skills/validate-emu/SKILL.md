@@ -67,6 +67,14 @@ python support/run_emu_scan.py \
     [--poll    30]
 ```
 
+**If the session drops while polling, add `--resume`** — never re-run the plain
+command. A submission is not idempotent: it creates a fresh pair of batches per
+scan point, so a plain re-run buys the whole scan twice. The script refuses to
+run at all while `<out-dir>/batch_ids.json` exists; `--resume` polls the batches
+that file records and resubmits nothing. It also refuses to resume if the spec's
+scan no longer matches what was submitted, because the verdict would then be
+attributed to a spec the hardware never ran.
+
 The script:
 1. Fetches the live device from the cloud
 2. Builds a non-parametric sequence for each scan point (calls `build_sequence(**params)`)

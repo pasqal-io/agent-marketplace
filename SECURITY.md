@@ -40,10 +40,17 @@ behalf. Two of them spend real resources.
 
 - **`qpu-submit`** consumes QPU shots on a Pasqal Cloud project. It presents the
   shot count and the scan size for confirmation before submitting, and a changed
-  submission plan requires a new confirmation. There is no hard spending limit in
-  the code: the gate is an instruction the model must follow, so review what it
-  proposes rather than assuming a script will stop it.
+  submission plan requires a new confirmation. **There is no spending cap in the
+  code**: that gate is an instruction the model must follow, so review what it
+  proposes rather than assuming a script will stop it. What *is* enforced in code
+  is idempotency — a script refuses to submit into an output directory that
+  already records batch IDs, because a re-run would buy the same shots twice and
+  destroy the record of the first submission. `validate-emu` resumes from that
+  record with `--resume` instead of resubmitting.
 - **`submit-via-hpc`** consumes allocation hours on a cluster you have access to.
+  Launching there is not idempotent either, and nothing on the cluster prevents a
+  duplicate; the skill checks the queue first, but that check is an instruction,
+  not code.
 
 Emulation always precedes a QPU recommendation. QPU submission is never part of
 CI.

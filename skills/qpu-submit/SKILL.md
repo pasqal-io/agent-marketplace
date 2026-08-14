@@ -101,6 +101,14 @@ What the script does:
 3. Writes `batch_ids.json` immediately after submission, then returns. The last
    printed line is its path.
 
+**Never re-run this on an `--out-dir` that already has a `batch_ids.json`.** The
+script refuses, before touching credentials, and says why: a second run buys the
+same shots again on hardware *and* overwrites the only record of the first
+submission's batch IDs, so those shots become unrecoverable as well as paid for.
+If a session dropped after submission, the batches are already queued — go to
+Step 3 and collect them. A genuinely different run belongs in a different
+`--out-dir`.
+
 **Typical duration**: calibration ~10–30 min of execution, but queue wait is
 site-dependent and can be far longer. The experiment batches queue behind it.
 

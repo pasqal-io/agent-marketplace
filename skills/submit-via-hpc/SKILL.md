@@ -273,7 +273,21 @@ Verify the key files landed:
 ssh "$HPC_HOST" "ls ~/$HPC_REMOTE_DIR/submit_<name>.py ~/$HPC_REMOTE_DIR/launch_cea_jobs.sh ~/$HPC_REMOTE_DIR/submit_cea.sh"
 ```
 
-### 4.3 — Launch jobs with nohup
+### 4.3 — Check nothing is already running for this experiment
+
+Launching is not idempotent: the launcher queues a fresh job per scan point every
+time it runs, and each one spends allocation hours. Nothing on the cluster
+prevents a duplicate.
+
+```bash
+ssh "$HPC_HOST" "ccc_mstat 2>/dev/null | head -20; ls -t ~/$HPC_REMOTE_DIR/logs/ 2>/dev/null | head -5"
+```
+
+If jobs for this experiment are already queued or running, **do not launch
+again** — report what is there and let the user decide. Monitor the existing jobs
+instead (Phase 5).
+
+### 4.4 — Launch jobs with nohup
 
 ```bash
 LAUNCH_LOG="logs/launch_$(date +%Y%m%d_%H%M%S).out"
@@ -282,7 +296,7 @@ ssh "$HPC_HOST" "cd ~/$HPC_REMOTE_DIR && mkdir -p logs && nohup bash launch_cea_
 
 Save the PID for monitoring. Report the launch log path to the user.
 
-### 4.4 — Confirm jobs are queued
+### 4.5 — Confirm jobs are queued
 
 Wait ~10 seconds, then verify the MSUB scheduler received the job:
 ```bash

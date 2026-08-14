@@ -41,9 +41,12 @@ harness and version you ran.
   can name its own tool should do so there — Kimi's `skillInstructions` is the
   worked example.
 - **Long-running polls.** Cloud emulator batches and QPU jobs take minutes to
-  hours. Every runner writes its batch IDs before waiting and takes `--resume`,
-  so a harness that cannot run a command in the background only costs the user a
-  re-invocation, never a lost batch.
+  hours. Every runner writes its batch IDs to `<out-dir>/batch_ids.json` *before*
+  waiting, and refuses to submit again while that file is there, so a dropped
+  session never costs shots. `validate-emu` picks the recorded batches back up
+  with `--resume`; QPU results are collected by `harvest-and-analyze` from the
+  same file, which is a re-runnable step by construction. A harness that cannot
+  run a command in the background costs the user a re-invocation, never a batch.
 - **No native skill tool.** The model reads `skills/<name>/SKILL.md` itself.
   This is the sanctioned fallback, not a hack — the skills are written to be
   read that way.

@@ -275,6 +275,27 @@ def main():
     out  = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
+    # Nothing here is idempotent: a re-run submits a fresh calibration batch and
+    # every scan point again, on hardware, then overwrites this file — so the
+    # first submission's shots are both paid for and unrecoverable, because its
+    # batch IDs only ever existed here. Refuse.
+    batch_ids_path = out / "batch_ids.json"
+    if batch_ids_path.exists():
+        try:
+            previous = json.loads(batch_ids_path.read_text())
+            count = len(previous.get("batches", []))
+            when = previous.get("ts", "an earlier run")
+        except (json.JSONDecodeError, AttributeError):
+            count, when = "?", "an earlier run"
+        raise SystemExit(
+            f"✘ {batch_ids_path} already records {count} submitted batch(es) "
+            f"from {when}.\n"
+            "  Re-running would buy the same shots twice and overwrite the only "
+            "record of the first submission.\n"
+            "  Collect what was already submitted:  harvest-and-analyze with "
+            f"--batch-ids {batch_ids_path}\n"
+            "  Submit a genuinely different run into another --out-dir.")
+
     shots       = args.shots or spec["shots_per_point"]
     device_name = args.device or spec["device"]
     scan        = spec["scan"]
@@ -353,7 +374,6 @@ def main():
         batches.append({"scan_value": val, "batch_id": str(b.id), "n_shots": shots})
         print(f"  {variable}={val}  →  {b.id}", flush=True)
 
-    batch_ids_path = out / "batch_ids.json"
     batch_ids_path.write_text(json.dumps({
         "ts":             time.strftime("%Y-%m-%dT%H:%M:%S"),
         "experiment":     spec["experiment_name"],
