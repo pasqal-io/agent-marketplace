@@ -1,26 +1,40 @@
 # Neutral Atom Toolkit
 
-**Run an experiment on a neutral-atom quantum computer without first learning
-Pulser, the emulator stack, or how hardware access works.** Bring a paper, a
-patent or an idea; get a reviewable specification, a working Pulser sequence, an
-emulation that tells you whether the signal survives noise, a costed submission
-you approve before anything is spent, and an analysis that puts the hardware next
-to the prediction.
+**From an experiment you want to run to a measured result on a neutral-atom
+quantum computer, without first learning Pulser, the emulator stack, or how
+hardware access works.**
+
+An idea is enough to start: describe what you want to measure. A paper, a patent
+or a PDF you want to reproduce is one way of having such an idea, not the only
+one. What comes back is a specification you can review, a working Pulser
+sequence, an emulation that says whether the signal survives the device's noise,
+a costed submission you approve before anything is spent, and an analysis that
+puts the hardware next to the prediction.
 
 You keep every scientific decision. The machine-facing work is what this hands
 off.
 
-## What it does for you
+## From an idea to a result
 
-| You want to | Normally you would | Here you |
+| | You provide | You get |
 |---|---|---|
-| Turn a protocol into something runnable | Read the device specification, pick a register, write the pulse code | Point at the paper and answer the questions it left open |
-| Know whether it is worth running | Learn an emulator API, guess a noise model | Ask for a local emulation, then a cloud one at full size |
-| Get onto a QPU | Find the device, the project, the calibration procedure | Approve a shot count you were shown |
-| Read the result | Write the collection and comparison code | Get raw bitstrings, your observable, and an agreement figure |
+| **1. Specify** | the experiment you want, described in your own words, or a paper, patent or PDF to reproduce | `<name>_spec.json`: register, pulses, observable, and every question your description or source left open |
+| **2. Implement** | your review of that spec | `<name>_sequence.py`: Pulser code that self-tests against states whose value is known by hand |
+| **3. Emulate** | nothing for the local run; an account to emulate at the real register size | the scan, noiseless and noisy, and a go/no-go on whether the signal is worth hardware time |
+| **4. Submit** | your go-ahead on an itemised shot count | batch IDs on a QPU, or jobs on a cluster |
+| **5. Analyse** | those batch IDs | raw bitstrings, your observable applied to them, and how far the hardware sits from the prediction |
 
-Each step produces a plain file you can open, correct and re-run. Nothing is
-hidden behind a service.
+Every row leaves a plain file on your disk that you can open, correct and re-run,
+and you can enter at any row: bring your own sequence and ask for step 3, or
+bring batch IDs and ask for step 5. Those files are ordinary ones: a JSON spec, a
+Python file exporting two functions, and one JSON of raw bitstrings per scan
+point. `compute_observable(counts: dict[str, int]) -> float` takes shot data and
+nothing else, so re-analysing a run, replotting it or publishing it never touches
+a vendor library again.
+
+Sequence code is [Pulser](https://github.com/pasqal-io/Pulser), Apache-2.0 and a
+`pip install` away; specifying, generating and emulating an experiment needs no
+account and no service.
 
 Concretely, this repository is a set of [agent skills](https://agentskills.io):
 instructions and tested scripts that a coding agent loads when they are relevant.
@@ -29,8 +43,8 @@ You install them into the agent you already use.
 ## Who it is for
 
 Researchers who can formulate and judge a scientific question and are comfortable
-with Python and a coding agent. Internal or external, reproducing published work
-or running your own protocol.
+with Python and a coding agent. Internal or external, running a protocol of your
+own or reproducing published work.
 
 **What the agent takes off your hands:** finding the device limits, writing the
 register and pulse code, wiring the observable, running emulations, assembling
@@ -91,26 +105,33 @@ Then set up the Python environment and, if you have one, your credentials:
 
 ## Start here
 
-**[docs/tutorial.md](docs/tutorial.md)** walks a first experiment end to end,
-with the exact words to type, what each step produces, and the output to expect.
-It runs entirely on your machine: no account, no cost.
+Open your agent in an empty directory and say what you want to measure:
 
-The short version. Open your agent in an empty directory and say:
+> I want to know whether a square array of about 25 atoms orders
+> antiferromagnetically when I ramp the detuning through the transition. Set it
+> up so I can emulate it locally first.
+
+The agent comes back with the questions your description does not settle, which
+observable should decide it, which part of the ramp matters, whether a register
+small enough to emulate still answers anything, and then writes
+`<name>_spec.json`, `<name>_sequence.py` and a local emulation verdict. Read each
+file, correct it, and continue when it says what you meant.
+
+To reproduce something instead, hand over the source and the rest is identical:
 
 > Read arXiv:2302.08963 and turn it into an experiment spec for a neutral-atom
 > QPU. Downsize the register so I can emulate it locally first.
 
-The agent will ask you what the paper does not settle, then produce
-`<name>_spec.json`, `<name>_sequence.py`, and a local emulation verdict. Read
-each file, correct it, and continue when it says what you meant. You can also
-enter at any later step: bring your own sequence and ask for an emulation, or
-bring batch IDs and ask for the analysis.
+**[docs/tutorial.md](docs/tutorial.md)** walks that second case end to end, with
+the exact words to type, what each step produces and the output to expect. Every
+command and number on that page was run to produce it, on one machine, with no
+account and nothing spent.
 
 ## The skills
 
 | Skill | What it does | Needs |
 |---|---|---|
-| `idea-to-spec` | Turn a paper, a patent, or an experiment idea into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
+| `idea-to-spec` | Turn an experiment you describe, or a paper or patent you want to reproduce, into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec, self-testing | Python + `pulser` |
 | `validate-emu` | Noiseless and noisy scan, then a go/no-go for QPU. Asks where to run: **locally** (free, ~14 atoms) or **cloud emulator** at the real size | nothing for local; account for cloud |
 | `noise-emulate` | Noise emulation with the live device noise model, over time. Runs **locally**, **via SLURM on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
