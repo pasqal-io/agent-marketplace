@@ -1,0 +1,22 @@
+{
+  "name": "pasqal",
+  "interface": {
+    "displayName": "Pasqal Agent Marketplace"
+  },
+  "plugins": [
+    {
+      "name": "neutral-atom-toolkit",
+      "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE",
+        "products": ["CODEX"]
+      },
+      "category": "Education & Research"
+    }
+  ]
+}

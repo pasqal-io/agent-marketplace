@@ -1,6 +1,6 @@
 {
   "name": "neutral-atom-toolkit",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
   "author": {
     "name": "Pasqal",
@@ -25,7 +25,7 @@
     "shortDescription": "Run neutral-atom QPU experiments end-to-end: spec, emulate, submit, analyze",
     "longDescription": "Use the Neutral Atom Toolkit to turn a paper or an idea into an experiment spec, generate the Pulser sequence, validate it on cloud emulators, run noise emulations (locally, on SLURM, or on Pasqal Cloud), submit to a QPU (Pasqal Cloud devices, or Ruby at CEA/TGCC over SSH), and analyze the returned bitstrings against the noise model.",
     "developerName": "Pasqal",
-    "category": "Developer Tools",
+    "category": "Education & Research",
     "capabilities": [
       "Interactive",
       "Read",

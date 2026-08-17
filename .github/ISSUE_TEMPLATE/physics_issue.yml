@@ -1,0 +1,47 @@
+name: Physics or observable issue
+description: A sequence, observable or spec is scientifically wrong
+labels: [physics]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most valuable issue type in the repository and the hardest to
+        catch mechanically: a wrong observable runs, returns a plausible number,
+        and passes every check. Please say what the correct value should be and
+        how you know.
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Example directory, skill, or reference file
+      placeholder: examples/triangular_lattice_phases
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: What is wrong
+      description: >
+        The observable, the geometry, the pulse schedule, a device constraint, or
+        a claim in a README.
+    validations:
+      required: true
+  - type: textarea
+    id: correct
+    attributes:
+      label: What the correct behaviour is
+      description: >
+        A derivation, a state whose value can be computed by hand, or a paper
+        with the equation and figure number. "It looks wrong" is a starting point
+        but we cannot act on it alone.
+    validations:
+      required: true
+  - type: textarea
+    id: floor
+    attributes:
+      label: Does this involve a finite-size floor or a degeneracy?
+      description: >
+        Order parameters built from a modulus do not go to zero on random data,
+        and degenerate ordered phases cancel under shot averaging. Both have
+        already produced apparent bugs that were not bugs — and real bugs that
+        looked fine.

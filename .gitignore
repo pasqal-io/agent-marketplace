@@ -1,2 +1,24 @@
 __pycache__/
 *.pyc
+
+# Per-user harness settings — contain local paths, never publishable
+.claude/settings.local.json
+
+# Experiment output. Skills write under a spec's `output_dir`, and these are the
+# filenames the docs use. Results, figures and batch IDs belong to the run and to
+# the project whose allocation paid for it — a batch ID identifies a private
+# project, so none of this is publishable by default.
+results/
+*_results/
+batch_ids.json
+verdict.json
+qpu_counts.json
+qpu_results.json
+*.npz
+*.png
+
+# Local venvs, in case one is created inside the checkout
+.venv/
+pulser-venv/
+
+.DS_Store

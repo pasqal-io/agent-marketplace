@@ -13,7 +13,6 @@ In Kimi Code:
 /plugins install https://github.com/pasqal-io/agent-marketplace
 ```
 
-While the repository is private, your git must be authenticated to GitHub.
 Kimi Code applies plugin changes to new sessions — after installing or
 updating, start a fresh session with `/new`.
 

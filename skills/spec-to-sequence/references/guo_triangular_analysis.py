@@ -23,7 +23,7 @@ We provide perfect_order_SK() to compute it numerically for the register.
 from __future__ import annotations
 import numpy as np
 
-from sequences.guo_triangular_sqrt3_sequence import (
+from guo_triangular_sqrt3_sequence import (
     triangular_coords, sqrt3_wavevector, DEFAULT_L, DEFAULT_SPACING_UM,
 )
 

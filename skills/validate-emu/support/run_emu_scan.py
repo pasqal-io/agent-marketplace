@@ -23,25 +23,12 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import os
 import time
 from pathlib import Path
 
 import numpy as np
 
-
-def _load_credentials():
-    """Returns (username, password, project_id, region). region None = default 'fr';
-    set PASQAL_REGION=sa (or "region" in the credentials file) for SA1."""
-    region = os.environ.get("PASQAL_REGION")
-    cred = Path.home() / ".pasqal_credentials.json"
-    if cred.exists():
-        d = json.loads(cred.read_text())
-        return d["username"], d["password"], d["project_id"], region or d.get("region")
-    return (os.environ["PASQAL_USERNAME"],
-            os.environ["PASQAL_PASSWORD"],
-            os.environ["PASQAL_PROJECT_ID"],
-            region)
+from pasqal_auth import load_credentials
 
 
 def _load_seq_module(path: str):
@@ -101,6 +88,11 @@ def main():
                     help="poll interval in seconds")
     ap.add_argument("--noiseless-only",  action="store_true")
     ap.add_argument("--noisy-only",      action="store_true")
+    ap.add_argument("--resume",          action="store_true",
+                    help="Poll the batches already recorded in "
+                         "<out-dir>/batch_ids.json instead of submitting new "
+                         "ones. Use this after a dropped session — a plain "
+                         "re-run would pay for the whole scan a second time.")
     args = ap.parse_args()
 
     spec = json.loads(Path(args.spec).read_text())
@@ -113,6 +105,37 @@ def main():
     values   = scan["values"]
     fixed    = scan.get("fixed_params", {})
 
+    # Submission is not idempotent: every scan point creates a fresh pair of
+    # cloud batches and this file is overwritten, so a plain re-run after a
+    # dropped session pays for the scan twice and loses the first set of IDs.
+    # Refuse instead, and offer the recorded batches. Checked here, before the
+    # cloud imports and the credential load, so it costs nothing to hit.
+    manifest_path = out / "batch_ids.json"
+    recorded = None
+    if manifest_path.exists():
+        if not args.resume:
+            raise SystemExit(
+                f"✘ {manifest_path} already exists — this scan was already "
+                "submitted.\n"
+                "  Poll the batches it recorded:  --resume\n"
+                "  Or submit a genuinely new scan into a different --out-dir.")
+        recorded = json.loads(manifest_path.read_text())
+        # A spec edited between submission and resume would poll batches that
+        # ran something else, and the verdict would be attributed to the current
+        # spec. Refuse rather than mislabel the result.
+        if (recorded.get("scan_variable") != variable
+                or recorded.get("scan_values") != values):
+            raise SystemExit(
+                "✘ the spec no longer matches what was submitted: "
+                f"{recorded.get('scan_variable')} ∈ {recorded.get('scan_values')} "
+                f"was recorded, the spec now says {variable} ∈ {values}.\n"
+                "  Submit the new scan into a different --out-dir.")
+        print(f"  resuming from {manifest_path} "
+              f"(submitted {recorded.get('ts', 'unknown time')})")
+    elif args.resume:
+        raise SystemExit(f"✘ --resume needs {manifest_path}, which does not "
+                         "exist. Drop the flag to submit the scan.")
+
     run_nl = not args.noisy_only
     run_n  = not args.noiseless_only
 
@@ -120,21 +143,19 @@ def main():
     build_sequence   = getattr(mod, spec.get("builder_fn", "build_sequence"))
     compute_obs      = mod.compute_observable
 
-    username, password, project_id, region = _load_credentials()
+    creds = load_credentials()
     from pulser_pasqal import PasqalCloud
     from pasqal_cloud import SDK, EmulatorType, CreateJob
     from pulser.backend import EmulationConfig
     from pulser.backend.default_observables import BitStrings
 
-    conn   = PasqalCloud(username=username, password=password, project_id=project_id,
-                         region=region)
+    conn   = PasqalCloud(**creds)
     device = conn.fetch_available_devices()[spec["device"]]
-    sdk    = SDK(username=username, password=password, project_id=project_id,
-                 region=region)
+    sdk    = SDK(**creds)
 
     noisy_cfg = None
     noise_params = None
-    if run_n:
+    if run_n and recorded is None:
         noise, noise_params = _emu_noise_model(device)
         noisy_cfg = EmulationConfig(
             noise_model=noise,
@@ -149,7 +170,17 @@ def main():
     nl_batches: dict = {}
     n_batches:  dict = {}
 
-    for val in values:
+    if recorded is not None:
+        nl_batches = {v: recorded["noiseless"][str(v)] for v in values
+                      if str(v) in (recorded.get("noiseless") or {})}
+        n_batches  = {v: recorded["noisy"][str(v)] for v in values
+                      if str(v) in (recorded.get("noisy") or {})}
+        noise_params = recorded.get("noise_params")
+        run_nl, run_n = bool(nl_batches), bool(n_batches)
+        print(f"  {len(nl_batches)} noiseless + {len(n_batches)} noisy batches "
+              "to poll — nothing resubmitted\n")
+
+    for val in values if recorded is None else []:
         params = {**fixed, variable: val}
         seq    = build_sequence(device=device, **params)
 
@@ -172,17 +203,18 @@ def main():
             n_batches[val] = str(b.id)
             print(f"  [noisy]     {variable}={val}  →  {b.id}", flush=True)
 
-    (out / "batch_ids.json").write_text(json.dumps({
-        "ts":           time.strftime("%Y-%m-%dT%H:%M:%S"),
-        "experiment":   spec["experiment_name"],
-        "scan_variable": variable,
-        "scan_values":  values,
-        "shots":        shots,
-        "noiseless":    {str(k): v for k, v in nl_batches.items()},
-        "noisy":        {str(k): v for k, v in n_batches.items()},
-        "noise_params": noise_params if run_n else None,
-    }, indent=2))
-    print(f"\n  batch_ids saved → {out / 'batch_ids.json'}")
+    if recorded is None:
+        manifest_path.write_text(json.dumps({
+            "ts":           time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "experiment":   spec["experiment_name"],
+            "scan_variable": variable,
+            "scan_values":  values,
+            "shots":        shots,
+            "noiseless":    {str(k): v for k, v in nl_batches.items()},
+            "noisy":        {str(k): v for k, v in n_batches.items()},
+            "noise_params": noise_params if run_n else None,
+        }, indent=2))
+        print(f"\n  batch_ids saved → {manifest_path}")
 
     # ── poll ─────────────────────────────────────────────────────────────────
     def poll_all(batch_map: dict, label: str) -> dict:

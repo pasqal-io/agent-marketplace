@@ -1,22 +1,46 @@
 ---
-name: submit-to-cea
-description: Use this skill when the user wants to submit a Pulser sequence to the CEA GENCI QPU (Ruby at TGCC), run a parametric experiment on Ruby, check QPU status, monitor running jobs, or collect results from irene. Triggered by phrases like "submit to CEA", "run on the QPU", "deploy to TGCC", "launch on Ruby", "check jobs", "collect results from irene". The skill handles everything end-to-end — no copy-pasting by the user.
+name: submit-via-hpc
+description: Submit a Pulser parametric experiment to a QPU behind an HPC cluster reached over SSH — generate the job bundle, deploy it, launch the scheduler jobs, monitor them, and collect the results, with no manual copying. Use this when the QPU is not reachable through a cloud API; use qpu-submit when it is. Triggered by phrases like "submit to the cluster", "run on the on-premise QPU", "deploy over SSH to the supercomputer", "collect results from the cluster", "submit to CEA", "launch on Ruby".
 argument-hint: "[sequence-file-or-description]"
 ---
 
-# submit-to-cea
+# submit-via-hpc
 
-This skill handles a Pulser parametric experiment from source code to running QPU
-jobs on **Ruby**, the Pasqal QPU hosted at TGCC (the `irene` supercomputer,
-CEA/GENCI) — entirely autonomously via SSH. The user never needs to copy files,
-run commands on TGCC, or touch the server manually.
+This skill takes a Pulser parametric experiment from source code to running QPU
+jobs on a machine reached over SSH, entirely autonomously. The user never needs
+to copy files, run remote commands, or touch the server manually.
 
-**Prerequisite:** `ssh irene "echo ok"` must work from this machine. If it
+**Two variables** define the target, set once per session:
+
+```bash
+# Values shown are the reference site's; ask the user for theirs.
+HPC_HOST=irene             # an ssh alias defined in ~/.ssh/config (see below)
+HPC_REMOTE_DIR=cea_deploy  # working directory under $HOME on the remote machine
+```
+
+Every command below uses `"$HPC_HOST"`. Never hardcode a hostname.
+
+**Prerequisite:** `ssh "$HPC_HOST" "echo ok"` must work from this machine. If it
 doesn't, walk the user through **Getting access** below before anything else.
+
+## Site scope — read this before adapting to another cluster
+
+The bundled templates target a **Bull/TGCC-style site**: `ccc_msub` for
+submission, `#MSUB` job headers, `ccc_mstat`/`ccc_mpeek` for monitoring, and
+`pcocc-rs` containers for the runtime. The worked reference below is **Ruby**,
+the Pasqal QPU hosted at TGCC on the `irene` supercomputer (CEA/GENCI).
+
+A site with a different scheduler needs three files adapted —
+`templates/submit_cea_template.sh` (job headers and container invocation),
+`templates/launch_template.sh` (submission and monitoring commands), and
+`support/setup_cea_env.sh` (environment bootstrap). Everything else, including
+the sequence utilities and the result collector, is scheduler-agnostic. A Slurm
+port is roughly: `#MSUB` → `#SBATCH`, `ccc_msub` → `sbatch`, `ccc_mstat` →
+`squeue`, and drop the `pcocc-rs` wrapper if the site exposes Python directly.
 
 ---
 
-## Getting access (first-time users)
+## Getting access — reference site (Ruby at TGCC)
 
 TGCC access is granted per person, per project. If the user has never connected:
 
@@ -44,47 +68,52 @@ TGCC access is granted per person, per project. If the user has never connected:
        ControlPersist 8h
    ```
 
-   Then authenticate once interactively (`ssh irene`) — subsequent `ssh irene`
-   calls in this skill ride the shared connection without prompting.
-5. **One-time environment setup on irene.** TGCC has no internet access, so the
-   Pulser packages must be transferred from your machine:
+   The alias name is what goes in `HPC_HOST`. Then authenticate once
+   interactively (`ssh "$HPC_HOST"`) — subsequent calls in this skill ride the
+   shared connection without prompting.
+5. **One-time environment setup on the remote machine.** TGCC has no internet
+   access, so the Pulser packages must be transferred from your machine. Use the
+   same Pulser version your sequence was written against — the remote install
+   and your local venv must agree, or a sequence that builds locally will fail
+   remotely:
 
    ```bash
-   # On your machine (get the wheels/zips from pypi or your team):
-   scp Pulser-1.6.5.zip Pulser-myQLM-0.8.3.zip irene:~/
-   # On irene:
-   ssh irene "cd ~ && unzip -o Pulser-1.6.5.zip && unzip -o Pulser-myQLM-0.8.3.zip"
-   ssh irene "mkdir -p ~/cea_deploy"
+   # On your machine (get the archives from PyPI or your team):
+   scp Pulser-<version>.zip Pulser-myQLM-<version>.zip "$HPC_HOST":~/
+   ssh "$HPC_HOST" "cd ~ && unzip -o 'Pulser-*.zip' && unzip -o 'Pulser-myQLM-*.zip'"
+   ssh "$HPC_HOST" "mkdir -p ~/$HPC_REMOTE_DIR"
    # Copy the env setup script and run it inside the container:
-   scp support/setup_cea_env.sh irene:~/cea_deploy/
-   ssh irene 'pcocc-rs run ccc-quantum -- bash cea_deploy/setup_cea_env.sh'
+   scp support/setup_cea_env.sh "$HPC_HOST":~/$HPC_REMOTE_DIR/
+   ssh "$HPC_HOST" "pcocc-rs run ccc-quantum -- bash $HPC_REMOTE_DIR/setup_cea_env.sh"
    ```
 
-   This creates `~/pulser-env/` on irene with Pulser and Pulser-myQLM installed.
+   This creates `~/pulser-env/` on the remote machine with Pulser and
+   Pulser-myQLM installed.
 
 ---
 
 ## Phase 0 — Connectivity check
 
 ```bash
-ssh -o ConnectTimeout=15 irene "echo ok" 2>/dev/null && echo "IRENE OK" || echo "IRENE DOWN"
+ssh -o ConnectTimeout=15 "$HPC_HOST" "echo ok" 2>/dev/null && echo "HOST OK" || echo "HOST DOWN"
 ```
 
-If `IRENE OK` → proceed.
+If `HOST OK` → proceed.
 
-If `IRENE DOWN`, diagnose:
+If `HOST DOWN`, diagnose:
 
 | Symptom | Likely cause | Action |
 |---------|-------------|--------|
-| Timeout / no route | Your IP is not whitelisted (wrong network/VPN), or irene under load | Confirm you're on the registered institutional network; retry after 15 s |
-| `Permission denied` | Wrong password, expired account, or too many concurrent sessions | Re-authenticate interactively with `ssh irene`; if it persists, contact `hotline.tgcc@cea.fr` |
-| Password prompt hangs the tool | No live ControlMaster connection | Ask the user to run `ssh irene` once in their own terminal to authenticate, then retry |
+| Timeout / no route | Your IP is not whitelisted (wrong network/VPN), or the login node is under load | Confirm you're on the registered institutional network; retry after 15 s |
+| `Permission denied` | Wrong password, expired account, or too many concurrent sessions | Re-authenticate interactively with `ssh "$HPC_HOST"`; if it persists, contact the site's support desk (TGCC: `hotline.tgcc@cea.fr`) |
+| Password prompt hangs the tool | No live ControlMaster connection | Ask the user to run `ssh "$HPC_HOST"` once in their own terminal to authenticate, then retry |
 
 **Retry policy:** on transient failures, silently wait ~15 s and retry, up to 3
 attempts. Only surface the error to the user if all attempts fail, and include
-the diagnosis. Never store or type the user's TGCC password yourself.
+the diagnosis. **Never store, type, or echo the user's password yourself** —
+authentication is theirs to perform interactively.
 
-All remote files live under `~/cea_deploy/` on irene. Always use `nohup` for
+All remote files live under `~/$HPC_REMOTE_DIR/`. Always use `nohup` for
 long-running scripts.
 
 ---
@@ -92,9 +121,9 @@ long-running scripts.
 ## Phase 1 — Gather the sequence
 
 Ask the user to share their Pulser sequence. Accept any of:
-- A Python file path (use the Read tool)
+- A Python file path — read the file
 - Pasted code in the conversation
-- A Jupyter notebook path (use the Read tool; look at code cells)
+- A Jupyter notebook path — read it and look at the code cells
 
 From the code, extract:
 1. **The builder function** — the function that constructs the `Sequence`. If inline, wrap it:
@@ -158,7 +187,7 @@ Replace every `<<PLACEHOLDER>>`:
 | `<<PARAMS_JSON_FIELDS>>` | dict literal to save to JSON |
 | `<<OUTPUT_DIR>>` | default output directory string |
 
-Write to `cea_bundle_<name>/cea_deploy/submit_<name>.py`.
+Write to `cea_bundle_<name>/$HPC_REMOTE_DIR/submit_<name>.py`.
 
 ### 3.2 — launch_cea_jobs.sh
 
@@ -170,7 +199,7 @@ Replace:
 - `<<N_JOBS>>` → `len(times)`
 - `<<OUTPUT_DIR>>` → output directory
 
-Write to `cea_bundle_<name>/cea_deploy/launch_cea_jobs.sh`.
+Write to `cea_bundle_<name>/$HPC_REMOTE_DIR/launch_cea_jobs.sh`.
 
 ### 3.3 — submit_cea.sh
 
@@ -182,14 +211,14 @@ Replace:
 - `<<WALL_TIME_S>>` → wall time in seconds
 - `<<N_SHOTS>>` → number of shots
 
-Write to `cea_bundle_<name>/cea_deploy/submit_cea.sh`.
+Write to `cea_bundle_<name>/$HPC_REMOTE_DIR/submit_cea.sh`.
 
 ### 3.4 — utils/sequence_utils.py with new builder
 
 1. Read `support/utils/sequence_utils.py` verbatim
 2. Append the new builder function at the very end (separated by two blank lines)
 
-Write to `cea_bundle_<name>/cea_deploy/utils/sequence_utils.py`.
+Write to `cea_bundle_<name>/$HPC_REMOTE_DIR/utils/sequence_utils.py`.
 
 ### 3.5 — Copy supporting files
 
@@ -197,23 +226,27 @@ Write to `cea_bundle_<name>/cea_deploy/utils/sequence_utils.py`.
 SKILL_DIR="<absolute path to this skill's directory>"
 BUNDLE=cea_bundle_<name>
 
-cp $SKILL_DIR/support/utils/__init__.py       $BUNDLE/cea_deploy/utils/__init__.py
-cp $SKILL_DIR/support/utils/pulser_utils.py   $BUNDLE/cea_deploy/utils/pulser_utils.py
-cp $SKILL_DIR/support/utils/rhombus_utils.py  $BUNDLE/cea_deploy/utils/rhombus_utils.py
-cp $SKILL_DIR/support/setup_cea_env.sh        $BUNDLE/cea_deploy/setup_cea_env.sh
-cp $SKILL_DIR/support/collect_results.py      $BUNDLE/cea_deploy/collect_results.py
+cp $SKILL_DIR/support/utils/__init__.py       $BUNDLE/$HPC_REMOTE_DIR/utils/__init__.py
+cp $SKILL_DIR/support/utils/pulser_utils.py   $BUNDLE/$HPC_REMOTE_DIR/utils/pulser_utils.py
+cp $SKILL_DIR/support/utils/rhombus_utils.py  $BUNDLE/$HPC_REMOTE_DIR/utils/rhombus_utils.py
+cp $SKILL_DIR/support/setup_cea_env.sh        $BUNDLE/$HPC_REMOTE_DIR/setup_cea_env.sh
+cp $SKILL_DIR/support/collect_results.py      $BUNDLE/$HPC_REMOTE_DIR/collect_results.py
 ```
 
 ---
 
-## Phase 4 — Deploy directly to irene via SSH
+## Phase 4 — Deploy directly to the cluster over SSH
 
 Do NOT zip or ask the user to copy anything. Deploy the generated files straight to the server.
 
 ### 4.1 — Test QPU availability first
 
+The two adjacent quoted strings are deliberate: the first is double-quoted so
+`$HPC_REMOTE_DIR` expands here, the second stays single-quoted so the nested
+Python quoting below survives untouched.
+
 ```bash
-ssh irene 'cd ~/cea_deploy && pcocc-rs run ccc-quantum -- bash -c "
+ssh "$HPC_HOST" "cd ~/$HPC_REMOTE_DIR && "'pcocc-rs run ccc-quantum -- bash -c "
 source ../pulser-env/bin/activate
 python3 - <<EOF
 from pulser_myqlm import PulserQLMConnection
@@ -229,36 +262,50 @@ EOF
 
 If the QPU is down, report it to the user and stop. Do not submit jobs to a down QPU.
 
-### 4.2 — Rsync generated files to irene
+### 4.2 — Rsync generated files to the cluster
 
 ```bash
-rsync -avz cea_bundle_<name>/cea_deploy/ irene:~/cea_deploy/
+rsync -avz cea_bundle_<name>/$HPC_REMOTE_DIR/ "$HPC_HOST":~/$HPC_REMOTE_DIR/
 ```
 
 Verify the key files landed:
 ```bash
-ssh irene "ls ~/cea_deploy/submit_<name>.py ~/cea_deploy/launch_cea_jobs.sh ~/cea_deploy/submit_cea.sh"
+ssh "$HPC_HOST" "ls ~/$HPC_REMOTE_DIR/submit_<name>.py ~/$HPC_REMOTE_DIR/launch_cea_jobs.sh ~/$HPC_REMOTE_DIR/submit_cea.sh"
 ```
 
-### 4.3 — Launch jobs on irene with nohup
+### 4.3 — Check nothing is already running for this experiment
+
+Launching is not idempotent: the launcher queues a fresh job per scan point every
+time it runs, and each one spends allocation hours. Nothing on the cluster
+prevents a duplicate.
+
+```bash
+ssh "$HPC_HOST" "ccc_mstat 2>/dev/null | head -20; ls -t ~/$HPC_REMOTE_DIR/logs/ 2>/dev/null | head -5"
+```
+
+If jobs for this experiment are already queued or running, **do not launch
+again** — report what is there and let the user decide. Monitor the existing jobs
+instead (Phase 5).
+
+### 4.4 — Launch jobs with nohup
 
 ```bash
 LAUNCH_LOG="logs/launch_$(date +%Y%m%d_%H%M%S).out"
-ssh irene "cd ~/cea_deploy && mkdir -p logs && nohup bash launch_cea_jobs.sh > $LAUNCH_LOG 2>&1 & echo PID:\$!"
+ssh "$HPC_HOST" "cd ~/$HPC_REMOTE_DIR && mkdir -p logs && nohup bash launch_cea_jobs.sh > $LAUNCH_LOG 2>&1 & echo PID:\$!"
 ```
 
 Save the PID for monitoring. Report the launch log path to the user.
 
-### 4.4 — Confirm jobs are queued
+### 4.5 — Confirm jobs are queued
 
 Wait ~10 seconds, then verify the MSUB scheduler received the job:
 ```bash
-ssh irene "ccc_mstat 2>/dev/null | head -20"
+ssh "$HPC_HOST" "ccc_mstat 2>/dev/null | head -20"
 ```
 
 Also read the first few lines of the launch log:
 ```bash
-ssh irene "tail -5 ~/cea_deploy/$LAUNCH_LOG"
+ssh "$HPC_HOST" "tail -5 ~/$HPC_REMOTE_DIR/$LAUNCH_LOG"
 ```
 
 ---
@@ -268,36 +315,36 @@ ssh irene "tail -5 ~/cea_deploy/$LAUNCH_LOG"
 After launch, tell the user:
 1. QPU status (confirmed UP)
 2. Experiment name, number of jobs, parameter range
-3. The launch log path on irene: `~/cea_deploy/<LAUNCH_LOG>`
+3. The launch log path on the remote machine: `~/$HPC_REMOTE_DIR/<LAUNCH_LOG>`
 4. How to monitor (give them the exact commands):
    ```bash
    # Live launcher log:
-   ssh irene "tail -f ~/cea_deploy/<LAUNCH_LOG>"
+   ssh "$HPC_HOST" "tail -f ~/$HPC_REMOTE_DIR/<LAUNCH_LOG>"
 
    # MSUB queue:
-   ssh irene "ccc_mstat"
+   ssh "$HPC_HOST" "ccc_mstat"
    ```
 5. When all jobs are done, collect the results and sync them back. Substitute the
    experiment name, job count, and output directory computed in Phases 2–3:
    ```bash
    NAME="<name>"            # experiment name
    N_JOBS=<N_JOBS>          # total number of jobs
-   OUTPUT_DIR="<output_dir>"  # output directory on irene (e.g. QPU_results)
+   OUTPUT_DIR="<output_dir>"  # output directory on the remote machine (e.g. QPU_results)
    LOCAL_DIR="$(pwd)/${NAME}_QPU_results_$(date +%Y%m%d)"
 
-   # Merge the per-job JSON files on irene (safe to re-run while jobs finish):
-   ssh irene "cd ~/cea_deploy && \
+   # Merge the per-job JSON files on the remote machine (safe to re-run while jobs finish):
+   ssh "$HPC_HOST" "cd ~/$HPC_REMOTE_DIR && \
        python3 collect_results.py --name \"$NAME\" --n-jobs $N_JOBS --output-dir \"$OUTPUT_DIR\"; \
        echo 'collect_results.py exit code: '\$?"
 
    # Rsync the merged results back to this machine:
    mkdir -p "$LOCAL_DIR"
-   rsync -avz --progress irene:"~/cea_deploy/${OUTPUT_DIR}/" "$LOCAL_DIR/"
+   rsync -avz --progress "$HPC_HOST":"~/$HPC_REMOTE_DIR/${OUTPUT_DIR}/" "$LOCAL_DIR/"
    echo "Data available at: $LOCAL_DIR/"
    ```
    `collect_results.py` exit code 0 = all jobs merged; exit code 1 = some still pending
    (normal while jobs are running). The merged JSONL lands at
-   `<output_dir>/batch_ids/<name>.json` on irene and is mirrored into `$LOCAL_DIR/` here.
+   `<output_dir>/batch_ids/<name>.json` on the remote machine and is mirrored into `$LOCAL_DIR/` here.
 
 ---
 
@@ -317,6 +364,6 @@ Only escape variables that must be evaluated by the **inner** `bash -c` shell (e
 - All duration values **must** be multiples of 4 ns (hardware clock). Round during parameter list generation.
 - Builder **must** call `.with_automatic_layout(device)` on the register.
 - Import builder via `import utils.sequence_utils as su` — never inline it in the submit script.
-- `setup_cea_env.sh` must be run from `~/` (not `~/cea_deploy/`), creating `~/pulser-env/`.
+- `setup_cea_env.sh` must be run from `~/` (not `~/$HPC_REMOTE_DIR/`), creating `~/pulser-env/`.
 - Always use `nohup ... &` when launching long-running scripts over SSH.
-- If SSH to irene is refused, wait a few seconds and retry silently — do not surface this as an error to the user unless it persists beyond 3 attempts.
+- If SSH is refused, wait a few seconds and retry silently — do not surface this as an error to the user unless it persists beyond 3 attempts.

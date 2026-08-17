@@ -7,10 +7,9 @@
 /plugin install neutral-atom-toolkit@pasqal
 ```
 
-While the repository is private, your git must be able to reach GitHub
-(SSH key or `gh auth login`). Organizations on Claude Enterprise can instead
-distribute the plugin to everyone via **Organization settings → Plugins**
-(uses the Claude GitHub App; no per-user setup).
+Organizations on Claude Enterprise can instead distribute the plugin to everyone
+via **Organization settings → Plugins** (uses the Claude GitHub App; no per-user
+setup).
 
 ## Dry-run without installing
 

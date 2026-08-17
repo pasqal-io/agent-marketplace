@@ -1,8 +1,13 @@
 #!/bin/bash
 
 # Setup script for CEA/TGCC environment
-# Adapted from setup_tgcc_env.sh - minimal version for submit_claude.py
 # Run this script after uploading the zip files and unzipping them
+#
+# The Pulser version below (1.6.5) is deliberately older than the one CI pins.
+# Compute nodes here have no network, so Pulser is installed from a zip a human
+# downloaded, alongside Pulser-myQLM 0.8.3 — and that pair is what was last
+# validated inside the ccc-quantum container. Bumping it means re-checking myQLM
+# against the newer Pulser on the cluster itself; it is not a local edit.
 
 set -e  # Exit on error
 

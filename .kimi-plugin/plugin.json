@@ -1,6 +1,6 @@
 {
   "name": "neutral-atom-toolkit",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
   "author": {
     "name": "Pasqal"
@@ -17,7 +17,7 @@
     "physics"
   ],
   "skills": "./skills/",
-  "skillInstructions": "Kimi Code tool mapping for Neutral Atom Toolkit skills:\n\n- Paths like `support/...` or `templates/...` inside a skill are relative to that skill's own directory under the plugin's `skills/` folder; expand them to absolute paths when running commands.\n- When a skill says to ask the user which option to use (e.g. noise-emulate's execution-mode question: local / SLURM / Pasqal Cloud), call Kimi Code's `AskUserQuestion` tool with 2-4 concrete options, recommended option first and suffixed `(Recommended)`. Fall back to asking in plain text only if `AskUserQuestion` is unavailable.\n- When a skill says to use the `Read` tool, use Kimi Code's `Read`; shell commands go through `Bash`; content search through `Grep`; file discovery through `Glob`; URL fetches through `FetchURL`.\n- Long-running cloud polls (EMU batches, QPU jobs): prefer running the provided support scripts with `Bash` in the background or with generous timeouts, and re-poll with each script's `--resume` flag where offered rather than resubmitting.\n- Credentials are never hardcoded: respect the documented order (PASQAL_* environment variables, then ~/.pasqal_credentials.json). Never echo secrets.",
+  "skillInstructions": "Kimi Code tool mapping for Neutral Atom Toolkit skills:\n\n- Paths like `support/...` or `templates/...` inside a skill are relative to that skill's own directory under the plugin's `skills/` folder; expand them to absolute paths when running commands.\n- When a skill says to ask the user which option to use (e.g. noise-emulate's execution-mode question: local / SLURM / Pasqal Cloud), call Kimi Code's `AskUserQuestion` tool with 2-4 concrete options, recommended option first and suffixed `(Recommended)`. Fall back to asking in plain text only if `AskUserQuestion` is unavailable.\n- When a skill says to use the `Read` tool, use Kimi Code's `Read`; shell commands go through `Bash`; content search through `Grep`; file discovery through `Glob`; URL fetches through `FetchURL`.\n- Long-running cloud polls (EMU batches, QPU jobs): prefer running the provided support scripts with `Bash` in the background or with generous timeouts, and re-poll with each script's `--resume` flag where offered rather than resubmitting.\n- Credentials are never hardcoded and never echoed. Every cloud-facing script resolves them itself through the shared `support/pasqal_auth.py`, per field: PASQAL_* environment variables, then the system keyring (password only), then ~/.pasqal_credentials.json. Do not reimplement that order, and never type or log a password on the user's behalf.",
   "interface": {
     "displayName": "Neutral Atom Toolkit",
     "shortDescription": "Run neutral-atom QPU experiments end-to-end: spec, emulate, submit, analyze",

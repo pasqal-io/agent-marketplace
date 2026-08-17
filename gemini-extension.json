@@ -1,0 +1,6 @@
+{
+  "name": "neutral-atom-toolkit",
+  "version": "1.0.0",
+  "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
+  "contextFileName": "GEMINI.md"
+}

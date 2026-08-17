@@ -228,6 +228,11 @@ def compute_observable(counts: dict[str, int]) -> float:
 
 ## Step 5 — Smoke test
 
+**Compare the observable against states whose value you can derive by hand, and
+exit non-zero when one moves.** A printed value nobody compares is not a test:
+it catches a crash and nothing else, so a sign error or a dropped term passes
+while still looking plausible.
+
 Add at the bottom of the file:
 
 ```python
@@ -238,14 +243,61 @@ if __name__ == "__main__":
     scan = spec["scan"]
     mid  = scan["values"][len(scan["values"])//2]
     params = {**scan["fixed_params"], scan["variable"]: mid}
+
     seq = build_sequence(device=None, **params)
     N   = len(seq.register.qubit_ids)
     print(f"Sequence OK: {seq.get_duration()} ns, {N} atoms")
-    counts = {"0" * N: 100}
-    print(f"compute_observable (vacuum): {compute_observable(counts):.4f}  (expect 0)")
+
+    failures = []
+    for label, counts, want, tol in [
+        ("vacuum",          {"0" * N: 100}, 0.0, 1e-12),
+        # add one perfectly ordered pattern, whose value you derived by hand
+    ]:
+        got = compute_observable(counts)
+        ok  = abs(got - want) <= tol
+        print(f"  {'ok  ' if ok else 'FAIL'} {label}: {got:+.4f} "
+              f"(expect {want:+.4f} ± {tol:g})")
+        if not ok:
+            failures.append(label)
+    if failures:
+        raise SystemExit(f"✘ compute_observable wrong for: {', '.join(failures)}")
 ```
 
-Run `python <experiment_name>_sequence.py` — must complete with no errors.
+Run `python <experiment_name>_sequence.py` — every line must read `ok`.
+
+Two things to get right in the comparisons:
+
+- **State the disordered floor** if the observable has one. An order parameter
+  built from a modulus does not go to zero on random data: ⟨|m|⟩ on an
+  uncorrelated array reads √(π/2N), which is 0.18 on 49 atoms. Print that floor
+  next to the measurement, or a null result reads as weak order.
+- **Assert what the observable silently assumes.** If it reconstructs atom
+  coordinates by bitstring index, check that the register's `qubit_ids` order
+  and coordinates survived `with_automatic_layout` — a reordering returns a
+  plausible wrong number rather than failing.
+- **Derive the register size from the shots, never from a module constant.**
+  `compute_observable(counts)` receives no geometry, so it is tempting to close
+  over the spec's N. Do not: the same file is emulated at reduced size on the way
+  to hardware — locally, where 49 atoms are out of reach, or on a device that
+  caps lower — and every shot then fails the length check and is skipped. The
+  function returns `nan`, which reads as *no signal* rather than *wrong size*, so
+  a downsized run looks like failed physics and the real defect is invisible.
+  Read the size off the counts instead, take the modal bitstring length so a few
+  truncated detections cannot redefine the register, and return `nan` only when
+  the length is genuinely inconsistent with any register you could have built:
+
+  ```python
+  def register_size_from_counts(counts: dict[str, int]) -> int:
+      weight: dict[int, int] = {}
+      for bitstring, count in counts.items():
+          weight[len(bitstring)] = weight.get(len(bitstring), 0) + count
+      return max(weight, key=weight.get) if weight else 0
+  ```
+
+  Then add a smoke-test case at a *second* size — a 3×3 patch beside the 7×7 —
+  so the inference is exercised rather than assumed. Quantities that scale
+  together often cancel and need no adjustment: for a wavevector K ∝ 1/a and
+  positions r ∝ a, K·r is spacing-independent. Say which ones you checked.
 
 ---
 
