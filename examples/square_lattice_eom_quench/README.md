@@ -80,9 +80,19 @@ reservoir layout, then called `with_automatic_layout` whenever the spacing was
 below 10 µm — which it always is at these parameters. The hand-built layout was
 discarded on every run; only the automatic one is kept.
 
-**No SPAM correction.** `collect_qpu.py` used to apply a device-level
-false-positive/false-negative correction to per-site ⟨σᶻ⟩ before plotting, and
-`plot_qpu_vs_emu.py` drew a calibration-sensitivity band around the noise model.
-Both read a manifest format nothing writes any more, so they were dropped rather
-than left broken; `git log` has them. `compute_observable` here returns the raw
-⟨n⟩, and `harvest-and-analyze` compares it to the noisy emulation.
+**The readout correction moved, and stopped being automatic.** The original
+`collect_qpu.py` applied a false-positive/false-negative correction to per-site
+⟨σᶻ⟩ on the way to the plot, so every number it produced was corrected and the
+comparison band was drawn around a corrected curve. That is the wrong default
+here: the noisy emulation this pipeline compares against already contains both
+detection rates, so correcting the QPU side alone tilts the accept/reject test.
+
+`compute_observable` therefore returns the raw ⟨n⟩ and the verdict compares raw
+to noisy. The correction lives in
+[`harvest-and-analyze`](../../skills/harvest-and-analyze/SKILL.md) as an explicit
+step that reads the raw counts file and writes its own output, which is also
+where the constraint is documented: inverting per site is exact for a density
+and for anything affine in it, and does not carry over to a correlator.
+
+⟨n⟩ here is affine in the site densities, so this example is one where the
+corrected number is meaningful.

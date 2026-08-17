@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Static conformance checks for the manifests, the skills and the shared modules.
 
-Ten things no harness CLI checks for us:
+Eleven things no harness CLI checks for us:
 
 1. The plugin version is repeated in five manifests. Nothing keeps them in
    sync, so a release bump that touches one file ships a lying manifest to the
@@ -37,6 +37,10 @@ Ten things no harness CLI checks for us:
 10. The tested Pulser version is one number. CI installs exactly one, the
    examples assert on device constants that version ships, and any file
    claiming to state a tested version has to name the same one.
+11. Skill directories stay kebab-case and one level deep. Harnesses that
+   discover Agent Skills from a scanned directory — OpenCode, DeepSeek
+   Harness — match `<name>/SKILL.md` exactly and do not recurse. A nested or
+   oddly-named skill is not rejected there, it is silently absent.
 
 Schema references: https://agent-plugins.org/specification
                    https://developers.openai.com/codex/plugins/build
@@ -291,6 +295,35 @@ def check_skill_names() -> None:
                           f"{len(description)} characters, limit is 500")
 
 
+def check_skill_layout() -> None:
+    """`skills/<kebab-case-name>/SKILL.md`, and nothing deeper.
+
+    Harnesses that install this repo as a plugin are told where the skills are.
+    The ones that discover them from a scanned directory are not: OpenCode and
+    DeepSeek Harness list the entries of a root and accept `<name>/SKILL.md` or
+    a flat `<name>.md`, with no recursion and a kebab-case name pattern. Both
+    failure modes there are silent — a skill one directory too deep, or named
+    with an underscore, is simply not in the catalog, with nothing logged.
+    """
+    kebab = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    root = ROOT / "skills"
+    for directory in sorted(p for p in root.iterdir() if p.is_dir()):
+        if not kebab.match(directory.name):
+            errors.append(
+                f"skills/{directory.name}/: not kebab-case — a scanned-directory "
+                "harness matches ^[a-z0-9]+(?:-[a-z0-9]+)*$ and skips the rest")
+        if not (directory / "SKILL.md").is_file():
+            errors.append(f"skills/{directory.name}/: no SKILL.md at its root")
+
+    for skill_md in sorted(root.rglob("SKILL.md")):
+        depth = len(skill_md.relative_to(root).parts)
+        if depth != 2:
+            errors.append(
+                f"{skill_md.relative_to(ROOT)}: nested {depth} levels under "
+                "skills/, must be exactly skills/<name>/SKILL.md — discovery is "
+                "not recursive, so this file is invisible rather than an error")
+
+
 def check_vendored_modules() -> None:
     """Every copy of a vendored module must be byte-identical, and no support
     script may grow its own credential loader beside it."""
@@ -505,6 +538,7 @@ check_versions()
 check_codex_catalog()
 check_agent_plugin_manifest()
 check_skill_names()
+check_skill_layout()
 check_skill_portability()
 check_skill_references()
 check_agents_index()
@@ -519,5 +553,6 @@ if errors:
         print(f"✘ {err}")
     sys.exit(1)
 print("  versions aligned, catalogs conform, skill frontmatter valid, "
-      "skills harness-neutral, bundled files documented, links resolve, "
-      "AGENTS.md complete, examples self-contained, vendored modules identical")
+      "skill layout discoverable, skills harness-neutral, bundled files "
+      "documented, links resolve, AGENTS.md complete, examples self-contained, "
+      "vendored modules identical")

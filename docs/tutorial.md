@@ -205,6 +205,12 @@ deliberate order: `qpu_counts.json` (the raw bitstrings, untransformed),
 with the noise model, in σ). The raw file exists so that re-analysing with a
 corrected observable never needs the hardware again.
 
+One optional step reads that raw file: `correct_readout.py` inverts the detector's
+two error rates and reports the occupation density the atoms actually had, rather
+than the one the camera saw. It runs offline, and it deliberately leaves the
+verdict alone, because the noisy emulation it is compared against already contains
+those same two rates.
+
 ## When it goes wrong
 
 | What you see | What it means |
