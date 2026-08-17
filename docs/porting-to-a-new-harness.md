@@ -40,9 +40,14 @@ Two things a port must never do, in any circumstance:
   loads the extension's file, not a file you edited in the user's home.)
 
 **You may not need to add anything.** Some harnesses read an existing manifest
-already: Cursor and VS Code both load the root `plugin.json`, and OpenCode
-discovers skills from a directory it already scans. A port whose entire diff is
-one table row and one install line is the best possible outcome.
+already: Cursor and VS Code both load the root `plugin.json`, while OpenCode and
+DeepSeek Harness discover skills from a directory they already scan. A port whose
+entire diff is one table row and one install line is the best possible outcome.
+
+Check for that before writing a manifest, and check the vendor's own repository
+rather than a tutorial. DeepSeek Harness had a `.dsh-plugin` format for about a
+week; writing one now would have produced a file the harness no longer reads,
+and the third-party guides describing it are still up.
 
 ## Part 2 — Can this harness host the toolkit?
 

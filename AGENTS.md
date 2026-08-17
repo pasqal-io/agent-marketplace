@@ -20,7 +20,7 @@ inline is how a submission gets billed for a wrong sequence.
 | `noise-emulate` | study how the device's noise shapes a signal over time | sequence → curves + envelope |
 | `qpu-submit` | run an experiment on a QPU reachable through a cloud API | spec + sequence → batch IDs |
 | `submit-via-hpc` | run one on a QPU reachable only over SSH through a cluster scheduler | sequence → remote jobs |
-| `harvest-and-analyze` | collect and judge the results of a submission | batch IDs → observable + verdict |
+| `harvest-and-analyze` | collect and judge the results of a submission | batch IDs → raw counts + observable + verdict |
 
 The pipeline order is `idea-to-spec` → `spec-to-sequence` → `validate-emu` →
 (`noise-emulate`) → `qpu-submit` *or* `submit-via-hpc` → `harvest-and-analyze`.

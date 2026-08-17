@@ -38,15 +38,20 @@ variables only.
 These are agent skills: a model reads them and runs the bundled scripts on your
 behalf. Two of them spend real resources.
 
-- **`qpu-submit`** consumes QPU shots on a Pasqal Cloud project. It presents the
-  shot count and the scan size for confirmation before submitting, and a changed
-  submission plan requires a new confirmation. **There is no spending cap in the
-  code**: that gate is an instruction the model must follow, so review what it
-  proposes rather than assuming a script will stop it. What *is* enforced in code
-  is idempotency — a script refuses to submit into an output directory that
+- **`qpu-submit`** consumes QPU shots on a Pasqal Cloud project. Two things are
+  enforced in the script rather than asked of the model. It prints the full
+  submission plan — device, scan, batches, shots per batch, calibration cost,
+  total — and exits non-zero unless it receives `--confirm` or a `y` typed at a
+  terminal; the plan is built and shown before any credential is read or the
+  cloud is contacted. And it refuses to submit into an output directory that
   already records batch IDs, because a re-run would buy the same shots twice and
   destroy the record of the first submission. `validate-emu` resumes from that
   record with `--resume` instead of resubmitting.
+
+  **There is still no spending cap.** Nothing limits how large a plan you can
+  approve, and `--confirm` carries whatever agreement you gave — so read the
+  shot count in the plan, and treat a changed device, scan or shot count as
+  needing a fresh look rather than a re-used flag.
 - **`submit-via-hpc`** consumes allocation hours on a cluster you have access to.
   Launching there is not idempotent either, and nothing on the cluster prevents a
   duplicate; the skill checks the queue first, but that check is an instruction,

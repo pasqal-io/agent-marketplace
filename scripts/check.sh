@@ -44,6 +44,20 @@ else
   echo "  (pulser not importable — skipping; CI installs it)"
 fi
 
+echo "── Analytic self-tests inside the skills"
+# A support script that computes something checkable against a known answer says
+# so with --self-test. The readout inversion is the case that matters: it rescales
+# every density it touches, and a swapped or mis-signed rate would be invisible in
+# the output. Needs numpy only, so it runs wherever the examples do.
+if "$example_python" -c "import numpy" >/dev/null 2>&1; then
+  ( cd skills/harvest-and-analyze/support \
+    && "$example_python" correct_readout.py --self-test >/dev/null ) \
+    || { echo "✘ readout inversion self-test failed"; exit 1; }
+  echo "   correct_readout.py: inversion recovers known densities"
+else
+  echo "  (numpy not importable — skipping)"
+fi
+
 echo "── Support script wiring (--help must work with no credentials, no GPU)"
 # py_compile only parses. This imports each script for real and runs its argparse
 # setup, which is where a missing top-level import, a duplicate flag or a bad

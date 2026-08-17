@@ -9,15 +9,15 @@ Codex and Kiro without a per-vendor adapter.
 
 **Which agents work, how the skills reach them, and the install command for
 each: [../harness-compatibility.md](../harness-compatibility.md).** That matrix
-is the single list, including what has actually been exercised and what has only
-been transcribed from a vendor's docs. The pages below add detail only where an
-agent has a quirk worth explaining.
+is the single list. The pages below add detail only where an agent has a quirk
+worth explaining.
 
 | Agent | Page | Why it has a page |
 |---|---|---|
 | Claude Code | [claude-code.md](claude-code.md) | marketplace install, enterprise distribution, `--plugin-dir` dry run |
 | OpenAI Codex | [codex.md](codex.md) | the catalog path Codex actually reads, and the empty-`hooks` trap |
 | Kimi Code | [kimi.md](kimi.md) | the `skillInstructions` tool mapping |
+| DeepSeek Harness | [deepseek-harness.md](deepseek-harness.md) | six discovery roots and their precedence, and why `.dsh-plugin` is not one of them |
 
 Adding an agent: [../porting-to-a-new-harness.md](../porting-to-a-new-harness.md).
 It covers the capability floor, the three delivery shapes, where a tool mapping

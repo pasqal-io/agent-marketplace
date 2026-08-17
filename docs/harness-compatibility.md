@@ -15,21 +15,25 @@ harness-specific variable — `scripts/check.sh` fails if that changes.
 
 ## Matrix
 
-| Harness | Tier | Mechanism | Install | Exercised here |
-|---|---|---|---|---|
-| **Claude Code** | A | `.claude-plugin/plugin.json` + self-hosted marketplace catalog | `/plugin marketplace add pasqal-io/agent-marketplace` then `/plugin install neutral-atom-toolkit@pasqal` — [details](agents/claude-code.md) | yes — `claude plugin validate .` in CI, `--plugin-dir` dry run |
-| **OpenAI Codex** | A | `.codex-plugin/plugin.json` + `.agents/plugins/marketplace.json` | `codex plugin marketplace add pasqal-io/agent-marketplace`, then install from the Plugins view — [details](agents/codex.md) | manifest conformance in CI; install not run |
-| **Kimi Code** | A | `.kimi-plugin/plugin.json` (+ `skillInstructions` tool mapping) | `/plugins install https://github.com/pasqal-io/agent-marketplace`, then `/new` — [details](agents/kimi.md) | manifest JSON only |
-| **Cursor** | A | root `plugin.json` (Agent Plugins 1.0) | Customize → find the plugin → Install, project or user scope. Cursor loads an Agent Plugins package unchanged, so no `.cursor-plugin/` is needed | no |
-| **VS Code / GitHub Copilot** | A | root `plugin.json` (Agent Plugins 1.0) | set `chat.plugins.enabled`, then the **Chat: Install Plugin From Source** command (Copilot CLI: `/plugin marketplace add pasqal-io/agent-marketplace`, `/plugin install neutral-atom-toolkit@agent-marketplace`) | no |
-| **Gemini CLI** | B | `gemini-extension.json` declares `GEMINI.md`, which `@`-includes `AGENTS.md` | `gemini extensions install https://github.com/pasqal-io/agent-marketplace` | no |
-| **OpenCode** | B | native Agent Skills discovery from a scanned directory | `git clone`, then `ln -s "$PWD/skills" ~/.agents/skills` (or `.agents/skills` inside a project) | no |
-| **Anything else** | C | `AGENTS.md` at the repo root | `git clone` and open the repo | — |
+| Harness | Tier | Mechanism | Install |
+|---|---|---|---|
+| **Claude Code** | A | `.claude-plugin/plugin.json` + self-hosted marketplace catalog | `/plugin marketplace add pasqal-io/agent-marketplace` then `/plugin install neutral-atom-toolkit@pasqal` — [details](agents/claude-code.md) |
+| **OpenAI Codex** | A | `.codex-plugin/plugin.json` + `.agents/plugins/marketplace.json` | `codex plugin marketplace add pasqal-io/agent-marketplace`, then install from the Plugins view — [details](agents/codex.md) |
+| **Kimi Code** | A | `.kimi-plugin/plugin.json` (+ `skillInstructions` tool mapping) | `/plugins install https://github.com/pasqal-io/agent-marketplace`, then `/new` — [details](agents/kimi.md) |
+| **Cursor** | A | root `plugin.json` (Agent Plugins 1.0) | Customize → find the plugin → Install, project or user scope. Cursor loads an Agent Plugins package unchanged, so no `.cursor-plugin/` is needed |
+| **VS Code / GitHub Copilot** | A | root `plugin.json` (Agent Plugins 1.0) | set `chat.plugins.enabled`, then the **Chat: Install Plugin From Source** command (Copilot CLI: `/plugin marketplace add pasqal-io/agent-marketplace`, `/plugin install neutral-atom-toolkit@agent-marketplace`) |
+| **DeepSeek Harness** | B | native Agent Skills discovery from a scanned directory; no manifest | `git clone`, then link the skills into `~/.agents/skills`, or name the checkout in `customSkillDirs` — [details](agents/deepseek-harness.md) |
+| **Gemini CLI** | B | `gemini-extension.json` declares `GEMINI.md`, which `@`-includes `AGENTS.md` | `gemini extensions install https://github.com/pasqal-io/agent-marketplace` |
+| **OpenCode** | B | native Agent Skills discovery from a scanned directory | `git clone`, then `ln -s "$PWD/skills" ~/.agents/skills` (or `.agents/skills` inside a project) |
+| **Anything else** | C | `AGENTS.md` at the repo root | `git clone` and open the repo |
 
 Every manifest above is validated in CI against the specification its vendor
 publishes, and the install command in each row is that vendor's documented one.
-If you run one on a version we have not, say which harness and which version —
-that is the most useful issue you can open.
+Skill discovery for the two tier-B directory scanners is checked too: CI rejects
+a skill that is not `skills/<kebab-case-name>/SKILL.md`, because neither of them
+recurses and both skip a name they cannot match. If an install goes wrong on
+your agent, say which one and which version — that is the most useful issue you
+can open.
 
 ## What degrades, and where
 

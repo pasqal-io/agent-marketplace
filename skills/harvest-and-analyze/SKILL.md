@@ -20,6 +20,7 @@ project directory (keep outputs like `--out-dir` in your project, not the plugin
 ```
 support/
   harvest_qpu.py       ← collect, compute observable, compare, verdict
+  correct_readout.py   ← invert the detection channel on the raw counts (optional)
   plot_qpu_vs_emu.py   ← QPU vs noiseless/noisy EMU figure
   pasqal_auth.py       ← Pasqal Cloud credential loading (shared, do not edit here)
 ```
@@ -120,6 +121,50 @@ format must be reformatted before running.
 
 ---
 
+## Step 2b — Detection-corrected densities (optional)
+
+The detector mislabels sites in two ways: a ground-state atom read as excited
+(`p_false_pos`, ε) and a Rydberg atom read as absent (`p_false_neg`, ε'). Both are
+single-site and independent, so the measured density of a site is
+`n_raw = ε + n_true·(1 − ε − ε')` and one division recovers `n_true`.
+
+```bash
+python support/correct_readout.py \
+    --counts  <spec.output_dir>/qpu/qpu_counts.json \
+    [--device FRESNEL_CAN1 | --eps 0.015 --eps-prime 0.09]
+```
+
+It reads `qpu_counts.json` and writes `qpu_readout.json`: per-site and array-mean
+density, measured and corrected, with error bars. It works offline from the raw
+file, so it runs long after a batch has expired, and needs no account at all when
+the two rates are given explicitly. There is no default for them — a wrong rate
+silently rescales every density.
+
+**Run this to report a density, not to rescue an accept.** The verdict in Step 2
+compares the QPU curve to the *noisy* emulation, whose noise model already
+contains ε and ε'. Detection error is present on both sides, which is what makes
+that a fair test; correcting one side only would bias it. The script does not
+touch `qpu_results.json` or `verdict.json`, and says so when it finishes.
+
+Use it when you need an absolute occupation, when comparing against a paper that
+quotes corrected values, or to see how much signal the detector is eating.
+
+**When the correction is valid.** Inverting per site is exact for the density and
+for anything affine in it. It does **not** carry over to a nonlinear observable —
+a connected correlator, a structure factor, ⟨|m|⟩ — because the expectation of a
+product is not the product of corrected expectations. For those, leave the
+detection error in place on both sides and compare against the noisy emulation.
+
+`sites_clipped_beyond_err` is the number to read. Clipping at density 0 or 1 is
+ordinary sampling noise; clipping wider than the site's own error bar means the
+measured density is outside anything those two rates can produce, so suspect the
+calibration before the physics.
+
+`python support/correct_readout.py --self-test` checks the inversion against
+distributions of known density, and needs no data.
+
+---
+
 ## Step 3 — Generate the comparison figure
 
 ```bash
@@ -181,6 +226,8 @@ Summarise:
   qpu_counts.json       raw bitstring counts per scan point, untransformed
   qpu_results.json      {records: [{scan_value, observable, obs_err, n_shots, ...}]}
                         — derived from qpu_counts.json, names the observable used
+  qpu_readout.json      per-site and mean density, measured and detection-corrected
+                        (only if Step 2b was run; not comparable to emu_noise.json)
   verdict.json          {accept, max_deviation_sigma, sigma_tolerance, reasons}
 
 <output_dir>/
@@ -196,6 +243,8 @@ Summarise:
 | Job status not DONE | Wait longer; re-run `harvest_qpu.py` — it handles partial completion |
 | `full_result` is None | Job may still be processing; check status again in a few minutes |
 | All observables are 0 | Bitstrings all-zero means readout failed; check SPAM parameters |
+| Density looks low everywhere | Expected: the detector under-reports. `correct_readout.py` (Step 2b) says by how much |
+| `sites_clipped_beyond_err` is large | The two detection rates cannot produce the measured densities — wrong device, or calibration that has drifted since |
 | Bootstrap error ≫ signal | Increase shots per point (update `spec["shots_per_point"]`) |
 | batch_ids format not recognised | Manually edit to match per_point or parametric format above |
 | Max deviation huge but trend right | Normal for small N; consider weaker σ_tolerance (e.g., 3σ) |
