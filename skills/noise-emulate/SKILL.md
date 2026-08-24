@@ -1,6 +1,6 @@
 ---
 name: noise-emulate
-description: Emulate a Pulser sequence's time evolution under the target device's live noise model, producing noiseless and noisy trajectory curves with a quantile envelope. Asks where to run — this machine, a SLURM GPU cluster, or cloud emulators. Use this to study how noise shapes a signal over time; use validate-emu to decide whether an experiment is worth submitting. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise envelope", "run on GPU with noise".
+description: Emulate a neutral-atom Pulser sequence's time evolution under the target Rydberg device's live noise model, producing noiseless and noisy trajectory curves with a quantile envelope. Asks where to run — this machine, a SLURM GPU cluster, or Pasqal Cloud emulators. Use this to study how noise shapes a signal over time; use validate-emu to decide whether an experiment is worth submitting. Triggered by phrases like "run a noise emulation of this sequence", "emu-mps with noise", "noise envelope".
 argument-hint: "[sequence-description-or-file]"
 ---
 

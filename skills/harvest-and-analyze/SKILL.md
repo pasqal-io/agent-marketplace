@@ -1,6 +1,6 @@
 ---
 name: harvest-and-analyze
-description: Collect QPU bitstrings by batch ID once a submission has run, compute the target observable, compare it to the emulated baseline from validate-emu, and return an accept/reject verdict. Runs after a submission, never instead of one. Triggered by phrases like "collect QPU results", "harvest results", "analyze QPU data", "compare QPU to EMU", "is the QPU data consistent with the noise model", "accept or reject".
+description: Collect neutral-atom QPU bitstrings by batch ID once a submission has run, correct them for detection error, compute the target observable, compare it to the emulated baseline from validate-emu, and return an accept/reject verdict. Runs after a submission, never instead of one. Triggered by phrases like "collect the QPU results", "harvest these batch IDs", "compare the QPU data to the emulation", "is the QPU data consistent with the noise model".
 argument-hint: "[spec-file] [batch-ids-file]"
 ---
 

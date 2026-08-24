@@ -1,6 +1,6 @@
 ---
 name: submit-to-cea
-description: Submit a Pulser parametric experiment to Ruby, the QPU hosted at CEA/TGCC on the irene supercomputer, over SSH — generate the job bundle, deploy it, launch the ccc_msub jobs, monitor them, collect the results, with no manual copying. The templates are TGCC-specific and say what a sibling Bull or Slurm site needs changed; use qpu-submit for a cloud-API QPU. Triggered by phrases like "submit to CEA", "launch on Ruby", "submit to TGCC", "run on the on-premise QPU".
+description: Submit a Pulser parametric experiment to Ruby, the neutral-atom QPU hosted at CEA/TGCC on the irene supercomputer, over SSH — generate the job bundle, deploy it, launch the ccc_msub jobs, monitor them, collect the results, with no manual copying. The templates are TGCC-specific and say what a sibling Bull or Slurm site needs changed; use qpu-submit for a cloud-API QPU. Triggered by phrases like "submit to CEA", "launch on Ruby", "submit to TGCC".
 argument-hint: "[sequence-file-or-description]"
 ---
 

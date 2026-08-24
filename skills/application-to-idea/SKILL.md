@@ -1,6 +1,6 @@
 ---
 name: application-to-idea
-description: Turn an application, a problem or a wish into a first technically stated idea — which documented PASQAL/Pulser method could serve it, what would be measured, at what size, and what is still undecided — or an honest no-fit. Writes a note idea-to-spec turns into a spec; use idea-to-spec directly when a protocol or paper exists. Triggered by phrases like "could a quantum computer help with this", "is my use case a fit for neutral atoms", "I don't know what to measure", "help me scope this".
+description: Scope a rough problem or application into a first technical idea for a neutral-atom (Rydberg) QPU: which documented Pulser method could serve it — MIS, QUBO, an Ising or XY simulation, a graph kernel — what would be measured, at what size, or an honest no-fit. Writes a note for idea-to-spec; use idea-to-spec when a protocol or paper exists. Triggered by phrases like "can neutral atoms do anything with my problem", "is this a fit for a Rydberg QPU", "I don't know what to measure on the QPU".
 argument-hint: "[the problem or the wish, in your own words]"
 ---
 

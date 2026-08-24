@@ -1,6 +1,6 @@
 ---
 name: validate-emu
-description: Scan an experiment_spec.json and its sequence file, noiseless and noisy, and return a go/no-go decision on whether the signal survives device noise well enough to be worth hardware time. Asks where to run: locally (free, small registers, offered first) or on cloud emulators at the real size. This is the gate before a QPU submission, not the submission. Triggered by phrases like "validate with EMU", "run an emulation scan", "check noise retention", "is this worth submitting to hardware".
+description: Scan a neutral-atom experiment_spec.json and its Pulser sequence, noiseless and noisy, and return a go/no-go on whether the signal survives the Rydberg device's noise well enough to be worth QPU time. Asks where to run: locally (free, small registers, offered first) or on Pasqal Cloud emulators at the real size. This is the gate before a QPU submission, not the submission. Triggered by phrases like "validate this sequence on the emulator", "check noise retention", "is this worth QPU time".
 argument-hint: "[spec-file] [seq-file]"
 ---
 

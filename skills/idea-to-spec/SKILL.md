@@ -1,6 +1,6 @@
 ---
 name: idea-to-spec
-description: Turn any source describing an experiment — a paper, a patent, a PDF, an arXiv ID, or a protocol described in conversation — into a structured experiment_spec.json for the neutral-atom pipeline. The spec is the input contract for spec-to-sequence, validate-emu, qpu-submit and harvest-and-analyze. Triggered by phrases like "read this paper", "read this patent", "extract the protocol", "I have an idea for an experiment", "turn this idea into a spec", "idea to spec".
+description: Turn a source describing a neutral-atom (Rydberg) experiment — a paper, a patent, a PDF, an arXiv ID, an idea note, or a protocol described in conversation — into a structured experiment_spec.json: register, drive, scan, observable, open questions. The spec is the input contract for spec-to-sequence, validate-emu, qpu-submit and harvest-and-analyze. Triggered by phrases like "turn this paper into a neutral-atom experiment spec", "extract the Rydberg protocol", "idea to spec".
 argument-hint: "[pdf-path | arxiv-id | description]"
 ---
 
@@ -8,9 +8,9 @@ argument-hint: "[pdf-path | arxiv-id | description]"
 
 Extract a Rydberg quantum experiment protocol into `<experiment_name>_spec.json`.
 The source can be a paper, a patent, an internal note, an intention note from
-`application-to-idea`, or a protocol the user describes in conversation. This spec is the single shared contract
-between all pipeline skills — get it right here and everything downstream works
-without modification.
+`application-to-idea`, or a protocol the user describes in conversation. This
+spec is the single shared contract between all pipeline skills — get it right
+here and everything downstream works without modification.
 
 **If the source does not describe an experiment yet**, this is the wrong skill.
 A wish ("I'd like to try something with 50 atoms", "can this solve my
