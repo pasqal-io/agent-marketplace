@@ -1,6 +1,6 @@
 ---
 name: qpu-submit
-description: Submit an experiment_spec.json plus its generated sequence file to a QPU through a cloud API, with an optional pre-calibration batch that measures the device's Rabi frequency and Rydberg resonance and compensates the submitted jobs. Writes batch IDs for harvest-and-analyze. For a QPU reached over SSH through a cluster scheduler, use submit-via-hpc instead. Triggered by phrases like "submit to QPU", "run this on the QPU", "send the spec to hardware", "submit the sequence to the cloud QPU".
+description: Submit an experiment_spec.json plus its generated sequence file to a QPU through a cloud API, with an optional pre-calibration batch that measures the device's Rabi frequency and Rydberg resonance and compensates the submitted jobs. Writes batch IDs for harvest-and-analyze. For a QPU reached over SSH through a cluster scheduler, use submit-to-cea instead. Triggered by phrases like "submit to QPU", "run this on the QPU", "send the spec to hardware", "submit the sequence to the cloud QPU".
 argument-hint: "[spec-file] [sequence-file]"
 ---
 
@@ -17,7 +17,7 @@ generated. A worked example lives in
 
 Device selection: `--device` (default: `spec["device"]`); for **SA1** also set
 `PASQAL_REGION=sa` and use a project with SA1 access. **Ruby (CEA)** is not on
-the Pasqal Cloud — use the `submit-via-hpc` skill.
+the Pasqal Cloud — use the `submit-to-cea` skill.
 
 ## Support scripts
 
@@ -140,8 +140,8 @@ tail -f <out-dir>/submit.log | grep --line-buffered \
 
 ## Step 3 — Collect and analyze
 
-Collection, observable computation, EMU comparison and the accept/reject verdict
-all belong to `harvest-and-analyze`:
+**Next step**: `harvest-and-analyze`. Collection, observable computation, EMU
+comparison and the accept/reject verdict all belong to it:
 
 ```bash
 python <harvest-and-analyze>/support/harvest_qpu.py \

@@ -33,7 +33,7 @@ Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`
 
 1. `<experiment_name>_spec.json` — from `idea-to-spec`
 2. `<experiment_name>_sequence.py` — from `spec-to-sequence` (for `compute_observable`)
-3. QPU `batch_ids.json` — from `qpu-submit` or `submit-via-hpc`
+3. QPU `batch_ids.json` — from `qpu-submit` or `submit-to-cea`
 4. EMU results directory — from `validate-emu` (contains `emu_noiseless.json` + `emu_noise.json`)
 
 ---
@@ -222,7 +222,7 @@ Summarise:
 
 ```
 <output_dir>/qpu/
-  batch_ids.json        (written by qpu-submit / submit-via-hpc)
+  batch_ids.json        (written by qpu-submit / submit-to-cea)
   qpu_counts.json       raw bitstring counts per scan point, untransformed
   qpu_results.json      {records: [{scan_value, observable, obs_err, n_shots, ...}]}
                         — derived from qpu_counts.json, names the observable used

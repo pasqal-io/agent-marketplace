@@ -39,7 +39,7 @@ can open.
 
 - **Interactive multiple-choice questions.** `validate-emu` asks where to run
   (this machine / cloud), `noise-emulate` the same with SLURM in between, and
-  `submit-via-hpc` asks for site values. The
+  `submit-to-cea` asks for site values. The
   skills say to use the harness's question mechanism *if it has one* and plain
   text otherwise, so the worst case is a text question. A harness whose adapter
   can name its own tool should do so there — Kimi's `skillInstructions` is the

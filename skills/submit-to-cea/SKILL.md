@@ -1,14 +1,19 @@
 ---
-name: submit-via-hpc
-description: Submit a Pulser parametric experiment to a QPU behind an HPC cluster reached over SSH — generate the job bundle, deploy it, launch the scheduler jobs, monitor them, and collect the results, with no manual copying. Use this when the QPU is not reachable through a cloud API; use qpu-submit when it is. Triggered by phrases like "submit to the cluster", "run on the on-premise QPU", "deploy over SSH to the supercomputer", "collect results from the cluster", "submit to CEA", "launch on Ruby".
+name: submit-to-cea
+description: Submit a Pulser parametric experiment to Ruby, the QPU hosted at CEA/TGCC on the irene supercomputer, over SSH — generate the job bundle, deploy it, launch the ccc_msub jobs, monitor them, collect the results, with no manual copying. The templates are TGCC-specific and say what a sibling Bull or Slurm site needs changed; use qpu-submit for a cloud-API QPU. Triggered by phrases like "submit to CEA", "launch on Ruby", "submit to TGCC", "run on the on-premise QPU".
 argument-hint: "[sequence-file-or-description]"
 ---
 
-# submit-via-hpc
+# submit-to-cea
 
 This skill takes a Pulser parametric experiment from source code to running QPU
 jobs on a machine reached over SSH, entirely autonomously. The user never needs
 to copy files, run remote commands, or touch the server manually.
+
+The name is deliberate: what is bundled here was written for and tested against
+**Ruby at CEA/TGCC**, and the deployment path is that site's. It generalises to a
+sibling cluster by editing three files (**Site scope**, below), but calling it
+generic would promise a portability nothing here has tested.
 
 **Two variables** define the target, set once per session:
 
@@ -345,6 +350,9 @@ After launch, tell the user:
    `collect_results.py` exit code 0 = all jobs merged; exit code 1 = some still pending
    (normal while jobs are running). The merged JSONL lands at
    `<output_dir>/batch_ids/<name>.json` on the remote machine and is mirrored into `$LOCAL_DIR/` here.
+6. **Next step**: `harvest-and-analyze`, pointed at the merged file — it computes
+   the observable, compares it with the emulated baseline and returns the
+   accept/reject verdict. This skill stops at raw data on disk.
 
 ---
 
