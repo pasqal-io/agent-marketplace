@@ -10,22 +10,4 @@
 # every person is a single point of failure.
 
 # Default owner for anything not matched below.
-*                               @MGarrigues-pasqal @AurelienNober
-
-# CI, supply chain and repository policy. A change here can alter what runs with
-# what privilege on every push, so it should not be self-reviewed.
-/.github/                       @MGarrigues-pasqal @AurelienNober @bejito
-/scripts/                       @MGarrigues-pasqal @AurelienNober @bejito
-/SECURITY.md                    @MGarrigues-pasqal @AurelienNober @bejito
-
-# The credential loader, vendored byte-identical into four skills. Every
-# cloud-facing script resolves secrets through it.
-**/support/pasqal_auth.py       @MGarrigues-pasqal @AurelienNober @bejito
-
-# Anything that can spend money or hardware time.
-/skills/qpu-submit/             @MGarrigues-pasqal @AurelienNober
-/skills/submit-via-hpc/         @MGarrigues-pasqal @AurelienNober
-
-# The physics: specs, sequences and the observables they assert on.
-/examples/                      @MGarrigues-pasqal
-/skills/spec-to-sequence/       @MGarrigues-pasqal
+*                               @MGarrigues-pasqal @bejito @cdalyac
