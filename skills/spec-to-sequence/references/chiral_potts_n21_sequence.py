@@ -21,7 +21,7 @@ Usage:
         delta_i_radus=-2*np.pi*8e6, delta_f_radus=+2*np.pi*8e6,
         device_str="AnalogDevice",   # or "DigitalAnalogDevice", "MockDevice";
                                      # for Ruby/FRESNEL_CAN1 pass the
-                                     # cloud-fetched object as device=...
+                                     # connection-fetched object as device=...
     )
     # tau gets bound at submission time, as the single swept Variable.
 
@@ -46,7 +46,7 @@ def _resolve_device_str(device_str: str):
 
     Pulser bundles only the generic devices (AnalogDevice, DigitalAnalogDevice,
     MockDevice). Real machines — Ruby, FRESNEL_CAN1 — are descriptions held by
-    the cloud, not constants in the library, so they are fetched per project and
+    the connection (cloud or hpc), not constants in the library, so they are fetched per project and
     per calibration and passed in as a `device` object. Naming one here used to
     raise ImportError; say what to do instead.
     """
@@ -60,7 +60,7 @@ def _resolve_device_str(device_str: str):
         return shipped[device_str]
     raise ValueError(
         f"{device_str!r} is not a device Pulser ships ({', '.join(sorted(shipped))}). "
-        "A real machine has to be fetched from the cloud and passed in as the "
+        "A real machine has to be fetched from the connection and passed in as the "
         "`device` argument: "
         'device = PasqalCloudConnection(**creds).fetch_available_devices()'
         f'["{device_str}"]')
@@ -216,10 +216,10 @@ def build_para_chiral_potts_ring_sequence(
     Two ways to specify the target device:
     * `device_str` — one of the device names Pulser ships ("AnalogDevice",
       "DigitalAnalogDevice", "MockDevice"). Real machines — Ruby, FRESNEL_CAN1 —
-      are NOT shipped by Pulser at any version: they are cloud-held
+      are NOT shipped by Pulser at any version: they are connection-held
       descriptions, per project and per calibration, and must be fetched
       (`conn.fetch_available_devices()["FRESNEL_CAN1"]`) and passed via `device`.
-    * `device` — a Pulser `Device` object obtained from the live cloud client;
+    * `device` — a Pulser `Device` object obtained from the live connection client;
       takes precedence over `device_str` when both are given.
 
     Prefer the SDK-fetched real device for any sequence bound for QPU or EMU, so
