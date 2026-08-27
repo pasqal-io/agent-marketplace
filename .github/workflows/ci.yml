@@ -5,19 +5,40 @@ on:
   push:
     branches: [main]
 
+# Least privilege, set here rather than left to the repository default. Nothing
+# in this workflow writes to the repo: it validates manifests and runs the
+# example smoke tests. A read token is all it needs, and a read token cannot be
+# used to push to main, cut a release or approve a PR if anything running in
+# this job turns out to be hostile.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # Third-party actions are pinned to a commit SHA, not a tag: a tag is
+      # mutable, so `@v4` is a promise from whoever can move that tag. The
+      # trailing comment is the human-readable version the SHA corresponds to —
+      # keep both in sync when bumping.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # actions/checkout stores the GITHUB_TOKEN in .git/config by default
+          # so later git commands work. No step here talks to the remote, so
+          # the credential is dropped instead of left on disk for the rest of
+          # the job, where any dependency installed below could read it.
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "20"
       - name: Install Claude Code CLI (for manifest validation)
-        run: npm install -g @anthropic-ai/claude-code
+        # Pinned like every other dependency. Unpinned, this resolved a fresh
+        # tree of transitive packages on every run, with no diff anyone reviews.
+        # Bump deliberately when `claude plugin validate` changes.
+        run: npm install -g @anthropic-ai/claude-code@2.1.247
       - name: Install Pulser (for the example smoke tests)
         # Pinned deliberately: the examples assert on device constants Pulser
         # ships (AnalogDevice's C6 sets the printed R_b/a, its 38 µm radial cap
