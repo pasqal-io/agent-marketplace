@@ -105,8 +105,8 @@ def load_credentials() -> dict:
     Keys are exactly `username`, `password`, `project_id`, `region`, so the
     result can be splatted straight into either client:
 
-        sdk  = SDK(**load_credentials())
-        conn = PasqalCloud(**load_credentials())
+        client = PasqalCloudClient(**load_credentials())
+        conn   = PasqalCloudConnection(**load_credentials())
 
     `region=None` selects the default (`fr`). SA1 lives in `sa` and is
     invisible from any other region — set PASQAL_REGION=sa or `"region": "sa"`

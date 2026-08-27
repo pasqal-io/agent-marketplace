@@ -147,8 +147,8 @@ def main():
     mod      = _load_seq_module(args.seq_file)
     obs_fn   = mod.compute_observable
 
-    from pasqal_cloud import SDK
-    sdk = SDK(**load_credentials())
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
+    sdk = PasqalCloudClient(**load_credentials())
 
     print(f"=== harvest-and-analyze: {spec['experiment_name']} ===")
     fmt = batch_data.get("format", "per_point")

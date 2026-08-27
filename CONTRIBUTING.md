@@ -102,8 +102,12 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
      never a loader of your own — CI rejects a second one. It resolves each
      field from env vars, then the system keyring (password only), then
      `~/.pasqal_credentials.json` (chmod 600), and returns exactly the keyword
-     arguments both clients take: `SDK(**load_credentials())`,
-     `PasqalCloud(**load_credentials())`. Never hardcode a credential.
+     arguments both clients take: `PasqalCloudClient(**load_credentials())`
+     (from `pasqal_cloud.pasqal_cloud_client`) and
+     `PasqalCloudConnection(**load_credentials())` (from `pasqal_cloud`). Never
+     hardcode a credential. Do not reach for `pasqal_cloud.SDK` or
+     `pulser_pasqal.PasqalCloud`: both are deprecated aliases of those two, and
+     pulser-pasqal pins an incompatible pasqal-cloud.
      The one exception is `submit-via-hpc/templates/submit_template.py`, which
      runs inside a container on a compute node where no keyring exists; it reads
      env vars only and says so in a comment.

@@ -88,8 +88,8 @@ def setup_pasqal_connection(logger):
             f"Missing credentials in the job environment: {', '.join(missing)}. "
             "Export them in the submission script before launching.")
     try:
-        from pulser_pasqal import PasqalCloud
-        connection = PasqalCloud(
+        from pasqal_cloud import PasqalCloudConnection
+        connection = PasqalCloudConnection(
             username=os.getenv("PASQAL_USERNAME"),
             password=os.getenv("PASQAL_PASSWORD"),
             project_id=os.getenv("PASQAL_PROJECT_ID"),
