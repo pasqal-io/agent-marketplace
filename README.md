@@ -138,6 +138,7 @@ account and nothing spent.
 | `qpu-submit` | Calibrated submission of a spec and sequence to a cloud QPU, after you approve the shot count | account with QPU access |
 | `submit-via-hpc` | Parametric experiments on a QPU behind an HPC cluster, over SSH. Includes a first-time-access guide | an account on the cluster |
 | `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account |
+| `apply-genci-tgcc-cea` | Apply for QPU time at the Genci CEA QPU for open research | nothing (internet)|
 
 The pipeline order is `idea-to-spec`, `spec-to-sequence`, `validate-emu`,
 optionally `noise-emulate`, then `qpu-submit` or `submit-via-hpc`, then
