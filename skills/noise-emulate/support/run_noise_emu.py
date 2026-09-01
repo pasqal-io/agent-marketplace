@@ -2,7 +2,7 @@
 """
 run_noise_emu.py — GPU noise emulation runner.
 
-Fetches the FRESNEL_CAN1 default_noise_model live from the Pasqal cloud SDK,
+Fetches the FRESNEL_CAN1 noise_model live from the Pasqal cloud SDK,
 prints all parameter values being used, then runs 1 noiseless + N noisy MPS
 trajectories sequentially on GPU. Optionally sweeps calibration offsets
 (omega_offset, delta_offset, R_offset) for an extended sensitivity envelope.
@@ -107,7 +107,7 @@ def fetch_fcan1(device_name="FRESNEL_CAN1",
     if device_name not in specs:
         raise ValueError(f"{device_name} not in available devices: {list(specs.keys())}")
     device = deserialize_device(specs[device_name])
-    nm = device.default_noise_model
+    nm = getattr(device, "noise_model", None) or device.default_noise_model
 
     if override_T2_us and override_T2_us > 0:
         print(f"  ⚙  Overriding dephasing: T₂ {1/nm.dephasing_rate:.1f} → "
