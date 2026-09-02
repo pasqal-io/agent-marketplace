@@ -65,4 +65,4 @@ jobs:
           sudo install gitleaks /usr/local/bin/
 
       - name: Scan full history
-        run: gitleaks git --no-banner --redact --verbose .
+        run: gitleaks git --no-banner --redact --verbose --log-opts="--all" .
