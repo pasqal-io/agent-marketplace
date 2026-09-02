@@ -1,0 +1,32 @@
+# Dependabot version updates. Separate from Dependabot *security* alerts, which
+# are a repository setting rather than a file — both are now on.
+#
+# Two ecosystems exist here and no others: the CI workflow's actions, and the
+# one requirements.txt a skill ships. There is no package.json — the Claude Code
+# CLI is installed globally in CI and is pinned in the workflow by hand.
+version: 2
+updates:
+  # The actions are SHA-pinned, so this is what keeps them from rotting: it
+  # bumps the SHA and rewrites the trailing version comment.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    labels: [dependencies, ci]
+
+  - package-ecosystem: pip
+    directory: /skills/noise-emulate/support
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps"
+    labels: [dependencies]
+    # Pulser bumps must arrive as their own reviewed PR: the examples assert on
+    # device constants Pulser ships (AnalogDevice's C6 sets the printed R_b/a,
+    # its 38 µm radial cap is what the 56-atom ring is expected to be refused
+    # by), and CI pins one exact version that this file cannot see. A Dependabot
+    # floor bump here would silently disagree with .github/workflows/ci.yml.
+    ignore:
+      - dependency-name: pulser
