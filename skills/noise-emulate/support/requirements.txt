@@ -11,4 +11,4 @@ emu-mps>=2.7.0
 torch>=2.0.0
 matplotlib>=3.5.0
 numpy>=1.24.0
-keyring>=24.0.0      # optional but recommended — stores password in OS keyring
+keyring>=25.7.0      # optional but recommended — stores password in OS keyring
