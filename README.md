@@ -62,13 +62,15 @@ You need:
 
 - **Python** with `pulser` (plus `numpy`/`scipy`/`matplotlib`). That alone is
   enough to specify an experiment, generate a sequence, and emulate it locally.
-- **A Pasqal Cloud account** for the cloud emulator, and one with **QPU access**
-  to submit to hardware. Larger local emulation wants a GPU.
-- **A cluster account** only for the HPC route (`submit-via-hpc`).
+- **An account** for QPU and emulator access. Either: 
+	- **A Pasqal Cloud account** for the cloud emulator, and one with **QPU access**
+	  to submit to hardware. Larger local emulation wants a GPU.
+	- **A cluster account** only for the HPC route (`submit-via-hpc`). If you do not
+	  have one yet, there is a skill to help you apply. 
 
 You should know:
 
-- **Account creation, subscription and payment are not part of this toolkit.**
+- **Account creation, subscription and payment for Pasqal cloud are not part of this toolkit.**
   Nothing here signs you up, buys quota or handles an invoice. Bring access you
   already have; if you do not have it yet, get it through the usual Pasqal
   channels first. Everything up to and including local emulation works without
