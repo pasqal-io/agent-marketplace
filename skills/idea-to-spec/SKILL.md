@@ -12,6 +12,31 @@ describes in conversation. This spec is the single shared contract between all
 pipeline skills — get it right here and everything downstream works without
 modification.
 
+## Decisions that are not yours
+
+The point of this pipeline is that the physics decisions stay with the user. Not
+even a broad "just extract whatever is in there" delegates these — ask, in one
+short batch, with the alternatives named:
+
+- **the observable**, and the wavevector or ordering it is defined against
+- **the scan variable and its range**, and whether it covers both sides of the
+  transition
+- **any reduction of N**, and whether a reduced register still answers the
+  question
+- **the device**, and whether an on-premise backend is meant instead
+- **whether the source's noise model should travel with the spec**
+
+Provisional values are for what is too fine to be worth their turn, and they go
+in `open_questions` with `why` and `impact` — never presented as if the source
+had given them.
+
+If the source will not yield something after about **three** attempts — a
+methods section that stays ambiguous, a figure caption that contradicts the text
+— stop and say so: what you tried, what the two readings are, and what each
+would change. Then offer picking one provisionally, asking the authors, or
+dropping that part of the protocol. Do not keep re-reading the same PDF hoping
+for a different answer.
+
 ---
 
 ## Spec schema (all fields required unless marked optional)
@@ -63,8 +88,14 @@ modification.
   "validation": {
     "noise_retention_min": 0.50
   },
+  "noise_model": {                // optional — only if the SOURCE gives one
+    "source": "paper",            // "paper" | "custom" | "device"
+    "params": {"T2": 4.0, "p_false_pos": 0.02},
+    "why": "Table I: the authors' own calibration",
+    "differs_from_device": true
+  },
   "shots_per_point": 1000,
-  "output_dir": "results/<experiment_name>",
+  "output_dir": "experiments/<experiment_name>/results",
   "sequence_file": "<experiment_name>_sequence.py",
   "builder_fn": "build_sequence",
   "open_questions": [
@@ -116,6 +147,21 @@ flip. If the source contradicts itself, say so and quote both places.
 
 `open_questions` travels with the spec, so `validate-emu` and
 `harvest-and-analyze` can tell a surprising result from a shaky assumption.
+
+### A noise model in the source is recorded, not merged
+
+If the source states its own error budget — a T₂, a detection fidelity, an atom
+temperature, a dephasing rate — put it in `noise_model` **verbatim**, with
+`source: "paper"` and a `why` that says where it came from. Do not average it
+with the device's, do not "adjust" it, and do not leave it out because the
+device has its own.
+
+It matters downstream: those numbers are part of the claim being reproduced,
+while the device's model is what the hardware will actually do to the signal.
+`validate-emu` and `noise-emulate` print the difference field by field and let
+the user choose with `--noise-source device|paper|both`. A source model that was
+never recorded here is a comparison nobody can make later. If the source states
+none, omit the block entirely — an invented noise model is worse than no block.
 
 ---
 
@@ -173,6 +219,41 @@ Work through these questions and fill the spec:
 
 ---
 
+## Step 2b — Hard is not the same as impossible
+
+Some protocols do not map onto a global Rydberg-Ising drive at all, and saying
+so is a real answer (see the "this hardware does not do that" rule). But do not
+reach for it early, and do not reach for it because a mapping is *awkward*.
+
+**XXZ is the standing example.** A spin-1/2 XXZ model with tunable anisotropy is
+reachable on neutral atoms, and it is documented: encode the spin in two Rydberg
+levels so the dipolar exchange gives the XY term, then shape the anisotropy with
+a periodic microwave drive — Floquet engineering. The reference is Scholl et al.,
+*Microwave-engineering of programmable XXZ Hamiltonians in arrays of Rydberg
+atoms* ([arXiv:2107.14459](https://arxiv.org/abs/2107.14459)), and Pulser ships a
+tutorial that reproduces it (`mw_engineering`, XY mode via a `mw_global`
+channel and `seq.set_magnetic_field(...)`).
+
+What that costs, stated plainly rather than discovered later:
+
+- XY mode needs a **microwave channel**. Read `device.channels` on the *target*
+  device — Fresnel-class QPUs expose `rydberg_global` and no `mw_global`, so
+  without one XXZ is an **emulator** study, not a hardware submission.
+- the Floquet cycle multiplies the sequence length and the pulse count, so the
+  duration limit and the noise budget both bite sooner than for an Ising ramp.
+- the rest of this pipeline (`pulse.type`, the observables) is built for
+  Ising-type drives; an XXZ spec needs a hand-written builder rather than
+  `spec-to-sequence`'s templates.
+
+So the answer to "can we do XXZ" is neither yes nor no: it is *what is
+reachable*. Name the three rungs — the Ising limit, resonant XY at Δ=0, and full
+XXZ with Floquet anisotropy in emulation — say which the target device supports,
+and let the user choose. Record the choice and its consequences in `_notes` and
+`open_questions`. The same shape of answer applies to any protocol that is
+documented but awkward: cost it, offer it, do not silently drop it.
+
+---
+
 ## Step 3 — Device compatibility check
 
 **Never hardcode device limits, and never trust remembered ones.** They change
@@ -220,15 +301,46 @@ that backend uses.
 
 ---
 
-## Step 4 — Write the spec
+## Step 4 — Write the spec, and open the experiment's tree
 
-Write `<experiment_name>_spec.json` to the working directory.
-Set `output_dir` to `results/<experiment_name>` relative to the working directory.
-Set `sequence_file` to `<experiment_name>_sequence.py`.
+This skill is where an experiment's directory is created. Everything the
+pipeline produces afterwards goes in it, as it is produced — nothing is left in
+the working directory's root to be tidied later:
+
+```
+experiments/<experiment_name>/
+  <experiment_name>_spec.json          this step
+  <experiment_name>_sequence.py        spec-to-sequence writes it here
+  NOTEBOOK.md                          this step creates it
+  notes/                               the source, your extract, any reasoning
+  analysis/                            ad-hoc scripts written later
+  figures/                             figures made for the report
+  results/{emu_local,emu,noise,qpu}/   each stage's own outputs
+```
+
+Set `output_dir` to `experiments/<experiment_name>/results` and `sequence_file`
+to `<experiment_name>_sequence.py`.
 
 Add a `"_notes"` field summarising any assumptions or scaling decisions, and fill
 `open_questions` with everything still unresolved. Both are text the user is
 expected to correct: the spec is a draft to review, not an answer.
+
+Then start `NOTEBOOK.md` with the first block — the source, what was extracted
+from it, what was assumed, and the files written:
+
+```markdown
+# <experiment_name>
+
+## 2026-09-02 11:40 — idea-to-spec (this machine)
+source   notes/paper_2302.08963.pdf, Methods + Fig. 2b
+device   FRESNEL_CAN1, limits read live from the cloud spec
+wrote    square_lattice_eom_quench_spec.json
+open     pulse.omega_max_mhz provisional 2.0 (see open_questions)
+```
+
+Every later step appends one. It is the only record that survives the
+conversation, and it is what makes the difference between a directory someone
+can pick up and a pile of JSON.
 
 ---
 
@@ -246,4 +358,8 @@ Summarise:
    `open_questions` is the user who publishes an assumption as a measurement.
    Say plainly which of them you want an answer to before spending emulator or
    hardware time.
-7. **Next step**: `spec-to-sequence` to generate the Pulser builder
+7. **The noise model**, if the source gave one: that it is recorded, how it
+   differs from the device's, and that `validate-emu` will ask which to run
+8. Where everything landed: `experiments/<experiment_name>/`, and the first
+   `NOTEBOOK.md` block
+9. **Next step**: `spec-to-sequence` to generate the Pulser builder

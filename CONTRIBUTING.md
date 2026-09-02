@@ -48,7 +48,8 @@ because a skill installed on its own — the normal case — has no `examples/`
 directory next to it. A Markdown link is documentation and is allowed.
 
 Code shared between skills is **vendored**: one byte-identical copy per
-`support/` directory (today, `pasqal_auth.py`). A skill has to keep working when
+`support/` directory (today `pasqal_auth.py`, `batch_tags.py` and
+`spec_noise.py`). A skill has to keep working when
 a harness installs it alone, and `support/` is what gets copied to a cluster, so
 a single repo-level `lib/` would break both. Edit one copy, then copy it over the
 others — `scripts/check.sh` fails while they differ and names the odd ones out.
@@ -104,6 +105,19 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
      `~/.pasqal_credentials.json` (chmod 600), and returns exactly the keyword
      arguments both clients take: `SDK(**load_credentials())`,
      `PasqalCloud(**load_credentials())`. Never hardcode a credential.
+     A script that **spends** credits — QPU shots or emulator time — calls
+     `load_credentials(project_id=args.project_id,
+     require_explicit_project=True)` and exposes `--project-id`: an environment
+     variable is not a decision, and `pasqal_auth.py --whoami` is the free,
+     read-only way to show the user their projects and credits first. Print the
+     account block from `account_summary(...)` in whatever plan you ask them to
+     approve.
+   - Batch labels: **`from batch_tags import build_tags`**. Every batch a skill
+     submits is tagged, with the stage it belongs to — an untagged batch is a
+     paid result nobody can find again.
+   - A noise model that came from the source: **`import spec_noise`** and
+     `spec_noise.resolve(args.noise_source, spec, device_noise, device_params)`.
+     Print the difference, let the user choose, never substitute silently.
      The one exception is `submit-via-hpc/templates/submit_template.py`, which
      runs inside a container on a compute node where no keyring exists; it reads
      env vars only and says so in a comment.

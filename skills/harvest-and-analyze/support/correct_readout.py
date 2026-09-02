@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Invert the detection channel on harvested bitstrings.
 
+RUNS ON: this machine, offline. Reads a counts file; submits nothing, bills
+nothing, and needs no account when the two rates are passed explicitly.
+
 A neutral-atom readout mislabels sites in two ways: an atom in the ground state
 is sometimes read as excited (p_false_pos, "epsilon"), and an atom in the Rydberg
 state is sometimes read as absent (p_false_neg, "epsilon'"). Both are single-site

@@ -10,6 +10,43 @@ This skill takes a Pulser parametric experiment from source code to running QPU
 jobs on a machine reached over SSH, entirely autonomously. The user never needs
 to copy files, run remote commands, or touch the server manually.
 
+RUNS ON: a QPU behind an HPC scheduler, over SSH. Node hours and shots are
+billed to someone's allocation, and jobs queued remotely cannot be recalled.
+File generation (Phase 3) happens on this machine and costs nothing.
+
+## Decisions that are not yours
+
+"Autonomously" describes the file copying and the job plumbing, not the
+decisions. Ask, recommend, and wait:
+
+- **the site and the account/allocation** the node hours are billed to
+- **the shot count and the parameter list** — how many jobs, and what they sweep
+- **whether to launch now** given the QPU availability check (Phase 4.1)
+- **what to do when jobs fail or the QPU is down** — wait, resubmit, or stop
+
+After about **three** attempts at the same obstacle — SSH refused, jobs dying in
+the queue, a container that will not start — stop and report: what was tried,
+what the scheduler said, and what is known. Then offer waiting for the site,
+changing the target, or abandoning the run. Do not loop on a cluster that is
+telling you no.
+
+## Where the outputs land
+
+Locally, in the experiment's own tree — the generated bundle is part of the
+record, not scratch:
+
+```
+experiments/<name>/
+  analysis/hpc/            the generated submit_<name>.py, launch and job scripts
+  results/qpu/             collected results, batch ids, logs
+  figures/                 figures made for the report
+  NOTEBOOK.md              one appended block per phase that touched the cluster
+```
+
+Remote paths stay under `$HOME/$HPC_REMOTE_DIR` as documented below. Report the
+local and remote path of everything you generate; nothing is left in the working
+directory's root.
+
 **Two variables** define the target, set once per session:
 
 ```bash
@@ -367,3 +404,8 @@ Only escape variables that must be evaluated by the **inner** `bash -c` shell (e
 - `setup_cea_env.sh` must be run from `~/` (not `~/$HPC_REMOTE_DIR/`), creating `~/pulser-env/`.
 - Always use `nohup ... &` when launching long-running scripts over SSH.
 - If SSH is refused, wait a few seconds and retry silently — do not surface this as an error to the user unless it persists beyond 3 attempts.
+- Say where each step runs before running it, and record every number you report
+  in a file: the collected results, the job ids, the scheduler output. A number
+  quoted from a terminal nobody kept is a number nobody can check.
+- Append a `NOTEBOOK.md` block for each phase that touched the cluster: host,
+  remote directory, job ids, what was submitted, what came back.

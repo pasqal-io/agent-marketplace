@@ -1,23 +1,39 @@
 #!/usr/bin/env python3
 """Cloud EMU_MPS scan — noiseless + noisy in parallel.
 
+RUNS ON: Pasqal Cloud emulators (EMU_MPS). Metered emulator time, not QPU
+shots, and this is the verdict that gates hardware.
+
 Submits one EMU_MPS batch per scan point for both noiseless and noisy backends,
 polls all concurrently, computes the observable, and writes a go/no-go verdict.
+
+Every batch is tagged with the experiment, the device, the scan variable and the
+backend, so the emulation and the QPU run of one experiment are findable
+together: `sdk.get_batches(filters=BatchFilters(tag="exp:<name>"))`.
 
 Usage:
     python run_emu_scan.py \\
         --spec       experiment_spec.json \\
         --seq-file   my_experiment_sequence.py \\
-        --out-dir    results/my_experiment/emu/ \\
+        --out-dir    experiments/my_experiment/results/emu/ \\
+        --project-id <the project the user picked> \\
         [--shots     1000] \\
         [--poll      30] \\
+        [--tag       "run 2"] \\
+        [--noise-source device|paper|both] \\
         [--noiseless-only | --noisy-only]
 
+`--project-id` is required: emulator time is billed to a project, and the
+project id that happens to be in the environment is the last one somebody
+exported, not a decision. Run `python pasqal_auth.py --whoami` first, show the
+user their projects and credits, and ask.
+
 Outputs (in --out-dir):
-    batch_ids.json       submitted batch IDs (written immediately, crash recovery)
-    emu_noiseless.json   observable scan curve, noiseless
-    emu_noise.json       observable scan curve, noisy (FC1 calibrated)
-    verdict.json         {go: bool, reasons: [...], retention: float}
+    batch_ids.json         submitted batch IDs (written immediately, crash recovery)
+    emu_noiseless.json     observable scan curve, noiseless
+    emu_noise.json         observable scan curve, noisy — under whichever model
+                           --noise-source selected, named in noise_params.source
+    verdict.json           {go: bool, reasons: [...], retention: float}
 """
 from __future__ import annotations
 import argparse
@@ -28,7 +44,9 @@ from pathlib import Path
 
 import numpy as np
 
-from pasqal_auth import load_credentials
+import spec_noise
+from batch_tags import build_tags
+from pasqal_auth import account_summary, load_credentials
 
 
 def _load_seq_module(path: str):
@@ -83,6 +101,19 @@ def main():
     ap.add_argument("--spec",            required=True)
     ap.add_argument("--seq-file",        required=True)
     ap.add_argument("--out-dir",         required=True)
+    ap.add_argument("--project-id",      default=None,
+                    help="the project the user chose to pay for this emulation. "
+                         "Required: run `python pasqal_auth.py --whoami` first, "
+                         "show them the projects and credits, and ask.")
+    ap.add_argument("--tag",             action="append", default=[],
+                    help="extra batch label, in the user's own words; repeatable")
+    ap.add_argument("--noise-source",    default="device",
+                    choices=spec_noise.CHOICES,
+                    help="whose noise model to emulate: the device's (default, "
+                         "and the only one that gates hardware) or the one the "
+                         "source described. `both` is refused here — it would "
+                         "buy the scan twice; compare them for free with "
+                         "run_local_scan.py --noise-source both")
     ap.add_argument("--shots",           type=int, default=None)
     ap.add_argument("--poll",            type=int, default=30,
                     help="poll interval in seconds")
@@ -143,7 +174,8 @@ def main():
     build_sequence   = getattr(mod, spec.get("builder_fn", "build_sequence"))
     compute_obs      = mod.compute_observable
 
-    creds = load_credentials()
+    creds = load_credentials(project_id=args.project_id,
+                             require_explicit_project=True)
     from pulser_pasqal import PasqalCloud
     from pasqal_cloud import SDK, EmulatorType, CreateJob
     from pulser.backend import EmulationConfig
@@ -153,19 +185,39 @@ def main():
     device = conn.fetch_available_devices()[spec["device"]]
     sdk    = SDK(**creds)
 
-    noisy_cfg = None
-    noise_params = None
-    if run_n and recorded is None:
-        noise, noise_params = _emu_noise_model(device)
-        noisy_cfg = EmulationConfig(
-            noise_model=noise,
-            observables=[BitStrings(evaluation_times=[1.0], num_shots=shots)],
-        ).to_abstract_repr()
-
+    print("RUNS ON: Pasqal Cloud emulators (EMU_MPS) — metered emulator time.")
     print(f"=== validate-emu: {spec['experiment_name']} ===")
     print(f"  {variable} ∈ {values}")
     print(f"  shots={shots}  device={spec['device']}")
-    print(f"  run noiseless={run_nl}  noisy={run_n}\n")
+    print(f"  run noiseless={run_nl}  noisy={run_n}")
+    print(account_summary(sdk, creds["project_id"], creds.get("region"),
+                          creds.get("username")), flush=True)
+
+    # Whose noise model, decided and printed before anything is submitted.
+    noisy_cfg = None
+    noise_params = None
+    noise_label = "device"
+    if run_n and recorded is None:
+        noise, device_params = _emu_noise_model(device)
+        chosen = spec_noise.resolve(args.noise_source, spec, noise, device_params)
+        if len(chosen) > 1:
+            raise SystemExit(
+                "✘ --noise-source both would buy this whole scan twice on "
+                "metered emulators.\n"
+                "  Compare the two models for free first: run_local_scan.py "
+                "--noise-source both.\n"
+                "  Or run this script twice, into two --out-dirs, and say which "
+                "is which.")
+        noise_label, model, noise_params = chosen[0]
+        noisy_cfg = EmulationConfig(
+            noise_model=model,
+            observables=[BitStrings(evaluation_times=[1.0], num_shots=shots)],
+        ).to_abstract_repr()
+    print()
+
+    tags = build_tags(spec, spec["device"], shots, "emu-scan",
+                      n_atoms=spec.get("register", {}).get("N_atoms"),
+                      extra=args.tag)
 
     nl_batches: dict = {}
     n_batches:  dict = {}
@@ -176,6 +228,7 @@ def main():
         n_batches  = {v: recorded["noisy"][str(v)] for v in values
                       if str(v) in (recorded.get("noisy") or {})}
         noise_params = recorded.get("noise_params")
+        noise_label  = recorded.get("noise_source") or "device"
         run_nl, run_n = bool(nl_batches), bool(n_batches)
         print(f"  {len(nl_batches)} noiseless + {len(n_batches)} noisy batches "
               "to poll — nothing resubmitted\n")
@@ -189,6 +242,7 @@ def main():
                 serialized_sequence=seq.to_abstract_repr(),
                 jobs=[CreateJob(runs=shots)],
                 emulator=EmulatorType.EMU_MPS, wait=False,
+                tags=tags + ["backend:emu-noiseless"],
             )
             nl_batches[val] = str(b.id)
             print(f"  [noiseless] {variable}={val}  →  {b.id}", flush=True)
@@ -199,6 +253,7 @@ def main():
                 jobs=[CreateJob(runs=shots)],
                 emulator=EmulatorType.EMU_MPS, wait=False,
                 backend_configuration=noisy_cfg,
+                tags=tags + ["backend:emu-noisy", f"noise:{noise_label}"],
             )
             n_batches[val] = str(b.id)
             print(f"  [noisy]     {variable}={val}  →  {b.id}", flush=True)
@@ -213,6 +268,10 @@ def main():
             "noiseless":    {str(k): v for k, v in nl_batches.items()},
             "noisy":        {str(k): v for k, v in n_batches.items()},
             "noise_params": noise_params if run_n else None,
+            "noise_source": noise_label if run_n else None,
+            "tags":         tags,
+            "account":      {"username":   creds["username"],
+                             "project_id": creds["project_id"]},
         }, indent=2))
         print(f"\n  batch_ids saved → {manifest_path}")
 
@@ -285,6 +344,12 @@ def main():
     # ── verdict ──────────────────────────────────────────────────────────────
     verdict = {"go": True, "reasons": []}
     min_ret = spec.get("validation", {}).get("noise_retention_min", 0.50)
+    if run_n and noise_label == "paper":
+        verdict["noise_source"] = "paper"
+        verdict["reasons"].append(
+            "the noisy scan ran the noise model the source described, not this "
+            "device's — it says whether the source's claim reproduces on its "
+            "own terms, and does not gate a submission")
 
     if run_nl and nl_records:
         nl_obs = [r["observable"] for r in nl_records

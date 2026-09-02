@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Cloud noise emulation — time-evolution envelope on Pasqal Cloud EMU_MPS.
 
+RUNS ON: Pasqal Cloud emulators (EMU_MPS). Metered emulator time, not QPU
+shots. A diagnostic, not the gate: validate-emu decides whether to submit.
+
 No GPU needed: every trajectory runs on the Pasqal Cloud emulator fleet.
 
 Unlike the local-GPU noise-emulate (qpu-internal plugin), which samples the
@@ -43,7 +46,9 @@ from pathlib import Path
 
 import numpy as np
 
-from pasqal_auth import load_credentials
+import spec_noise
+from batch_tags import build_tags
+from pasqal_auth import account_summary, load_credentials
 
 
 _CLOCK_NS = 4  # FC1 sequence durations must be multiples of 4 ns
@@ -133,6 +138,20 @@ def main():
     ap.add_argument("--resume",     action="store_true",
                     help="skip submission and re-poll the batches in <out-dir>/batch_ids.json")
     ap.add_argument("--out-dir",    required=True)
+    ap.add_argument("--project-id", default=None,
+                    help="the project the user chose to pay for this emulation. "
+                         "Required: run `python pasqal_auth.py --whoami` first, "
+                         "show them the projects and credits, and ask.")
+    ap.add_argument("--spec",       default=None,
+                    help="the experiment_spec.json this sequence came from. "
+                         "Used for the batch labels and, if it carries a noise "
+                         "model of its own, for --noise-source.")
+    ap.add_argument("--tag",        action="append", default=[],
+                    help="extra batch label, in the user's own words; repeatable")
+    ap.add_argument("--noise-source", default="device",
+                    choices=("device", "paper"),
+                    help="whose noise model to emulate: this device's (default) "
+                         "or the one the source described (needs --spec)")
     args = ap.parse_args()
 
     out = Path(args.out_dir)
@@ -154,7 +173,8 @@ def main():
     builder     = getattr(mod, args.fn_name)
     compute_obs = mod.compute_observable
 
-    creds = load_credentials()
+    creds = load_credentials(project_id=args.project_id,
+                             require_explicit_project=True)
     from pulser_pasqal import PasqalCloud
     from pasqal_cloud import SDK, EmulatorType, CreateJob
     from pulser.backend import EmulationConfig
@@ -166,6 +186,18 @@ def main():
 
     noise, noise_params = _cloud_noise_model(device, args.T2, args.temperature,
                                              args.detuning_sigma)
+
+    # A spec is optional here — this skill can be pointed at a bare sequence
+    # file — but without one there is no source noise model to offer and no
+    # experiment name for the labels.
+    spec = (json.loads(Path(args.spec).read_text()) if args.spec else
+            {"experiment_name": Path(args.seq_file).stem,
+             "scan": {"variable": args.t_var}})
+    noise_label, noise, noise_params = spec_noise.resolve(
+        args.noise_source, spec, noise, noise_params)[0]
+    tags = build_tags(spec, args.device_name, args.shots, "noise-emulate",
+                      extra=args.tag) + [f"noise:{noise_label}"]
+
     noisy_cfg = EmulationConfig(
         noise_model=noise,
         observables=[BitStrings(evaluation_times=[1.0], num_shots=args.shots)],
@@ -183,13 +215,19 @@ def main():
         print(f"=== noise-emulate (cloud, RESUME): {len(times)} time points ===")
     else:
         n_batch_total = len(times) * (2 + args.n_envelope)
+        print("RUNS ON: Pasqal Cloud emulators (EMU_MPS) — metered.")
         print(f"=== noise-emulate (cloud): {Path(args.seq_file).stem} ===")
+        print(account_summary(sdk, creds["project_id"], creds.get("region"),
+                              creds.get("username")))
+        print(f"  labels: {', '.join(tags)}")
         print(f"  {args.t_var} ∈ {times} ns  ({len(times)} points)")
         print(f"  shots={args.shots}  device={args.device_name}  "
               f"envelope K={args.n_envelope}  →  {n_batch_total} EMU_MPS batches")
-        print(f"  noise model: T2={noise_params['T2_us']}us  "
-              f"T={noise_params['temperature_uk']}uK  "
-              f"detuning_sigma={noise_params['detuning_sigma_radus']} rad/us\n")
+        # The source's model carries different fields from the device's, so
+        # print whatever it actually has rather than assuming the device's keys.
+        print("  noise model: " + ",  ".join(
+            f"{k}={v}" for k, v in noise_params.items() if k != "source"))
+        print(f"  noise source: {noise_params.get('source', noise_label)}\n")
 
         nl_batches:  dict[int, str] = {}
         n_batches:   dict[int, str] = {}
@@ -201,13 +239,16 @@ def main():
 
             b = sdk.create_batch(serialized_sequence=srz,
                                  jobs=[CreateJob(runs=args.shots)],
-                                 emulator=EmulatorType.EMU_MPS, wait=False)
+                                 emulator=EmulatorType.EMU_MPS, wait=False,
+                                 tags=tags + ["backend:emu-noiseless",
+                                              f"t:{t}"])
             nl_batches[t] = str(b.id)
 
             b = sdk.create_batch(serialized_sequence=srz,
                                  jobs=[CreateJob(runs=args.shots)],
                                  emulator=EmulatorType.EMU_MPS, wait=False,
-                                 backend_configuration=noisy_cfg)
+                                 backend_configuration=noisy_cfg,
+                                 tags=tags + ["backend:emu-noisy", f"t:{t}"])
             n_batches[t] = str(b.id)
 
             env_batches[t] = []
@@ -215,7 +256,9 @@ def main():
                 b = sdk.create_batch(serialized_sequence=srz,
                                      jobs=[CreateJob(runs=args.shots)],
                                      emulator=EmulatorType.EMU_MPS, wait=False,
-                                     backend_configuration=noisy_cfg)
+                                     backend_configuration=noisy_cfg,
+                                     tags=tags + ["backend:emu-envelope",
+                                                  f"t:{t}"])
                 env_batches[t].append(str(b.id))
 
             print(f"  [submitted] {args.t_var}={t}  "

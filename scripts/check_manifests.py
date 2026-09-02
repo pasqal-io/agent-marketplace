@@ -93,7 +93,7 @@ CODEX_INSTALLATION = {"AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE"}
 CODEX_AUTHENTICATION = {"ON_INSTALL", "ON_USE"}
 
 # Modules vendored byte-identical into every skill's support/ directory.
-VENDORED_MODULES = ("pasqal_auth.py",)
+VENDORED_MODULES = ("pasqal_auth.py", "spec_noise.py", "batch_tags.py")
 
 # Nothing under skills/ may name one harness's tools or variables. Each entry is
 # a pattern and what to write instead; the message is what a contributor reads.

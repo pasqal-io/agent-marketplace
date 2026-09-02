@@ -22,6 +22,38 @@ detuning, Doppler, relaxation).
 The user never needs to touch the Python scripts: this skill reads their
 sequence, writes the builder, runs everything, and shows the result.
 
+## Decisions that are not yours
+
+Not even under "just run the noise study". Ask, recommend, and wait:
+
+- **where it runs** — this machine, SLURM, or the cloud (Step 0), and for the
+  cloud, **which project** pays
+- **the budget** — N, the bond dimension χ, the number of trajectories, the
+  number of time points (Step 0's budget question)
+- **whose noise model** runs, if the spec carries one of its own (`--noise-source`)
+
+After about **three** failed attempts at the same obstacle — a builder that will
+not import, jobs that keep erroring, an out-of-memory at every χ — stop. Report
+what was tried, what failed and what is known, then offer a smaller system, a
+different mode, or abandoning the study. It is a diagnostic, not a gate:
+"we could not run this affordably" is an acceptable outcome, and a better one
+than a week of GPU time.
+
+## Where the outputs land
+
+Beside the experiment they belong to, as they are produced:
+
+```
+experiments/<name>/results/noise/    .npz or .json data, logs, run figures
+experiments/<name>/figures/          figures made for the report
+experiments/<name>/analysis/         any script you write to read these files
+experiments/<name>/NOTEBOOK.md       one appended block per run
+```
+
+Each script prints where it runs as its first line (`RUNS ON: …`) — say the same
+to the user before starting, because "the envelope is ±0.03" means one thing
+from 40 GPU trajectories and another from 5 cloud batches.
+
 ## Support scripts
 
 Paths like `support/…` below are relative to **this skill's directory** —
@@ -36,7 +68,9 @@ support/
   run_noise_emu_cloud.py    ← Pasqal Cloud EMU_MPS runner (cloud mode)
   plot_noise_emu_cloud.py   ← cloud results figure
   requirements.txt          ← Python dependencies (local/SLURM modes)
-  pasqal_auth.py            ← Pasqal Cloud credential loading (shared, do not edit here)
+  spec_noise.py             ← the source's own noise model, if it has one (shared)
+  batch_tags.py             ← the labels every batch carries (shared, do not edit here)
+  pasqal_auth.py            ← credentials, projects and credits (shared, do not edit here)
 ```
 
 ---
@@ -167,15 +201,22 @@ density if no observable is specified, and say so.
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
 python support/run_noise_emu.py \
-    --seq-file    seq_builder.py \
+    --seq-file    experiments/<name>/<name>_sequence.py \
     --fn-name     build_sequence \
     --seq-kwargs  '{"N": 6, "hx": 4.0, "t": 4000}' \
     --n-traj      40 \
     --max-chi     128 \
     --n-times     75 \
-    --out-dir     results/ \
-    --cal-offsets '{"omega_offset": 0.03, "delta_offset": 0.2, "R_offset": 0.01}'
+    --out-dir     experiments/<name>/results/noise/ \
+    --cal-offsets '{"omega_offset": 0.03, "delta_offset": 0.2, "R_offset": 0.01}' \
+    [--spec experiments/<name>/<name>_spec.json --noise-source device|paper]
 ```
+
+Free and local: no batch is submitted and nothing is billed — the one cloud call
+reads the device's noise model. Pass `--spec` if the source described its own
+noise model: the script prints the difference against the device's field by
+field, and `--noise-source paper` runs the source's instead. It never
+substitutes it silently.
 
 `--cal-offsets` adds a sensitivity band: ±3% on ω, ±0.2 MHz on δ, ±1% on R
 (6 extra noiseless runs). If a QPU manifest from `qpu-submit` exists, ask the
@@ -189,9 +230,9 @@ hours — run it with `nohup`/background for large systems, or use `--n-traj 5
 ### Mode 2 — SLURM (recommended)
 
 ```bash
-SEQFILE=seq_builder.py \
+SEQFILE=experiments/<name>/<name>_sequence.py \
 SEQKWARGS='{"N":6,"hx":4.0,"t":4000}' \
-OUTDIR=results/run1 \
+OUTDIR=experiments/<name>/results/noise \
 NTRAJ=40 CHI=128 \
 PARTITION=<your_partition> GRES=gpu:a100:1 ACCOUNT=<your_account> \
 bash support/submit_slurm.sh
@@ -212,14 +253,32 @@ convergence at the longest evolution time.
 ### Mode 3 — Pasqal Cloud
 
 ```bash
+python support/pasqal_auth.py --whoami     # free, read-only: account, projects, credits
+
 python support/run_noise_emu_cloud.py \
-    --seq-file   my_experiment_sequence.py \
+    --seq-file   experiments/<name>/<name>_sequence.py \
+    --spec       experiments/<name>/<name>_spec.json \
     --seq-kwargs '{"N": 5, "hx": 6.0}' \
     --t-max      4000 \
     --n-times    15 \
     --shots      500 \
-    --out-dir    results/noise_emu_cloud/
+    --project-id <the project the user picked> \
+    --out-dir    experiments/<name>/results/noise/ \
+    [--tag "envelope run 2"] [--noise-source device|paper]
 ```
+
+**Emulator time is billed to a project, so the user picks it.** `--whoami` is
+free and read-only: it prints which account was found, where each credential came
+from, and the QPU and EMU credits each of their projects has left — no password,
+no token. Show it, ask which project pays, and pass `--project-id`. The script
+refuses without it: the id in `PASQAL_PROJECT_ID` is the last one somebody
+exported, not a decision.
+
+`--spec` is optional but worth passing: it supplies the batch labels
+(`exp:<name>`, `stage:noise-emulate`, `backend:…`, `t:…`, `noise:…`, plus your
+`--tag`s) and, if the source described its own noise model, it is what
+`--noise-source paper` switches to. Without it the labels fall back to the
+sequence file's name and only the device's model is available.
 
 The cloud can't sample mid-evolution states, so this builds **one sequence per
 observation time** (what the real QPU does) and submits noiseless + noisy
@@ -233,17 +292,21 @@ session dies mid-poll, re-run with `--resume` and the same `--out-dir`.
 ## Step 3 — Plot
 
 ```bash
+NOISE=experiments/<name>/results/noise
+
 # local / SLURM (.npz):
 python support/plot_noise_emu.py \
-    --result results/FCAN1_*.npz --out results/noise_plot.png --coverage 0.75
+    --result $NOISE/FCAN1_*.npz --out $NOISE/noise_plot.png --coverage 0.75
 
 # cloud (.json):
 python support/plot_noise_emu_cloud.py \
-    --results results/noise_emu_cloud/noise_emu_cloud.json \
-    --out     results/noise_emu_cloud/noise_emu_cloud.png
+    --results $NOISE/noise_emu_cloud.json \
+    --out     $NOISE/noise_emu_cloud.png
 ```
 
-Save figures as `.png` only.
+Save figures as `.png` only, next to the data they came from. A figure you make
+for the report — annotated, or comparing two runs — goes in
+`experiments/<name>/figures/`, never in the working directory's root.
 
 ---
 
@@ -255,7 +318,13 @@ Save figures as `.png` only.
    within it, signal retention at the peak.
 3. If `--cal-offsets` was used and the calibration band is much wider than the
    stochastic band, flag that calibration precision matters more than noise.
-4. Paths to the saved data file and figure.
+4. Paths to the saved data file and figure, and where the numbers you are
+   quoting came from.
+5. Where it ran and what that limits — 40 GPU trajectories and 5 cloud batches
+   do not license the same sentence about the envelope.
+6. Which noise model produced it, and if the spec carried another one, that it
+   exists and how it differs.
+7. The appended `NOTEBOOK.md` block.
 
 ---
 
@@ -278,12 +347,17 @@ Save figures as `.png` only.
 ## Output files
 
 ```
+experiments/<name>/results/noise/
 # local / SLURM
-results/FCAN1_<kwargs>_ntraj40_chi128_<timestamp>.npz   ← raw data (self-documenting:
-results/noise_plot.png                                     embeds noise model + kwargs)
-
+  FCAN1_<kwargs>_ntraj40_chi128_<timestamp>.npz   ← raw data (self-documenting:
+  noise_plot.png                                     embeds noise model + kwargs)
 # cloud
-<out-dir>/batch_ids.json          ← submitted batches (for --resume)
-<out-dir>/noise_emu_cloud.json    ← per-time records
-<out-dir>/noise_emu_cloud.png
+  batch_ids.json          ← submitted batches, their labels (for --resume)
+  noise_emu_cloud.json    ← per-time records
+  noise_emu_cloud.png
 ```
+
+Then append the block to `experiments/<name>/NOTEBOOK.md`: where it ran, the
+budget actually used (N, χ, trajectories, time points), which noise model, the
+files written, and what the envelope says. A `.npz` whose provenance lives only
+in a chat log is a file nobody will trust in a month.

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Local emulator scan — noiseless + noisy, on this machine, no cloud, no cost.
 
+RUNS ON: this machine. Exact state-vector emulation on the CPU. Nothing is
+submitted, nothing is billed, no account is needed.
+
 The same spec + sequence contract as the cloud runner and the same output files,
 so `plot_emu_scan.py` and `harvest-and-analyze` read either one unchanged. What
 differs is where it runs and what it is worth: exact state-vector emulation on
@@ -26,12 +29,15 @@ Usage:
         --seq-file   my_experiment_sequence.py \\
         --out-dir    results/my_experiment/emu_local/ \\
         [--shots 200] [--noiseless-only] [--max-atoms 14] \\
-        [--seq-kwargs '{"N": 3}'] [--live-device]
+        [--seq-kwargs '{"N": 3}'] [--live-device] \\
+        [--noise-source device|paper|both]
 
 Outputs (in --out-dir), same schema as the cloud scan:
-    emu_noiseless.json   observable scan curve, noiseless
-    emu_noise.json       observable scan curve, noisy
-    verdict.json         {go, reasons, retention, scope, gates_hardware}
+    emu_noiseless.json     observable scan curve, noiseless
+    emu_noise.json         observable scan curve, noisy (the device model)
+    emu_noise_paper.json   only with --noise-source paper|both: the same curve
+                           under the noise model the source described
+    verdict.json           {go, reasons, retention, scope, gates_hardware}
 """
 from __future__ import annotations
 import argparse
@@ -41,6 +47,8 @@ import time
 from pathlib import Path
 
 import numpy as np
+
+import spec_noise
 
 # Qutip emulates the full state vector: cost is exponential in the atom count,
 # and the noisy path carries a density matrix, so it turns over sooner. These
@@ -123,6 +131,11 @@ def main():
                          'register for a local run: \'{"N": 3}\'')
     ap.add_argument("--device",         default=None,
                     help="device name (default: spec.device)")
+    ap.add_argument("--noise-source",   default="device",
+                    choices=spec_noise.CHOICES,
+                    help="whose noise model to emulate: the device's (default, "
+                         "and the only one that gates hardware), the one the "
+                         "source described, or both")
     ap.add_argument("--live-device",    action="store_true",
                     help="fetch the real device specs and noise model from the "
                          "cloud (needs credentials, costs no emulator time) "
@@ -145,6 +158,7 @@ def main():
     device, device_desc, is_live = _resolve_device(
         args.device or spec["device"], args.live_device)
 
+    print("RUNS ON: this machine — exact state vector, free, nothing submitted.")
     print(f"=== validate-emu (local): {spec['experiment_name']} ===")
     print(f"  device   {device_desc}")
     print(f"  {variable} ∈ {values}")
@@ -155,9 +169,11 @@ def main():
     from pulser.backend.default_observables import BitStrings
 
     noise, noise_params, live_noise = (None, None, False)
+    runs = []
     if not args.noiseless_only:
         noise, noise_params, live_noise = _noise_model(device, is_live)
         print(f"  noise    {noise_params['source']}")
+        runs = spec_noise.resolve(args.noise_source, spec, noise, noise_params)
     print()
 
     # Size is checked on a real build rather than on spec["register"]["N_atoms"],
@@ -211,7 +227,15 @@ def main():
         return records
 
     nl_records = scan_all(None, "noiseless")
-    n_records  = scan_all(noise, "noisy") if noise is not None else []
+    noisy_runs = [(label, scan_all(model, f"noisy/{label}"), params)
+                  for label, model, params in runs]
+    # The verdict is always read off the device model when there is one: the
+    # source's own model answers a different question and gates nothing.
+    verdict_label, n_records, noise_params = next(
+        ((lbl, recs, params) for lbl, recs, params in noisy_runs
+         if lbl == "device"), (None, [], noise_params))
+    if verdict_label is None and noisy_runs:
+        verdict_label, n_records, noise_params = noisy_runs[0]
 
     def write(name, backend, records, extra=None):
         (out / name).write_text(json.dumps({
@@ -228,9 +252,14 @@ def main():
         }, indent=2))
 
     write("emu_noiseless.json", "qutip_local_noiseless", nl_records)
-    if n_records:
-        write("emu_noise.json", "qutip_local_noisy", n_records,
-              {"noise_params": noise_params})
+    # emu_noise.json is always the run the verdict was read off, whichever model
+    # that was, so everything downstream keeps finding the file it expects. A
+    # second model, when one ran, sits beside it under its own name.
+    for label, records, params in noisy_runs:
+        name = ("emu_noise.json" if (label, records) == (verdict_label, n_records)
+                else f"emu_noise_{label}.json")
+        write(name, f"qutip_local_noisy_{label}", records,
+              {"noise_params": params})
 
     # ── verdict ──────────────────────────────────────────────────────────────
     # Same fields as the cloud verdict, plus two that keep this one in its lane.
@@ -241,6 +270,12 @@ def main():
         "gates_hardware": False,
     }
     min_ret = spec.get("validation", {}).get("noise_retention_min", 0.50)
+    if verdict_label == "paper":
+        verdict["reasons"].append(
+            "retention below was measured under the noise model the source "
+            "described, not this device's — it says whether the source's claim "
+            "reproduces on its own terms, and gates nothing")
+        verdict["noise_source"] = "paper"
 
     nl_obs = [r["observable"] for r in nl_records if not np.isnan(r["observable"])]
     if not nl_obs and nl_records:
