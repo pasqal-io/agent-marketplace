@@ -67,8 +67,6 @@ import sys
 import time
 from pathlib import Path
 
-import numpy as np
-
 from batch_tags import build_tags
 from pasqal_auth import account_summary, load_credentials
 
@@ -165,6 +163,7 @@ def make_calibration_parametric(omega: float, device) -> tuple:
     (duration scan on resonance). Variables: duration_0, amp_0, detuning.
     Returns (seq, job_params, det_scan, tpulse_scan).
     """
+    import numpy as np
     from pulser import Sequence
     from pulser.register.special_layouts import TriangularLatticeLayout
 
@@ -206,6 +205,7 @@ def make_calibration_parametric(omega: float, device) -> tuple:
 
 def _bitstring_stats(job):
     """Laplace-smoothed mean occupation and its stderr from a QPU job result."""
+    import numpy as np
     result  = job.result                       # {bitstring: count}
     Na      = len(next(iter(result)))
     n_shots = sum(result.values())
@@ -224,7 +224,8 @@ def analyze_calibration(rydberg_jobs, rabi_jobs, det_scan, tpulse_scan,
                         omega: float, t_pi_ns: float, out_dir: Path) -> dict:
     """Two-round Rydberg-spectroscopy + Rabi fit. Returns offset corrections."""
     # Imported here, not at module level: the plan, the confirmation gate and
-    # --self-test must run on a machine that has no plotting or fitting stack.
+    # --self-test must run on a machine that has no scientific stack at all.
+    import numpy as np
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
