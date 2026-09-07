@@ -26,6 +26,11 @@ skills/<name>/
 examples/<name>/      worked experiments: a spec + sequence pair, as the
                       pipeline would produce them
 scripts/check.sh      repo health checks (CI runs this)
+.github/
+  workflows/ci.yml    the only workflow; read-only token, SHA-pinned actions
+  CODEOWNERS          review routing (inert until a ruleset requires it)
+  dependabot.yml      version updates for actions + the one requirements.txt
+  rulesets/main.json  branch protection, to import — see "Repository protection"
 docs/agents/          per-agent installation notes
 docs/harness-compatibility.md      which agents work, and how
 docs/porting-to-a-new-harness.md   how to add one
@@ -183,6 +188,34 @@ with the physics broken.
 For behavior changes, smoke-test the touched path end-to-end where feasible
 (e.g. noise-emulate cloud mode with `--t-list "[100,500]" --shots 100` costs
 ~1 min of emulator time). QPU submission is never part of CI.
+
+## Repository protection
+
+The rules above — reviewed PR, CI green before merge, never merge your own — are
+**not currently enforced by GitHub.** Protected branches and rulesets are
+unavailable for a private repository on this organisation's plan; both API
+endpoints answer `403 Upgrade to GitHub Pro or make this repository public`. So
+`main` today accepts a direct push, a force-push and a deletion from anyone with
+write access, and a PR can be self-merged with red CI. Treat the rules as
+conventions you are trusted to follow, and know that nothing catches a slip.
+
+`.github/rulesets/main.json` is the configuration to apply the moment that
+changes — either when the repository goes public, or on a plan that allows it.
+GitHub does not read that file: import it at **Settings → Rules → Rulesets → New
+ruleset → Import a ruleset**. It requires one approving review, Code Owner
+review, a passing `check` status, approval of the last push (which is what
+mechanically stops self-merging), and blocks force-pushes and deletion with no
+bypass actors — including admins. `.github/CODEOWNERS` is what the Code Owner
+rule reads, and its owner list needs a human decision before it means anything.
+
+What CI can enforce without any of this is already in `scripts/check.sh`. What it
+cannot is who approved the merge.
+
+Two settings that *are* live, and worth not regressing: the workflow token is
+read-only (`Settings → Actions → Workflow permissions`) and Actions cannot
+approve pull requests. `.github/workflows/ci.yml` also declares
+`permissions: contents: read` at the top, so the job keeps least privilege even
+if the repository default is ever widened again.
 
 ## Releasing
 
