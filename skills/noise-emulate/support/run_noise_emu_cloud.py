@@ -169,10 +169,9 @@ def main():
                                              args.detuning_sigma)
     noisy_cfg = EmulationConfig(
         noise_model=noise,
-        # One trajectory per batch — the envelope comes from the --n-envelope
-        # repeated batches, not from trajectory averaging inside one. Was
-        # NoiseModel(runs=1), deprecated since pulser 1.7.
-        n_trajectories=1,
+        # n_trajectories left unset: the backend resolves it from its own
+        # configuration. The envelope comes from the --n-envelope repeated
+        # batches anyway, not from trajectory averaging inside one.
         observables=[BitStrings(evaluation_times=[1.0], num_shots=args.shots)],
     ).to_abstract_repr()
 

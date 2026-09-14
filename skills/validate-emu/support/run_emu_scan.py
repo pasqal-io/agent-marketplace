@@ -160,13 +160,9 @@ def main():
         noise, noise_params = _emu_noise_model(device)
         noisy_cfg = EmulationConfig(
             noise_model=noise,
-            # One trajectory per batch: the scan's error bars come from the
-            # `shots` samples, not from averaging trajectories. This used to be
-            # NoiseModel(runs=1), deprecated since pulser 1.7. It is the
-            # resolved default too, but a default that becomes 40 under
-            # prefer_device_noise_model is not one to leave implicit on a
-            # metered backend.
-            n_trajectories=1,
+            # n_trajectories left unset: the backend resolves it from its own
+            # configuration. The scan's error bars come from the `shots`
+            # samples anyway, not from averaging trajectories.
             observables=[BitStrings(evaluation_times=[1.0], num_shots=shots)],
         ).to_abstract_repr()
 
