@@ -82,7 +82,9 @@ phases {0, 2π/3, 4π/3} — so a quantity averaged across shots is averaging ov
 domains that are each perfectly ordered. This example instead forms the
 three-sublattice order parameter **per shot**,
 
-    m = (3/N) Σ_j (n_j - n̄) exp(i K·r_j),   K = (4π/3a)(1,0)
+```
+m = (3/N) Σ_j (n_j - n̄) exp(i K·r_j),   K = (4π/3a)(1,0)
+```
 
 and reports ⟨|m|⟩: the modulus taken *before* the average, so degenerate domains
 add instead of cancelling.
