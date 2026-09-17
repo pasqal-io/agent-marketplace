@@ -68,7 +68,7 @@ import time
 from pathlib import Path
 
 from batch_tags import build_tags
-from pasqal_auth import account_summary, load_credentials
+from pasqal_auth import account_summary, ensure_credentials
 
 
 def _load_seq_module(path: str):
@@ -307,6 +307,8 @@ def analyze_calibration(rydberg_jobs, rabi_jobs, det_scan, tpulse_scan,
 def run_calibration(sdk, device, device_name: str, omega: float,
                     poll: int, out_dir: Path, tags: list[str]) -> dict:
     """Submit the calibration batch, wait for it, fit. Returns offsets dict."""
+    import numpy as np                       # lazy, so --self-test runs bare
+
     calib_dir = out_dir / "calibration"
     calib_dir.mkdir(parents=True, exist_ok=True)
 
@@ -342,15 +344,24 @@ def run_calibration(sdk, device, device_name: str, omega: float,
 
 # ── Building the one batch ─────────────────────────────────────────────────────
 
-def _check_duration(seq, device, device_name: str, label: str) -> None:
-    if seq.get_duration() > device.max_sequence_duration:
+def _build_at(build, label: str, **kwargs):
+    """Build one scan point, naming it if the device rejects the result.
+
+    Pulser validates against the device as the sequence is built — duration,
+    register, channel — so there is no separate check to run here. What it
+    cannot know is which scan point was being built, which is the one thing
+    needed to fix the scan range.
+    """
+    try:
+        return build(**kwargs)
+    except (ValueError, RuntimeError) as e:
         raise SystemExit(
-            f"✘ {label}: sequence is {seq.get_duration()} ns, over "
-            f"{device_name}'s {device.max_sequence_duration} ns limit. "
-            "Shorten the scan range or the pulse schedule.")
+            f"✘ {label}: {type(e).__name__}: {e}\n"
+            "  Shorten the scan range or the pulse schedule, or pick a device "
+            "with room for it.") from e
 
 
-def build_jobs(mod, spec: dict, device, device_name: str, values: list,
+def build_jobs(mod, spec: dict, device, values: list,
                shots: int, offsets: dict, CreateJob) -> tuple:
     """One job per scan point, for the one batch. Returns (shape, batch_repr, jobs, n_atoms).
 
@@ -376,8 +387,7 @@ def build_jobs(mod, spec: dict, device, device_name: str, values: list,
                 "baked in. Fix the builder, or delete it to fall back on one "
                 "serialized sequence per job.")
         for val in values:                       # free, local, before anything ships
-            _check_duration(seq.build(**{variable: val}), device, device_name,
-                            f"{variable}={val}")
+            _build_at(seq.build, f"{variable}={val}", **{variable: val})
         jobs = [CreateJob(runs=shots, variables={variable: val}) for val in values]
         print(f"  shape: one parametrized batch sequence, {len(jobs)} variable "
               f"bindings ({variable})")
@@ -385,8 +395,8 @@ def build_jobs(mod, spec: dict, device, device_name: str, values: list,
 
     jobs, signatures, n_atoms = [], set(), None
     for val in values:
-        seq = build_sequence(device=device, **{**fixed, variable: val, **offsets})
-        _check_duration(seq, device, device_name, f"{variable}={val}")
+        seq = _build_at(build_sequence, f"{variable}={val}",
+                        device=device, **{**fixed, variable: val, **offsets})
         jobs.append(CreateJob(runs=shots,
                               serialized_sequence=seq.to_abstract_repr()))
         signatures.add(_register_signature(seq))
@@ -416,7 +426,7 @@ def _job_list(sdk, batch) -> list:
     return jobs
 
 
-def record_jobs(ordered: list, values: list, variable: str, shots: int,
+def pair_job_scanpoint(ordered: list, values: list, variable: str, shots: int,
                 shape: str) -> list:
     """Pair each submitted job id with the scan point it stands for.
 
@@ -452,10 +462,10 @@ def _self_test() -> None:
         def __init__(self, i): self.id = f"job-{i}"
 
     ordered = [_J(0), _J(1)]
-    recs = record_jobs(ordered, [16, 24], "t_ns", 300, "per_job_sequence")
+    recs = pair_job_scanpoint(ordered, [16, 24], "t_ns", 300, "per_job_sequence")
     assert [r["job_id"] for r in recs] == ["job-0", "job-1"], recs
     assert recs[0]["variables"] == {}, recs
-    recs_p = record_jobs(ordered, [16, 24], "t_ns", 300, "parametric")
+    recs_p = pair_job_scanpoint(ordered, [16, 24], "t_ns", 300, "parametric")
     assert recs_p[1]["variables"] == {"t_ns": 24}, recs_p
 
     plan = _plan_text({**spec, "shots_per_point": 300}, "FRESNEL_CAN1", 300,
@@ -495,7 +505,7 @@ def _plan_text(spec: dict, device_name: str, shots: int, values: list,
     ])
 
 
-def main():
+def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
         description="Submit a spec-driven scan to a QPU as one tagged batch, "
                     "with optional calibration.")
@@ -537,7 +547,152 @@ def main():
                          "billed to and its remaining credits, and approved this "
                          "submission. Without it the script prints the plan and "
                          "asks at the terminal, or refuses if there is none.")
-    args = ap.parse_args()
+    return ap
+
+
+def _require(args, *names: str) -> None:
+    missing = [f"--{n.replace('_', '-')}" for n in names if not getattr(args, n)]
+    if missing:
+        raise SystemExit(f"✘ missing required argument(s): {', '.join(missing)}")
+
+
+def _refuse_resubmission(previous: dict, batch_ids_path: Path) -> None:
+    """Nothing here is idempotent, so a second run must not look like a retry.
+
+    A re-run submits a fresh calibration batch and every scan point again, on
+    hardware, then overwrites this file — so the first submission's shots are
+    both paid for and unrecoverable, because its batch IDs only ever existed
+    here.
+    """
+    n = len(previous.get("jobs", previous.get("batches", [])))
+    raise SystemExit(
+        f"✘ {batch_ids_path} already records a submission of {n} job(s) "
+        f"from {previous.get('ts', 'an earlier run')}.\n"
+        "  Re-running would buy the same shots twice and overwrite the "
+        "only record of the first submission.\n"
+        "  Collect what was already submitted:  harvest-and-analyze with "
+        f"--batch-ids {batch_ids_path}\n"
+        "  Add a wave to an open batch:  --add-jobs <values>\n"
+        "  Submit a genuinely different run into another --out-dir.")
+
+
+def _wave_values(args, previous: dict | None, batch_ids_path: Path) -> list:
+    """The scan values for a `--add-jobs` wave, refused if the batch cannot take them."""
+    if not previous:
+        raise SystemExit(f"✘ no batch recorded in {batch_ids_path} to add to.")
+    if not previous.get("open"):
+        raise SystemExit(
+            f"✘ the batch in {batch_ids_path} is not open, so no job can be "
+            "added to it. A closed batch is final: submit the extra points "
+            "as their own run, in their own --out-dir.")
+    values  = [json.loads(v) for v in args.add_jobs.split(",")]
+    already = [j["scan_value"] for j in previous.get("jobs", [])]
+    overlap = [v for v in values if v in already]
+    if overlap:
+        print(f"  ⚠  {overlap} were already submitted in this batch — "
+              "adding them again buys those shots twice.")
+    print(f"── Adding {len(values)} job(s) to open batch {previous['batch_id']}")
+    return values
+
+
+def _open_session(args, device_name: str):
+    """A cloud session and the live device. Free, and submits nothing.
+
+    Reading the account before the gate is what puts "whose credits, and how
+    many are left" into the plan the user approves: a cost without a payer is
+    the approval a tester gives by accident.
+    """
+    from pasqal_cloud import SDK
+    from pulser.json.abstract_repr.deserializer import deserialize_device
+
+    creds, _ = ensure_credentials(project_id=args.project_id,
+                                  require_explicit_project=True)
+    sdk   = SDK(**creds)
+    specs = sdk.get_device_specs_dict()
+    if device_name not in specs:
+        raise SystemExit(f"✘ device {device_name!r} not available in this project. "
+                         f"Available: {sorted(specs)}")
+    return sdk, creds, deserialize_device(specs[device_name])
+
+
+def _resolve_offsets(args, sdk, device, device_name: str, spec: dict,
+                     previous: dict | None, out: Path) -> tuple[dict, dict]:
+    """The (offsets, calibration) the experiment jobs will be built with.
+
+    Three ways in, and they must not be confused: a wave added to an open batch
+    reuses what the first wave was compensated with, or the two halves of one
+    scan are not comparable; a fresh calibration measures it; --no-calibration
+    submits at nominal Ω and δ.
+    """
+    import numpy as np                       # lazy, so --self-test runs bare
+
+    nominal = {"omega_offset": 1.0, "delta_offset": 0.0}
+
+    if args.add_jobs:
+        offsets = previous.get("builder_kwargs", nominal)
+        print(f"── Reusing the recorded calibration: {offsets}\n")
+        return offsets, previous.get("calibration", {})
+
+    if args.no_calibration:
+        print("── Calibration skipped (--no-calibration): submitting at nominal "
+              "Ω and δ\n")
+        return nominal, {}
+
+    print("── Calibration batch")
+    omega = 2 * np.pi * spec["pulse"]["omega_max_mhz"]
+    calib = run_calibration(
+        sdk, device, device_name, omega, args.calib_poll, out,
+        build_tags(spec, device_name, CALIB_SHOTS, "calibration",
+                   extra=args.tag))
+    # Convention shared with noise-emulate: the builder scales Ω by
+    # omega_offset and adds 2π·delta_offset (MHz) to the detuning.
+    omega_offset = 1.0 / calib["omega_ratio"] if calib["omega_ratio"] else 1.0
+    # Compensation always pushes Ω up (hardware delivers less than the
+    # setpoint). Cap it at the channel maximum, or the builder would raise
+    # after the calibration batch has already been paid for.
+    max_amp = device.channels["rydberg_global"].max_amp
+    if max_amp and omega * omega_offset > max_amp:
+        capped = max_amp / omega
+        print(f"  Ω compensation {omega_offset:.5f} would exceed the channel "
+              f"maximum ({max_amp/(2*np.pi):.3f} MHz) — capping at {capped:.5f}")
+        omega_offset = capped
+    offsets = {"omega_offset": omega_offset,
+               "delta_offset": calib["delta_offset"] / (2 * np.pi)}
+    print(f"  Ω ratio  = {calib['omega_ratio']:.5f}  "
+          f"→ omega_offset = {offsets['omega_offset']:.5f}")
+    print(f"  δ offset = {offsets['delta_offset']:+.4f} MHz\n")
+    return offsets, calib
+
+
+def _print_submission_record(record: dict, values: list, variable: str,
+                             batch_ids_path: Path, out: Path) -> None:
+    """Everything the user needs to find these shots again, and what holds the device."""
+    print(f"\n  batch_ids saved → {batch_ids_path}")
+    for j in record["jobs"][-len(values):]:
+        print(f"    {variable}={j['scan_value']}  →  job {j['job_id']}")
+
+    if record["open"]:
+        print("\n  ⚠  the batch is OPEN: the device stays reserved for it, and an "
+              "open batch\n     with nothing left to run is killed TIMED_OUT "
+              "after a few minutes.\n"
+              f"     Add the next wave:  --add-jobs <values> --out-dir {out}\n"
+              f"     Release the device: --close-batch --out-dir {out}")
+
+
+def _wait_for_jobs(sdk, batch_id: str, poll: int) -> None:
+    print("  Waiting for all jobs to complete...")
+    while True:
+        states = [j.status for j in sdk.get_batch(batch_id).ordered_jobs]
+        done = sum(s in ("DONE", "ERROR", "CANCELED", "TIMED_OUT")
+                   for s in states)
+        print(f"    {done}/{len(states)} terminal", flush=True)
+        if done == len(states):
+            return
+        time.sleep(poll)
+
+
+def main():
+    args = _parser().parse_args()
 
     if args.self_test:
         _self_test()
@@ -547,10 +702,7 @@ def main():
           "  Everything up to the confirmation gate is local and free.\n",
           flush=True)
 
-    missing = [f"--{n.replace('_', '-')}" for n in ("out_dir", "project_id")
-               if not getattr(args, n)]
-    if missing:
-        raise SystemExit(f"✘ missing required argument(s): {', '.join(missing)}")
+    _require(args, "out_dir", "project_id")
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     batch_ids_path = out / "batch_ids.json"
@@ -561,27 +713,10 @@ def main():
         _close_batch(args, previous, batch_ids_path)
         return
 
-    if not args.add_jobs:
-        # Nothing here is idempotent: a re-run submits a fresh calibration batch
-        # and every scan point again, on hardware, then overwrites this file — so
-        # the first submission's shots are both paid for and unrecoverable,
-        # because its batch IDs only ever existed here. Refuse.
-        if previous is not None:
-            n = len(previous.get("jobs", previous.get("batches", [])))
-            raise SystemExit(
-                f"✘ {batch_ids_path} already records a submission of {n} job(s) "
-                f"from {previous.get('ts', 'an earlier run')}.\n"
-                "  Re-running would buy the same shots twice and overwrite the "
-                "only record of the first submission.\n"
-                "  Collect what was already submitted:  harvest-and-analyze with "
-                f"--batch-ids {batch_ids_path}\n"
-                "  Add a wave to an open batch:  --add-jobs <values>\n"
-                "  Submit a genuinely different run into another --out-dir.")
+    if not args.add_jobs and previous is not None:
+        _refuse_resubmission(previous, batch_ids_path)
 
-    missing = [f"--{n.replace('_', '-')}" for n in ("spec", "seq_file")
-               if not getattr(args, n)]
-    if missing:
-        raise SystemExit(f"✘ missing required argument(s): {', '.join(missing)}")
+    _require(args, "spec", "seq_file")
 
     spec        = json.loads(Path(args.spec).read_text())
     shots       = args.shots or spec["shots_per_point"]
@@ -591,21 +726,7 @@ def main():
     values      = scan["values"]
 
     if args.add_jobs:
-        if not previous:
-            raise SystemExit(f"✘ no batch recorded in {batch_ids_path} to add to.")
-        if not previous.get("open"):
-            raise SystemExit(
-                f"✘ the batch in {batch_ids_path} is not open, so no job can be "
-                "added to it. A closed batch is final: submit the extra points "
-                "as their own run, in their own --out-dir.")
-        values      = [json.loads(v) for v in args.add_jobs.split(",")]
-        already     = [j["scan_value"] for j in previous.get("jobs", [])]
-        overlap     = [v for v in values if v in already]
-        if overlap:
-            print(f"  ⚠  {overlap} were already submitted in this batch — "
-                  "adding them again buys those shots twice.")
-        print(f"── Adding {len(values)} job(s) to open batch "
-              f"{previous['batch_id']}")
+        values = _wave_values(args, previous, batch_ids_path)
 
     # The spec-derived half of the plan needs neither credentials nor network.
     calib_shots = 0 if (args.no_calibration or args.add_jobs) else \
@@ -623,21 +744,9 @@ def main():
     if not (args.no_calibration or args.add_jobs):
         _check_builder_accepts_offsets(build_sequence)
 
-    from pasqal_cloud import SDK, CreateJob
-    from pulser.json.abstract_repr.deserializer import deserialize_device
+    from pasqal_cloud import CreateJob
 
-    # Opening a session and reading the account is free and submits nothing, and
-    # it is what puts "whose credits, and how many are left" into the plan the
-    # user approves. A cost without a payer is the approval the tester gave by
-    # accident.
-    creds = load_credentials(project_id=args.project_id,
-                             require_explicit_project=True)
-    sdk   = SDK(**creds)
-    specs = sdk.get_device_specs_dict()
-    if device_name not in specs:
-        raise SystemExit(f"✘ device {device_name!r} not available in this project. "
-                         f"Available: {sorted(specs)}")
-    device = deserialize_device(specs[device_name])
+    sdk, creds, device = _open_session(args, device_name)
 
     print(account_summary(sdk, creds["project_id"], creds.get("region"),
                           creds.get("username")), flush=True)
@@ -649,49 +758,13 @@ def main():
     print(f"  live device {device_name}: C6={device.interaction_coeff:.0f} "
           f"rad·µm⁶/µs, max {device.max_atom_num} atoms\n")
 
-    # ── Calibration ───────────────────────────────────────────────────────────
-    offsets = {"omega_offset": 1.0, "delta_offset": 0.0}
-    calib   = {}
-    if args.add_jobs:
-        # The added wave must run under the offsets the first wave was
-        # compensated with, or the two halves of one scan are not comparable.
-        offsets = previous.get("builder_kwargs", offsets)
-        calib   = previous.get("calibration", {})
-        print(f"── Reusing the recorded calibration: {offsets}\n")
-    elif not args.no_calibration:
-        print("── Calibration batch")
-        omega = 2 * np.pi * spec["pulse"]["omega_max_mhz"]
-        calib = run_calibration(
-            sdk, device, device_name, omega, args.calib_poll, out,
-            build_tags(spec, device_name, CALIB_SHOTS, "calibration",
-                       extra=args.tag))
-        # Convention shared with noise-emulate: the builder scales Ω by
-        # omega_offset and adds 2π·delta_offset (MHz) to the detuning.
-        omega_offset = 1.0 / calib["omega_ratio"] if calib["omega_ratio"] else 1.0
-        # Compensation always pushes Ω up (hardware delivers less than the
-        # setpoint). Cap it at the channel maximum, or the builder would raise
-        # after the calibration batch has already been paid for.
-        max_amp = device.channels["rydberg_global"].max_amp
-        if max_amp and omega * omega_offset > max_amp:
-            capped = max_amp / omega
-            print(f"  Ω compensation {omega_offset:.5f} would exceed the channel "
-                  f"maximum ({max_amp/(2*np.pi):.3f} MHz) — capping at {capped:.5f}")
-            omega_offset = capped
-        offsets = {
-            "omega_offset": omega_offset,
-            "delta_offset": calib["delta_offset"] / (2 * np.pi),
-        }
-        print(f"  Ω ratio  = {calib['omega_ratio']:.5f}  "
-              f"→ omega_offset = {offsets['omega_offset']:.5f}")
-        print(f"  δ offset = {offsets['delta_offset']:+.4f} MHz\n")
-    else:
-        print("── Calibration skipped (--no-calibration): submitting at nominal "
-              "Ω and δ\n")
+    offsets, calib = _resolve_offsets(args, sdk, device, device_name, spec,
+                                      previous, out)
 
     # ── One batch, one job per scan point ─────────────────────────────────────
     print("── Experiment batch")
     shape, batch_repr, jobs, n_atoms = build_jobs(
-        mod, spec, device, device_name, values, shots, offsets, CreateJob)
+        mod, spec, device, values, shots, offsets, CreateJob)
     tags = build_tags(spec, device_name, shots, "experiment", n_atoms=n_atoms,
                       extra=args.tag)
 
@@ -699,7 +772,7 @@ def main():
         batch = sdk.add_jobs(previous["batch_id"], jobs, wait=False)
         new_jobs = _job_list(sdk, batch)[-len(values):]
         record = previous
-        record["jobs"] = previous.get("jobs", []) + record_jobs(
+        record["jobs"] = previous.get("jobs", []) + pair_job_scanpoint(
             new_jobs, values, variable, shots, shape)
         record["waves"] = record.get("waves", 1) + 1
     else:
@@ -721,34 +794,17 @@ def main():
             "batch_id":       str(batch.id),
             "builder_kwargs": offsets,
             "calibration":    calib,
-            "jobs":           record_jobs(
+            "jobs":           pair_job_scanpoint(
                 _job_list(sdk, batch), values, variable, shots, shape),
         }
         print(f"  batch {batch.id}  ({len(jobs)} jobs)")
         print(f"  tags  {', '.join(tags)}")
 
     batch_ids_path.write_text(json.dumps(record, indent=2))
-    print(f"\n  batch_ids saved → {batch_ids_path}")
-    for j in record["jobs"][-len(values):]:
-        print(f"    {variable}={j['scan_value']}  →  job {j['job_id']}")
-
-    if record["open"]:
-        print("\n  ⚠  the batch is OPEN: the device stays reserved for it, and an "
-              "open batch\n     with nothing left to run is killed TIMED_OUT "
-              "after a few minutes.\n"
-              f"     Add the next wave:  --add-jobs <values> --out-dir {out}\n"
-              f"     Release the device: --close-batch --out-dir {out}")
+    _print_submission_record(record, values, variable, batch_ids_path, out)
 
     if args.wait:
-        print("  Waiting for all jobs to complete...")
-        while True:
-            states = [j.status for j in sdk.get_batch(record["batch_id"]).ordered_jobs]
-            done = sum(s in ("DONE", "ERROR", "CANCELED", "TIMED_OUT")
-                       for s in states)
-            print(f"    {done}/{len(states)} terminal", flush=True)
-            if done == len(states):
-                break
-            time.sleep(args.calib_poll)
+        _wait_for_jobs(sdk, record["batch_id"], args.calib_poll)
 
     print(f"\n  Next: harvest-and-analyze with --batch-ids {batch_ids_path}")
     print(batch_ids_path)  # machine-readable last line
@@ -759,8 +815,8 @@ def _close_batch(args, previous, batch_ids_path) -> None:
     if not previous or not previous.get("batch_id"):
         raise SystemExit(f"✘ no batch recorded in {batch_ids_path} to close.")
     from pasqal_cloud import SDK
-    creds = load_credentials(project_id=args.project_id,
-                             require_explicit_project=True)
+    creds, _ = ensure_credentials(project_id=args.project_id,
+                                  require_explicit_project=True)
     SDK(**creds).close_batch(previous["batch_id"])
     previous["open"] = False
     batch_ids_path.write_text(json.dumps(previous, indent=2))

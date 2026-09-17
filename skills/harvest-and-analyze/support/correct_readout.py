@@ -44,7 +44,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pasqal_auth import load_credentials
+from pasqal_auth import ensure_credentials
 
 
 def _rates_from_device(device_name: str) -> tuple[float, float]:
@@ -52,8 +52,9 @@ def _rates_from_device(device_name: str) -> tuple[float, float]:
     from pasqal_cloud import SDK
     from pulser_pasqal import PasqalCloud
 
-    sdk = SDK(**load_credentials())
-    cloud = PasqalCloud(**load_credentials())
+    creds, _ = ensure_credentials()
+    sdk = SDK(**creds)
+    cloud = PasqalCloud(**creds)
     devices = {d.name: d for d in cloud.fetch_available_devices().values()}
     if device_name not in devices:
         raise SystemExit(

@@ -41,13 +41,13 @@ def spec_noise_params(spec: dict) -> dict | None:
     return dict(params)
 
 
-def _accepted_fields(NoiseModel) -> set:
+def _accepted_fields(NoiseModel: type) -> set[str]:
     """Which keyword arguments this Pulser version's NoiseModel takes."""
     import inspect
     return set(inspect.signature(NoiseModel).parameters) - {"self", "kwargs"}
 
 
-def build_spec_noise(spec: dict):
+def build_spec_noise(spec: dict) -> tuple:
     """(NoiseModel, params) from the spec's block, or (None, None).
 
     Unknown keys are dropped and named rather than passed through: a paper's
@@ -75,21 +75,29 @@ def build_spec_noise(spec: dict):
     return NoiseModel(**kept), reported
 
 
-def difference_report(spec: dict, device_params: dict | None) -> str:
-    """Field-by-field difference between the source's model and the device's."""
-    params = spec_noise_params(spec) or {}
-    device_params = {k: v for k, v in (device_params or {}).items()
+def difference_report(spec: dict,
+                      overridable_noise_params: dict | None) -> str:
+    """Field-by-field difference between the source's model and the device's.
+
+    Only the parameters the pipeline can actually override on the device model
+    are compared, which is what `overridable_noise_params` carries: the source
+    may state a dozen numbers, but a difference in one the device model will not
+    take is not a difference this run can act on.
+    """
+    spec_params   = spec_noise_params(spec) or {}
+    device_params = {k: v for k, v in (overridable_noise_params or {}).items()
                      if k != "source"}
     lines = ["  the source specifies its own noise model:"]
-    for key in sorted(set(params) | set(device_params)):
-        mine  = params.get(key, "—")
+    for key in sorted(set(spec_params) | set(device_params)):
+        mine   = spec_params.get(key, "—")
         theirs = device_params.get(key, "—")
-        mark  = "  ←" if mine != theirs else ""
+        mark   = "  ←" if mine != theirs else ""
         lines.append(f"    {key:<18} source {mine!s:<12} device {theirs!s:<12}{mark}")
     return "\n".join(lines)
 
 
-def resolve(choice: str, spec: dict, device_noise, device_params: dict | None):
+def resolve(choice: str, spec: dict, device_noise,
+            overridable_noise_params: dict | None) -> list[tuple]:
     """The noisy run(s) to perform: a list of (label, NoiseModel, params).
 
     `device` is the default everywhere, and staying on it is fine — but if the
@@ -99,10 +107,10 @@ def resolve(choice: str, spec: dict, device_noise, device_params: dict | None):
     if choice not in CHOICES:
         raise SystemExit(f"✘ --noise-source must be one of {CHOICES}")
 
-    spec_noise, spec_params = build_spec_noise(spec)
-    device_run = ("device", device_noise, device_params)
+    spec_noise_model, spec_params = build_spec_noise(spec)
+    device_run = ("device", device_noise, overridable_noise_params)
 
-    if spec_noise is None:
+    if spec_noise_model is None:
         if choice != "device":
             raise SystemExit(
                 f"✘ --noise-source {choice} was asked for, but the spec carries "
@@ -111,7 +119,7 @@ def resolve(choice: str, spec: dict, device_noise, device_params: dict | None):
                 '"params": {...}, "why": "..."}}')
         return [device_run]
 
-    print(difference_report(spec, device_params))
+    print(difference_report(spec, overridable_noise_params))
     if choice == "device":
         print("  running the DEVICE model — what the hardware will actually do.\n"
               "  To reproduce the source's claim under its own assumptions: "
@@ -120,10 +128,10 @@ def resolve(choice: str, spec: dict, device_noise, device_params: dict | None):
     if choice == "paper":
         print("  running the SOURCE's model. This is not what the hardware will "
               "do, and no verdict from it gates a submission.")
-        return [("paper", spec_noise, spec_params)]
+        return [("paper", spec_noise_model, spec_params)]
     print("  running BOTH: the device model gives the verdict, the source's "
           "model says whether its claim reproduces on its own terms.")
-    return [device_run, ("paper", spec_noise, spec_params)]
+    return [device_run, ("paper", spec_noise_model, spec_params)]
 
 
 def _self_test() -> None:

@@ -1,6 +1,6 @@
 ---
 name: noise-emulate
-description: Emulate a Pulser sequence's time evolution under the target device's live noise model, producing noiseless and noisy trajectory curves with a quantile envelope. Asks where to run — this machine, a SLURM GPU cluster, or cloud emulators. Use this to study how noise shapes a signal over time; use validate-emu to decide whether an experiment is worth submitting. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise envelope", "run on GPU with noise".
+description: Emulate a Pulser sequence's time evolution under the target device's live noise model, producing noiseless and noisy trajectory curves with a quantile envelope. Asks where to run — this machine, a GPU cluster, or cloud emulators. Use this to study how noise shapes a signal over time; use validate-emu to decide whether an experiment is worth submitting. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise envelope", "run on GPU with noise".
 argument-hint: "[sequence-description-or-file]"
 ---
 
@@ -26,7 +26,7 @@ sequence, writes the builder, runs everything, and shows the result.
 
 Not even under "just run the noise study". Ask, recommend, and wait:
 
-- **where it runs** — this machine, SLURM, or the cloud (Step 0), and for the
+- **where it runs** — this machine, the cluster, or the cloud (Step 0), and for the
   cloud, **which project** pays
 - **the budget** — N, the bond dimension χ, the number of trajectories, the
   number of time points (Step 0's budget question)
@@ -62,12 +62,12 @@ project directory (keep outputs like `--out-dir` in your project, not the plugin
 
 ```
 support/
-  run_noise_emu.py          ← MPS trajectory runner (local + SLURM modes)
+  run_noise_emu.py          ← MPS trajectory runner (local + cluster modes)
   plot_noise_emu.py         ← trajectory envelope figure
   submit_slurm.sh           ← turnkey SLURM launcher (one GPU job per trajectory)
   run_noise_emu_cloud.py    ← Pasqal Cloud EMU_MPS runner (cloud mode)
   plot_noise_emu_cloud.py   ← cloud results figure
-  requirements.txt          ← Python dependencies (local/SLURM modes)
+  requirements.txt          ← Python dependencies (local/cluster modes)
   spec_noise.py             ← the source's own noise model, if it has one (shared)
   batch_tags.py             ← the labels every batch carries (shared, do not edit here)
   pasqal_auth.py            ← credentials, projects and credits (shared, do not edit here)
@@ -84,7 +84,7 @@ with the recommended option marked:
 > Where should the emulation run?
 > 1. **Locally** — on this machine. Fine for small systems / quick tests; a CUDA GPU
 >    helps a lot. Trajectories run sequentially in one process.
-> 2. **Via SLURM on a cluster (recommended)** — one GPU job per trajectory, all
+> 2. **On a GPU cluster (recommended)** — one GPU job per trajectory, all
 >    trajectories in parallel. By far the fastest for full 40-trajectory envelopes.
 >    Requires `sbatch` on the current machine.
 > 3. **Via Pasqal Cloud** — runs on the Pasqal Cloud EMU_MPS emulator fleet.
@@ -92,7 +92,7 @@ with the recommended option marked:
 >    no local compute; queue times apply and quality degrades for large registers
 >    (N ≳ 60–100).
 
-Quick heuristics if the user has no preference: `which sbatch` succeeds → SLURM;
+Quick heuristics if the user has no preference: `which sbatch` succeeds → cluster;
 otherwise a CUDA GPU present (`nvidia-smi`) → local; otherwise → cloud.
 
 Then read the user's sequence carefully:
@@ -110,7 +110,7 @@ system keyring (password only), then `~/.pasqal_credentials.json`.
 ```bash
 export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
 ```
-On a shared machine or in a SLURM script, prefer the environment variables —
+On a shared machine or in a cluster job script, prefer the environment variables —
 they are the only option that keeps the password off disk. Alternatively run
 any of the scripts below in a terminal with nothing configured: it offers a
 one-time setup that puts the password in the OS keyring and only the username
@@ -118,7 +118,7 @@ and project ID in `~/.pasqal_credentials.json` (`chmod 600`). Storing the
 password in that file works too, and the scripts will warn you that it is
 plaintext.
 
-**Python environment** (local and SLURM modes):
+**Python environment** (local and cluster modes):
 ```bash
 python3 -m venv ~/pulser-venv
 source ~/pulser-venv/bin/activate
@@ -137,7 +137,7 @@ Cloud mode only needs `pulser`, `pulser-pasqal` and `pasqal-cloud` (no emu-mps/t
 
 ## Step 1 — Write the sequence builder
 
-### Local / SLURM modes
+### Local / cluster modes
 
 Write `seq_builder.py` with this signature (fully built, not parametric):
 
@@ -227,7 +227,7 @@ Typical runtime on one A100: 3–8 min per noisy trajectory, so a full 40+1 run 
 hours — run it with `nohup`/background for large systems, or use `--n-traj 5
 --max-chi 64` for quick tests. The last printed line is the output `.npz` path.
 
-### Mode 2 — SLURM (recommended)
+### Mode 2 — cluster (recommended)
 
 ```bash
 SEQFILE=experiments/<name>/<name>_sequence.py \
@@ -294,7 +294,7 @@ session dies mid-poll, re-run with `--resume` and the same `--out-dir`.
 ```bash
 NOISE=experiments/<name>/results/noise
 
-# local / SLURM (.npz):
+# local / cluster (.npz):
 python support/plot_noise_emu.py \
     --result $NOISE/FCAN1_*.npz --out $NOISE/noise_plot.png --coverage 0.75
 
@@ -336,11 +336,11 @@ for the report — annotated, or comparing two runs — goes in
 | `<device> not in available devices` | Cloud SDK connection failed or device hidden from the project (for SA1: is `PASQAL_REGION=sa` set?); retry / check project |
 | `build_sequence not found` | Pass `--fn-name <name>` |
 | Builder returned a parametric sequence | Call `.build(...)` inside the builder |
-| GPU OOM (local/SLURM) | Reduce `--max-chi`; start at 64–128 |
+| GPU OOM (local/cluster) | Reduce `--max-chi`; start at 64–128 |
 | `emu_mps` not found | Wrong virtualenv; install from `requirements.txt` |
 | `partial_*.npz` missing after SLURM job | Check the `.err` log: time limit, OOM, or missing venv |
 | Cloud batches stuck PENDING | Queue congestion — normal; re-poll later with `--resume` |
-| Cloud batch ERROR on large N | Cloud EMU_MPS degrades for N ≳ 60–100; reduce N or use SLURM/local mode |
+| Cloud batch ERROR on large N | Cloud EMU_MPS degrades for N ≳ 60–100; reduce N or use the cluster or local mode |
 
 ---
 
@@ -348,7 +348,7 @@ for the report — annotated, or comparing two runs — goes in
 
 ```
 experiments/<name>/results/noise/
-# local / SLURM
+# local / cluster
   FCAN1_<kwargs>_ntraj40_chi128_<timestamp>.npz   ← raw data (self-documenting:
   noise_plot.png                                     embeds noise model + kwargs)
 # cloud

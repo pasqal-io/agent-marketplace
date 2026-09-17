@@ -139,7 +139,7 @@ account and nothing spent.
 | `idea-to-spec` | Turn an experiment you describe, or a paper or patent you want to reproduce, into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec, self-testing | Python + `pulser` |
 | `validate-emu` | Noiseless and noisy scan, then a go/no-go for QPU. Asks where to run: **locally** (free, ~14 atoms) or **cloud emulator** at the real size | nothing for local; account for cloud |
-| `noise-emulate` | Noise emulation with the live device noise model, over time. Runs **locally**, **via SLURM on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
+| `noise-emulate` | Noise emulation with the live device noise model, over time. Runs **locally**, **on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
 | `qpu-submit` | Calibrated submission of a spec and sequence to a cloud QPU, after you approve the shot count | account with QPU access |
 | `submit-via-hpc` | Parametric experiments on a QPU behind an HPC cluster, over SSH. Includes a first-time-access guide | an account on the cluster |
 | `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account |
@@ -192,7 +192,7 @@ the file where a reviewer can find them.
 ## One-time setup
 
 1. **Python environment**: a venv with `pulser`, `pulser-pasqal`, `pasqal-cloud`,
-   numpy/scipy/matplotlib, plus `emu-mps` and `torch` for local or SLURM noise
+   numpy/scipy/matplotlib, plus `emu-mps` and `torch` for local or cluster noise
    emulation (see [skills/noise-emulate/support/requirements.txt](skills/noise-emulate/support/requirements.txt)):
 
    ```bash

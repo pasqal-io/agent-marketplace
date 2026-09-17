@@ -344,7 +344,7 @@ def check_vendored_modules() -> None:
                 "corrected version over the others.")
 
     # A second loader anywhere would apply a different policy to some scripts.
-    loader = re.compile(r"^\s*def _?load_credentials\b", re.M)
+    loader = re.compile(r"^\s*def _?(?:load|ensure)_credentials\b", re.M)
     for script in sorted((ROOT / "skills").glob("*/support/*.py")):
         if script.name in VENDORED_MODULES:
             continue

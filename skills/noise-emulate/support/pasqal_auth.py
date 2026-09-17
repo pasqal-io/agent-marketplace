@@ -8,18 +8,22 @@ its own loader. Each field is resolved independently, most trusted source first:
      use it on shared machines and in SLURM scripts.
   2. System keyring (password only) — OS-encrypted, needs `pip install keyring`.
   3. ~/.pasqal_credentials.json — plaintext password, warned about.
-  4. Interactive prompt — only when stdin is a terminal.
 
 Per-field resolution matters: exporting PASQAL_PASSWORD to override a stale
 password in the credentials file has to work, and it would not if the file were
-consulted as an all-or-nothing block.
+consulted as an all-or-nothing block. For the same reason `load_credentials()`
+never prompts — the interactive setup asks for *every* field and would discard
+an explicit project id. `ensure_credentials()` prompts, then re-applies the
+choice; `--setup` runs that prompt on its own. Both return `(creds, sources)`,
+so the reported sources are the resolution's own account of itself rather than a
+second guess at it.
 
 **A resolved project is not a chosen project.** Finding credentials on the
 machine says nothing about which project should pay for this run, and a project
 id left in an environment variable is the last thing someone happened to export,
 not a decision. Scripts that spend credits therefore call
-`load_credentials(project_id=..., require_explicit_project=True)` and refuse to
-run until someone names the project. `python pasqal_auth.py --whoami` is the
+`ensure_credentials(project_id=..., require_explicit_project=True)` and refuse
+to run until someone names the project. `python pasqal_auth.py --whoami` is the
 free, read-only way to show the user what is on the machine and what their
 projects hold before they choose.
 
@@ -48,6 +52,7 @@ BILLING_URL = {
     "sa": "https://apis.sa.pasqal.cloud/billing",
     None: "https://apis.pasqal.cloud/billing",
 }
+_PAGE = 100          # credit-pools per request; _all_credit_pools follows the rest
 
 
 def _keyring_get(key: str) -> str | None:
@@ -116,38 +121,22 @@ def _interactive_setup() -> dict:
     return {"username": username, "password": password, "project_id": project_id}
 
 
-def credential_sources() -> dict:
-    """Where each field would come from, without resolving the password itself.
-
-    What --whoami shows the user before they confirm: an agent that says "found
-    credentials" has told them nothing, while "username from the environment,
-    password from the system keyring" is something they can recognise or deny.
-    """
-    from_file = _read_cred_file()
-    sources = {}
-    for f in FIELDS:
-        if os.environ.get(f"PASQAL_{f.upper()}"):
-            sources[f] = f"environment (PASQAL_{f.upper()})"
-        elif f == "password" and _keyring_get("password"):
-            sources[f] = "system keyring"
-        elif from_file.get(f):
-            sources[f] = str(CRED_FILE) + (
-                " — plaintext password, move it to the keyring"
-                if f == "password" else "")
-        else:
-            sources[f] = "not found"
-    return sources
-
-
 def load_credentials(project_id: str | None = None,
-                     require_explicit_project: bool = False) -> dict:
-    """Return the keyword arguments for a cloud connection.
+                     require_explicit_project: bool = False,
+                     ) -> tuple[dict, dict]:
+    """Return `(creds, sources)` for a cloud connection.
 
-    Keys are exactly `username`, `password`, `project_id`, `region`, so the
-    result can be splatted straight into either client:
+    `creds` keys are exactly `username`, `password`, `project_id`, `region`, so
+    it can be splatted straight into either client:
 
-        sdk  = SDK(**load_credentials())
-        conn = PasqalCloud(**load_credentials())
+        creds, _ = load_credentials()
+        sdk  = SDK(**creds)
+        conn = PasqalCloud(**creds)
+
+    `sources` names where each field *actually* came from on this call. It is
+    returned rather than computed on demand because a second pass over the
+    environment is a guess at what the resolution did: only the resolution
+    itself knows which value won.
 
     `region=None` selects the default (`fr`). SA1 lives in `sa` and is
     invisible from any other region — set PASQAL_REGION=sa or `"region": "sa"`
@@ -157,6 +146,11 @@ def load_credentials(project_id: str | None = None,
     user made in the conversation. With `require_explicit_project=True` — what
     every script that spends credits passes — its absence is a hard stop, because
     the alternative is billing a project nobody picked.
+
+    This function never prompts: a missing field is an error, because the
+    interactive setup replaces every field and would silently discard an
+    explicit `project_id`. Scripts that want the one-time terminal setup call
+    `ensure_credentials()`, which prompts and then re-applies the choice.
     """
     if require_explicit_project and not project_id:
         raise SystemExit(
@@ -168,38 +162,86 @@ def load_credentials(project_id: str | None = None,
             "  Then re-run this script with --project-id <the id they picked>.")
 
     from_file = _read_cred_file()
-    creds = {f: os.environ.get(f"PASQAL_{f.upper()}") or None for f in FIELDS}
+    creds   = {f: os.environ.get(f"PASQAL_{f.upper()}") or None for f in FIELDS}
+    sources = {f: f"environment (PASQAL_{f.upper()})" if creds[f] else "not found"
+               for f in FIELDS}
 
     if not creds["password"]:
         creds["password"] = _keyring_get("password")
+        if creds["password"]:
+            sources["password"] = "system keyring"
 
     from_file_used = [f for f in FIELDS if not creds[f] and from_file.get(f)]
     for field in from_file_used:
-        creds[field] = from_file[field]
+        creds[field]   = from_file[field]
+        sources[field] = str(CRED_FILE)
     if "password" in from_file_used:
+        sources["password"] += " — plaintext password, move it to the keyring"
         print(f"⚠  the password in {CRED_FILE} is plaintext — move it to the "
               "system keyring, or use the PASQAL_PASSWORD environment variable.")
 
     if project_id:
-        creds["project_id"] = project_id
+        creds["project_id"]   = project_id
+        sources["project_id"] = "chosen explicitly (--project-id)"
 
     if not all(creds.values()):
-        if sys.stdin.isatty():
-            creds = _interactive_setup()
-        else:
-            missing = ", ".join(f"PASQAL_{f.upper()}" for f in FIELDS if not creds[f])
-            raise SystemExit(
-                f"✘ Pasqal Cloud credentials incomplete — missing: {missing}\n"
-                "  Either export those environment variables, or run this "
-                "script from a terminal to set up the system keyring, or "
-                f"create {CRED_FILE} (chmod 600) with:\n"
-                '    {"username": "...", "password": "...", "project_id": "..."}')
+        missing = ", ".join(f"PASQAL_{f.upper()}" for f in FIELDS if not creds[f])
+        raise SystemExit(
+            f"✘ Pasqal Cloud credentials incomplete — missing: {missing}\n"
+            "  Either export those environment variables, or run this "
+            f"script from a terminal ({Path(__file__).name} --setup) to set up "
+            f"the system keyring, or create {CRED_FILE} (chmod 600) with:\n"
+            '    {"username": "...", "password": "...", "project_id": "..."}')
 
     creds["region"] = os.environ.get("PASQAL_REGION") or from_file.get("region")
-    return creds
+    return creds, sources
+
+
+def ensure_credentials(project_id: str | None = None,
+                       require_explicit_project: bool = False,
+                       ) -> tuple[dict, dict]:
+    """`load_credentials`, plus the one-time terminal setup when it comes up short.
+
+    Same `(creds, sources)` as `load_credentials`. The prompt is a separate step
+    on purpose: `_interactive_setup()` asks for every field and so returns a
+    whole new set, which would overwrite an explicit `project_id` the user chose
+    in the conversation — so the choice is re-applied after the prompt, and the
+    resolution itself stays prompt-free.
+    """
+    try:
+        return load_credentials(project_id, require_explicit_project)
+    except SystemExit:
+        if not sys.stdin.isatty():
+            raise
+    creds = _interactive_setup()
+    sources = {f: f"interactive setup ({CRED_FILE})" for f in FIELDS}
+    if project_id:                       # the conversation outranks what was typed
+        creds["project_id"]   = project_id
+        sources["project_id"] = "chosen explicitly (--project-id)"
+    creds["region"] = os.environ.get("PASQAL_REGION") or _read_cred_file().get("region")
+    return creds, sources
 
 
 # ── Projects and credits ──────────────────────────────────────────────────────
+
+def _all_credit_pools(get_page, project_id: str, backend: str) -> list:
+    """Every credit pool for one backend, following the API's offset pagination.
+
+    The endpoint answers `{"data": [...], "pagination": {"total", "start",
+    "end"}}` and honours `offset`/`limit`, so `total` says when to stop. A
+    single page would silently under-report the balance of any project holding
+    more pools than the page size — pools are allocated per month, so that is
+    years away for a small project and much sooner for a large contract.
+    """
+    pools: list = []
+    while True:
+        body  = get_page(project_id, backend, offset=len(pools), limit=_PAGE)
+        page  = body.get("data") or []
+        pools += page
+        total = (body.get("pagination") or {}).get("total")
+        if not page or not isinstance(total, int) or len(pools) >= total:
+            return pools
+
 
 def fetch_credits(sdk, project_id: str, region: str | None = None) -> dict:
     """Remaining credits per backend type, or the reason there are none to show.
@@ -221,20 +263,24 @@ def fetch_credits(sdk, project_id: str, region: str | None = None) -> dict:
         return {"error": "no token available from this SDK version"}
 
     base = BILLING_URL.get(region, BILLING_URL[None])
-    out: dict = {}
-    for backend in ("QPU", "EMU"):
-        url = (f"{base}/api/v1/contracts/{project_id}/credit-pools"
-               f"?backend_type={backend}&limit=100")
+
+    def get_page(pid: str, backend: str, offset: int, limit: int) -> dict:
+        url = (f"{base}/api/v1/contracts/{pid}/credit-pools"
+               f"?backend_type={backend}&limit={limit}&offset={offset}")
         req = urllib.request.Request(url, headers={
             "Authorization": f"Bearer {token}", "Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return json.loads(resp.read())
+
+    out: dict = {}
+    for backend in ("QPU", "EMU"):
         try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                pools = json.loads(resp.read()).get("data") or []
+            pools = _all_credit_pools(get_page, project_id, backend)
             out[backend] = sum(p.get("remaining_credits") or 0 for p in pools)
         except urllib.error.HTTPError as e:
             out[backend] = f"unavailable (HTTP {e.code})"
         except Exception as e:                       # network, JSON, schema drift
-            out[backend] = f"unavailable ({type(e).__name__})"
+            out[backend] = f"unavailable ({type(e).__name__}: {e})"
     return out
 
 
@@ -277,8 +323,7 @@ def print_whoami(as_json: bool = False) -> None:
     Costs nothing, submits nothing, and is the step that has to happen before a
     project is picked. Prints no password and no token, in either format.
     """
-    sources = credential_sources()
-    creds   = load_credentials()
+    creds, sources = ensure_credentials()
     region  = creds.get("region")
     env_pid = creds.get("project_id")
 
@@ -339,6 +384,24 @@ def _self_test() -> None:
     else:
         raise AssertionError("a missing project must be refused, not defaulted")
 
+    # Pagination: a project with more pools than one page must be summed whole.
+    pools = [{"remaining_credits": 1} for _ in range(250)]
+
+    def _fake_page(pid, backend, offset, limit):
+        page = pools[offset:offset + limit]
+        return {"data": page,
+                "pagination": {"total": len(pools), "start": offset,
+                               "end": offset + len(page)}}
+
+    got = _all_credit_pools(_fake_page, "pid", "QPU")
+    assert len(got) == 250, f"pagination stopped early: {len(got)} of 250"
+
+    def _no_pagination(pid, backend, offset, limit):
+        return {"data": pools[offset:offset + limit]}      # schema drift
+
+    assert len(_all_credit_pools(_no_pagination, "pid", "QPU")) == _PAGE, \
+        "without a total, one page must be returned rather than looping forever"
+
     class _FakeSDK:
         def user_token(self):
             raise RuntimeError("no session")
@@ -351,6 +414,31 @@ def _self_test() -> None:
     summary = account_summary(_FakeSDK(), "pid-1", None, "user@example.com")
     assert "pid-1" in summary and "unavailable" in summary, summary
     assert BILLING_URL["sa"] != BILLING_URL[None], "SA1 needs its own host"
+
+    # An explicit project id outranks the machine, and the prompt cannot eat it.
+    import unittest.mock as _mock
+    _mock.patch(f"{__name__}._read_cred_file", lambda: {}).start()
+    _mock.patch(f"{__name__}._keyring_get", lambda key: None).start()
+    with _mock.patch.dict(os.environ, {"PASQAL_USERNAME": "u",
+                                       "PASQAL_PASSWORD": "p",
+                                       "PASQAL_PROJECT_ID": "from-env"}):
+        got = load_credentials("chosen")
+        assert isinstance(got, tuple) and len(got) == 2, (
+            "the return type must not vary: always (creds, sources)")
+        creds, srcs = got
+        assert set(creds) == set(FIELDS) | {"region"}, sorted(creds)
+        assert creds["project_id"] == "chosen", creds["project_id"]
+        assert "explicitly" in srcs["project_id"], srcs["project_id"]
+        assert srcs["username"].startswith("environment"), srcs["username"]
+    with _mock.patch.dict(os.environ, {"PASQAL_USERNAME": "u",
+                                       "PASQAL_PASSWORD": "p"}, clear=True), \
+            _mock.patch.object(sys.stdin, "isatty", lambda: True), \
+            _mock.patch(f"{__name__}._interactive_setup",
+                        lambda: {"username": "typed", "password": "typed",
+                                 "project_id": "typed"}):
+        creds, _ = ensure_credentials("chosen")
+        assert creds["project_id"] == "chosen", (
+            "the interactive prompt overwrote the project the user chose")
     print("pasqal_auth self-test OK")
 
 
@@ -364,12 +452,17 @@ if __name__ == "__main__":
                     help="print credential sources, projects and credits")
     ap.add_argument("--json", action="store_true",
                     help="machine-readable output for --whoami")
+    ap.add_argument("--setup", action="store_true",
+                    help="one-time terminal setup: store the username and "
+                         "project id, and the password in the system keyring")
     ap.add_argument("--self-test", action="store_true",
                     help="offline asserts on the refusal and degradation paths")
     args = ap.parse_args()
 
     if args.self_test:
         _self_test()
+    elif args.setup:
+        _interactive_setup()
     elif args.whoami or args.json:
         print_whoami(as_json=args.json)
     else:

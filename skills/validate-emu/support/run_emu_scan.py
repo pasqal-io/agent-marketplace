@@ -46,7 +46,7 @@ import numpy as np
 
 import spec_noise
 from batch_tags import build_tags
-from pasqal_auth import account_summary, load_credentials
+from pasqal_auth import account_summary, ensure_credentials
 
 
 def _load_seq_module(path: str):
@@ -174,7 +174,7 @@ def main():
     build_sequence   = getattr(mod, spec.get("builder_fn", "build_sequence"))
     compute_obs      = mod.compute_observable
 
-    creds = load_credentials(project_id=args.project_id,
+    creds, _ = ensure_credentials(project_id=args.project_id,
                              require_explicit_project=True)
     from pulser_pasqal import PasqalCloud
     from pasqal_cloud import SDK, EmulatorType, CreateJob

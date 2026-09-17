@@ -91,7 +91,7 @@ except ModuleNotFoundError:
     MPSBackend = MPSConfig = Occupation = CorrelationMatrix = BitStrings = None
 
 import spec_noise
-from pasqal_auth import load_credentials
+from pasqal_auth import ensure_credentials
 
 
 # ── Optional noise overrides ────────────────────────────────────────────────────
@@ -107,7 +107,8 @@ def fetch_fcan1(device_name="FRESNEL_CAN1",
                 override_detuning_sigma=None):
     import dataclasses
     from pasqal_cloud import SDK
-    sdk    = SDK(**load_credentials())
+    creds, _ = ensure_credentials()
+    sdk    = SDK(**creds)
     specs  = sdk.get_device_specs_dict()
     if device_name not in specs:
         raise ValueError(f"{device_name} not in available devices: {list(specs.keys())}")

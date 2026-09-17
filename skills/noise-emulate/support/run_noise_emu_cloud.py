@@ -48,7 +48,7 @@ import numpy as np
 
 import spec_noise
 from batch_tags import build_tags
-from pasqal_auth import account_summary, load_credentials
+from pasqal_auth import account_summary, ensure_credentials
 
 
 _CLOCK_NS = 4  # FC1 sequence durations must be multiples of 4 ns
@@ -68,14 +68,19 @@ def _counts_from_job(job) -> dict[str, int]:
     return {}
 
 
-def _cloud_noise_model(device, t2_us=None, temperature_uk=None, detuning_sigma=None):
+def _cloud_noise_model(device, t2_us: float | None = None,
+                       temperature_uk: float | None = None,
+                       detuning_sigma: float | None = None) -> tuple:
     """Noise model for cloud EMU_MPS, defaulting to the device's shipped values.
 
     Built from scratch rather than replacing fields on the device model: the
     device model carries state_prep_error and register/trap-noise fields that
     crash cloud EMU_MPS execution. Same construction as validate-emu.
     Optional args override individual fields; None keeps the shipped value.
-    Returns (noise_model, effective_params_dict).
+
+    Returns (noise_model, overridable_noise_params) — the second being only the
+    three fields a caller can override here, which is what the source-vs-device
+    difference report compares. The rest are taken from the device as shipped.
     """
     from pulser.noise_model import NoiseModel
     nm = getattr(device, "noise_model", None) or device.default_noise_model
@@ -84,7 +89,7 @@ def _cloud_noise_model(device, t2_us=None, temperature_uk=None, detuning_sigma=N
                       else getattr(nm, "temperature", 20.0))
     det_sigma      = (detuning_sigma if detuning_sigma is not None
                       else getattr(nm, "detuning_sigma", 0.0))
-    noise = NoiseModel(
+    noise_model = NoiseModel(
         runs=1,
         temperature=temperature,
         dephasing_rate=dephasing_rate,
@@ -95,12 +100,12 @@ def _cloud_noise_model(device, t2_us=None, temperature_uk=None, detuning_sigma=N
         p_false_neg=getattr(nm, "p_false_neg", 0.09),
         laser_waist=getattr(nm, "laser_waist", None),
     )
-    params = {
+    overridable_noise_params = {
         "T2_us":                round(1.0 / dephasing_rate, 3) if dephasing_rate else None,
         "temperature_uk":       temperature,
         "detuning_sigma_radus": det_sigma,
     }
-    return noise, params
+    return noise_model, overridable_noise_params
 
 
 def _round_clock(t: float) -> int:
@@ -173,7 +178,7 @@ def main():
     builder     = getattr(mod, args.fn_name)
     compute_obs = mod.compute_observable
 
-    creds = load_credentials(project_id=args.project_id,
+    creds, _ = ensure_credentials(project_id=args.project_id,
                              require_explicit_project=True)
     from pulser_pasqal import PasqalCloud
     from pasqal_cloud import SDK, EmulatorType, CreateJob
@@ -184,8 +189,8 @@ def main():
     device = conn.fetch_available_devices()[args.device_name]
     sdk    = SDK(**creds)
 
-    noise, noise_params = _cloud_noise_model(device, args.T2, args.temperature,
-                                             args.detuning_sigma)
+    noise_model, overridable_noise_params = _cloud_noise_model(
+        device, args.T2, args.temperature, args.detuning_sigma)
 
     # A spec is optional here — this skill can be pointed at a bare sequence
     # file — but without one there is no source noise model to offer and no
@@ -193,13 +198,13 @@ def main():
     spec = (json.loads(Path(args.spec).read_text()) if args.spec else
             {"experiment_name": Path(args.seq_file).stem,
              "scan": {"variable": args.t_var}})
-    noise_label, noise, noise_params = spec_noise.resolve(
-        args.noise_source, spec, noise, noise_params)[0]
+    noise_label, noise_model, overridable_noise_params = spec_noise.resolve(
+        args.noise_source, spec, noise_model, overridable_noise_params)[0]
     tags = build_tags(spec, args.device_name, args.shots, "noise-emulate",
                       extra=args.tag) + [f"noise:{noise_label}"]
 
     noisy_cfg = EmulationConfig(
-        noise_model=noise,
+        noise_model=noise_model,
         observables=[BitStrings(evaluation_times=[1.0], num_shots=args.shots)],
     ).to_abstract_repr()
 
@@ -226,8 +231,8 @@ def main():
         # The source's model carries different fields from the device's, so
         # print whatever it actually has rather than assuming the device's keys.
         print("  noise model: " + ",  ".join(
-            f"{k}={v}" for k, v in noise_params.items() if k != "source"))
-        print(f"  noise source: {noise_params.get('source', noise_label)}\n")
+            f"{k}={v}" for k, v in overridable_noise_params.items() if k != "source"))
+        print(f"  noise source: {overridable_noise_params.get('source', noise_label)}\n")
 
         nl_batches:  dict[int, str] = {}
         n_batches:   dict[int, str] = {}
@@ -275,7 +280,7 @@ def main():
             "noiseless": {str(k): v for k, v in nl_batches.items()},
             "noisy":     {str(k): v for k, v in n_batches.items()},
             "envelope":  {str(k): v for k, v in env_batches.items()},
-            "noise_params": noise_params,
+            "overridable_noise_params": overridable_noise_params,
         }, indent=2))
         print(f"\n  batch_ids saved → {ids_file}  "
               f"(re-poll later with --resume)\n")
@@ -347,7 +352,7 @@ def main():
         "t_var":    args.t_var,
         "shots":    args.shots,
         "n_envelope": args.n_envelope,
-        "noise_params": noise_params,
+        "overridable_noise_params": overridable_noise_params,
         "records": records,
     }
     res_file = out / "noise_emu_cloud.json"

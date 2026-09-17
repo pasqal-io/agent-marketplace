@@ -8,13 +8,11 @@ Reads QPU batch IDs (written by qpu-submit or submit-via-hpc), pulls bitstrings
 from Pasqal Cloud, computes the observable, and compares to the EMU scan from
 validate-emu. Writes a final accept/reject verdict.
 
-Supports three batch formats (written by the QPU submission scripts):
-  single_batch : one batch, one job per scan point — what qpu-submit writes now.
-                 The scan value of each job comes from the `jobs` list in
-                 batch_ids.json, because a job that carries its own sequence
-                 cannot also carry `variables`
+A scan is one batch, in either of the two shapes qpu-submit writes:
+  single_batch : one job per scan point. The scan value of each job comes from
+                 the `jobs` list in batch_ids.json, because a job that carries
+                 its own sequence cannot also carry `variables`
   parametric   : one batch whose jobs are keyed by their variable bindings
-  per_point    : one batch per scan point — older submissions, still readable
 
 Usage:
     python harvest_qpu.py \\
@@ -41,7 +39,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pasqal_auth import load_credentials
+from pasqal_auth import ensure_credentials
 
 
 def _load_seq_module(path: str):
@@ -74,34 +72,6 @@ def _bootstrap_std(counts: dict[str, int], obs_fn, n_boot: int = 300) -> float:
             c_boot[s] = c_boot.get(s, 0) + 1
         boot.append(obs_fn(c_boot))
     return float(np.std(boot))
-
-
-def _collect_per_point(sdk, batch_ids_data: dict, obs_fn, n_boot: int) -> list:
-    """Collect per_point format: one batch per scan point."""
-    records = []
-    for entry in batch_ids_data["batches"]:
-        val = entry["scan_value"]
-        bid = entry["batch_id"]
-        B   = sdk.get_batch(bid)
-        job = B.ordered_jobs[0]
-        if job.status != "DONE":
-            print(f"  WARNING: {entry['scan_value']} batch {bid[:8]} status={job.status}")
-        counts = _counts_from_job(job)
-        obs    = obs_fn(counts) if counts else float("nan")
-        err    = _bootstrap_std(counts, obs_fn, n_boot) if counts else float("nan")
-        records.append({
-            "scan_value":  val,
-            "observable":  obs,
-            "obs_err":     err,
-            "n_shots":     sum(counts.values()),
-            "n_unique":    len(counts),
-            "batch_id":    bid,
-            "status":      job.status,
-            "counts":      counts,
-        })
-        print(f"  collected {entry['scan_value']:>8}  obs={obs:.4f} ± {err:.4f}"
-              f"  ({sum(counts.values())} shots)", flush=True)
-    return records
 
 
 def _collect_one_batch(sdk, batch_ids_data: dict, obs_fn, scan_var: str,
@@ -169,11 +139,18 @@ def main():
     mod      = _load_seq_module(args.seq_file)
     obs_fn   = mod.compute_observable
 
+    if "batch_id" not in batch_data:
+        raise SystemExit(
+            f"✘ {args.batch_ids} carries no 'batch_id' — it was not written by "
+            "this version of qpu-submit.\n"
+            "  A scan is one batch now: re-submit with qpu-submit, or read the "
+            "old batches directly with the SDK.")
+
     from pasqal_cloud import SDK
     # Read-only, so a project need not be re-chosen — but say which one is being
     # read, since a batch id is only meaningful inside the project that owns it.
     submitted_by = batch_data.get("account", {})
-    creds = load_credentials(
+    creds, _ = ensure_credentials(
         project_id=args.project_id or submitted_by.get("project_id"))
     sdk = SDK(**creds)
 
@@ -182,13 +159,8 @@ def main():
           + (f"  (submitted by {submitted_by['username']})"
              if submitted_by.get("username") else ""))
     print(f"=== harvest-and-analyze: {spec['experiment_name']} ===")
-    fmt = batch_data.get("format", "per_point")
-
-    if fmt == "per_point":
-        qpu_records = _collect_per_point(sdk, batch_data, obs_fn, args.bootstrap)
-    else:
-        qpu_records = _collect_one_batch(sdk, batch_data, obs_fn, scan_var,
-                                         args.bootstrap)
+    qpu_records = _collect_one_batch(sdk, batch_data, obs_fn, scan_var,
+                                     args.bootstrap)
 
     # Raw bitstrings first, and in their own file. The observable is a *choice*:
     # re-analysing this run with a different one, or with a corrected

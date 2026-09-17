@@ -69,14 +69,15 @@ Before collecting, confirm jobs are done:
 ```python
 import json
 from pathlib import Path
-from pasqal_auth import load_credentials
+from pasqal_auth import ensure_credentials
 from pasqal_cloud import SDK
 
 batch_ids = json.loads(Path("batch_ids.json").read_text())
 # The project that owns the batch is recorded at submission — read it back
 # rather than trusting whatever the environment happens to hold.
-sdk = SDK(**load_credentials(
-    project_id=batch_ids.get("account", {}).get("project_id")))
+creds, _ = ensure_credentials(
+    project_id=batch_ids.get("account", {}).get("project_id"))
+sdk = SDK(**creds)
 
 b = sdk.get_batch(batch_ids["batch_id"])          # single_batch format
 done = sum(1 for j in b.ordered_jobs if j.status == "DONE")
@@ -115,8 +116,7 @@ one it used, because a batch id means nothing outside the project that owns it.
 
 The script:
 1. Connects to Pasqal Cloud
-2. Pulls bitstrings for every job (handles `single_batch`, `parametric` and the
-   older `per_point` formats)
+2. Pulls bitstrings for every job (handles `single_batch` and `parametric`)
 3. **Writes `qpu_counts.json` — the raw counts, before anything is derived**
 4. Calls `compute_observable(counts)` from the sequence file
 5. Computes bootstrap error bars (300 resamples by default)
@@ -156,9 +156,9 @@ skipped, never guessed from its position.
 {"format": "parametric", "scan_variable": "tau_ns", "batch_id": "uuid-..."}
 ```
 
-*per_point* (one batch per scan point) is still read, for submissions made
-before `qpu-submit` moved to a single batch. A launcher producing none of the
-three must be reformatted before running.
+A scan is one batch, so a `batch_ids.json` with no `batch_id` is refused
+rather than guessed at. A launcher producing neither shape must be reformatted
+before running.
 
 ---
 
@@ -293,5 +293,5 @@ script that did it under `analysis/` and name it.
 | Density looks low everywhere | Expected: the detector under-reports. `correct_readout.py` (Step 2b) says by how much |
 | `sites_clipped_beyond_err` is large | The two detection rates cannot produce the measured densities — wrong device, or calibration that has drifted since |
 | Bootstrap error ≫ signal | Increase shots per point (update `spec["shots_per_point"]`) |
-| batch_ids format not recognised | Manually edit to match per_point or parametric format above |
+| batch_ids format not recognised | Manually edit to match the single_batch or parametric format above |
 | Max deviation huge but trend right | Normal for small N; consider weaker σ_tolerance (e.g., 3σ) |
