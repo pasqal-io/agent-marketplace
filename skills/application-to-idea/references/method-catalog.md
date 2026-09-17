@@ -34,13 +34,13 @@ values → vertex weights → local detuning; solution → a measured independen
 **Outputs**: best valid sets, total weight, validity rate, probability of the top
 candidates, comparison against classical MIS heuristics or an exact solver.
 
-Maturity: `ready_library`.
+Maturity: `ready_library` — through QUBO Solver, not the standalone MIS library.
 
 ### `mis-qaa` — unweighted independent set
 
 The unweighted special case: the largest set of pairwise compatible elements.
 
-Maturity: `ready_library`.
+Maturity: `ready_library` — through QUBO Solver, not the standalone MIS library.
 
 ### `qubo-qaa`
 

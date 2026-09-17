@@ -48,13 +48,17 @@ fraction, coordinate-to-bitstring ordering, loading constraints.
 
 - **Global** — adiabatic ramps, global quenches, ordered-state preparation, QAA,
   homogeneous dynamics. This is the common case and the one every device has.
-- **Local**, where supported — localized excitation preparation, defects,
-  transport protocols, non-uniform initial conditions, local control.
-- **DMM (Detuning Map Modulator)** — MWIS weights, non-uniform linear QUBO terms,
-  local fields, controlled symmetry breaking, spatial detuning gradients. Check
-  the hardware's weight and amplitude constraints.
-- **SLM mask** — structured initialization, masking atoms during preparation,
-  preparing a subregister before the main evolution.
+- **DMM (Detuning Map Modulator)**, where supported — MWIS weights, non-uniform
+  linear QUBO terms, local fields, controlled symmetry breaking, spatial detuning
+  gradients. Check the device exposes a DMM, and its weight and amplitude
+  constraints.
+- **SLM mask**, where supported — structured initialization, masking atoms during
+  preparation, preparing a subregister before the main evolution. A specific case
+  of a DMM, so it depends on the same hardware support.
+- **Local channels**, where supported — localized excitation preparation,
+  defects, transport protocols, non-uniform initial conditions, local control.
+  **Prefer a DMM when it can carry the method**: local channels are the scarcer
+  capability, and DMM support is expected on real devices sooner.
 - **EOM mode** — fast control changes, quench-like protocols, repeated pulse
   blocks, short-time dynamics. Check availability and modulation constraints.
 

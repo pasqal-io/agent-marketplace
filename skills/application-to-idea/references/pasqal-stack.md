@@ -8,6 +8,13 @@ capabilities and API names move between releases. Check anything a user would ac
 on against the current public documentation — see `sources.md` — before asserting
 it, and mark it unverified otherwise.
 
+**Prefer the live doc portal over this file.** Fetching pages costs tokens, so
+ask first: *"I can check this against docs.pasqal.com instead of my dated notes —
+it costs extra tokens. Want me to?"* If the user agrees and
+<https://docs.pasqal.com> is reachable, read it and cite what you read. If the
+user declines or the portal is unreachable, use this file and say in the note
+that the stack claims are unverified.
+
 ---
 
 ## Pulser — the implementation layer
@@ -81,12 +88,13 @@ that survives it.
 
 ## Application libraries — prefer these when one covers the problem class
 
-### Maximum Independent Set library
+### MIS and weighted MIS — go through QUBO Solver
 
-High-level public library for MIS and weighted MIS.
+**Do not name the standalone MIS library as the implementation path.** It is not
+actively maintained; the supported route for MIS and MWIS is `qubo-solver`, which
+gives access to more solvers. Formulate the independent-set problem as a QUBO and
+hand it to QUBO Solver below.
 
-- **In**: a graph, optional vertex weights, solver and backend configuration.
-- **Out**: independent-set candidates, objective values, result information.
 - **Fits**: selection with pairwise incompatibilities, resource allocation with
   conflicts, incompatible task scheduling, set packing, project selection,
   frequency or channel assignment, some placement problems, graph colouring after
@@ -97,7 +105,7 @@ High-level public library for MIS and weighted MIS.
 - **Limits**: geometric embeddability, unit-disk-like structure, weight range,
   loading and layout constraints, additional global constraints, instance size.
 
-### QUBO Solver
+### QUBO Solver — the recommended entry point for optimization
 
 High-level public library for Quadratic Unconstrained Binary Optimization:
 instance definition, classical/quantum/hybrid solvers, embedding, drive shaping
