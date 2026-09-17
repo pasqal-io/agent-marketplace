@@ -355,7 +355,22 @@ can pick up and a pile of JSON.
 
 ---
 
-## Step 5 — Report
+## Step 5 — Adversarial review
+
+Perform an adversarial review of of the proposed spec.
+You should spawn a subagent with a fresh context to avoid any bias.
+
+The subagent should read **only** the paper and the spec `<experiment_name>_spec.json`.
+
+It should report issues, ranked by severity, and proposed improvements: do not implement them blindly and discuss them with the user in case of doubt.
+
+Typical errors you should look for: mistakes, unjustified claims, fabricated numbers without being anchored by their reasoning, etc. The subagent should not trust the spec's own stated derivations: it should redo the math itself from the paper's given formulas and constants.
+
+This advrsarial review step is not optional: it is better to catch mistakes early rather than late, especially when preparing runs on a cluster or a QPU.
+
+---
+
+## Step 6 — Report
 
 Summarise:
 1. The objective, in the user's terms — if you cannot state it in one sentence,
