@@ -73,12 +73,11 @@ def _emu_noise_model(device):
     taken from the live device spec. Returns (noise_model, params_dict).
     """
     from pulser.noise_model import NoiseModel
-    nm = getattr(device, "noise_model", None) or device.default_noise_model
+    nm = getattr(device, "noise_model", None)
     dephasing_rate = getattr(nm, "dephasing_rate", 0.05)
     temperature    = getattr(nm, "temperature", 20.0)
     det_sigma      = getattr(nm, "detuning_sigma", 0.0)
     noise = NoiseModel(
-        runs=1,
         temperature=temperature,
         dephasing_rate=dephasing_rate,
         detuning_sigma=det_sigma,
@@ -176,16 +175,30 @@ def main():
 
     creds, _ = ensure_credentials(project_id=args.project_id,
                              require_explicit_project=True)
-    from pulser_pasqal import PasqalCloud
-    from pasqal_cloud import SDK, EmulatorType, CreateJob
+    from pasqal_cloud import PasqalCloudConnection
+    from pasqal_cloud.device import DeviceTypeName
+    from pasqal_cloud.job import CreateJob
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
     from pulser.backend import EmulationConfig
     from pulser.backend.default_observables import BitStrings
 
-    conn   = PasqalCloud(**creds)
+    conn   = PasqalCloudConnection(**creds)
     device = conn.fetch_available_devices()[spec["device"]]
-    sdk    = SDK(**creds)
+    sdk    = PasqalCloudClient(**creds)
 
     print("RUNS ON: Pasqal Cloud emulators (EMU_MPS) — metered emulator time.")
+    noisy_cfg = None
+    noise_params = None
+    if run_n and recorded is None:
+        noise, noise_params = _emu_noise_model(device)
+        noisy_cfg = EmulationConfig(
+            noise_model=noise,
+            # n_trajectories left unset: the backend resolves it from its own
+            # configuration. The scan's error bars come from the `shots`
+            # samples anyway, not from averaging trajectories.
+            observables=[BitStrings(evaluation_times=[1.0], num_shots=shots)],
+        ).to_abstract_repr()
+
     print(f"=== validate-emu: {spec['experiment_name']} ===")
     print(f"  {variable} ∈ {values}")
     print(f"  shots={shots}  device={spec['device']}")
@@ -241,8 +254,8 @@ def main():
             b = sdk.create_batch(
                 serialized_sequence=seq.to_abstract_repr(),
                 jobs=[CreateJob(runs=shots)],
-                emulator=EmulatorType.EMU_MPS, wait=False,
                 tags=tags + ["backend:emu-noiseless"],
+                device_type=DeviceTypeName.EMU_MPS, wait=False,
             )
             nl_batches[val] = str(b.id)
             print(f"  [noiseless] {variable}={val}  →  {b.id}", flush=True)
@@ -251,7 +264,7 @@ def main():
             b = sdk.create_batch(
                 serialized_sequence=seq.to_abstract_repr(),
                 jobs=[CreateJob(runs=shots)],
-                emulator=EmulatorType.EMU_MPS, wait=False,
+                device_type=DeviceTypeName.EMU_MPS, wait=False,
                 backend_configuration=noisy_cfg,
                 tags=tags + ["backend:emu-noisy", f"noise:{noise_label}"],
             )

@@ -70,14 +70,14 @@ Before collecting, confirm jobs are done:
 import json
 from pathlib import Path
 from pasqal_auth import ensure_credentials
-from pasqal_cloud import SDK
+from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
 
 batch_ids = json.loads(Path("batch_ids.json").read_text())
 # The project that owns the batch is recorded at submission — read it back
 # rather than trusting whatever the environment happens to hold.
 creds, _ = ensure_credentials(
     project_id=batch_ids.get("account", {}).get("project_id"))
-sdk = SDK(**creds)
+sdk = PasqalCloudClient(**creds)
 
 b = sdk.get_batch(batch_ids["batch_id"])          # single_batch format
 done = sum(1 for j in b.ordered_jobs if j.status == "DONE")

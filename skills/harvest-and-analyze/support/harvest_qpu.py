@@ -146,13 +146,13 @@ def main():
             "  A scan is one batch now: re-submit with qpu-submit, or read the "
             "old batches directly with the SDK.")
 
-    from pasqal_cloud import SDK
     # Read-only, so a project need not be re-chosen — but say which one is being
     # read, since a batch id is only meaningful inside the project that owns it.
     submitted_by = batch_data.get("account", {})
     creds, _ = ensure_credentials(
         project_id=args.project_id or submitted_by.get("project_id"))
-    sdk = SDK(**creds)
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
+    sdk = PasqalCloudClient(**creds)
 
     print("RUNS ON: this machine — reads a finished submission, buys nothing.")
     print(f"  project {creds['project_id']}"

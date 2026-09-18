@@ -83,14 +83,13 @@ def _cloud_noise_model(device, t2_us: float | None = None,
     difference report compares. The rest are taken from the device as shipped.
     """
     from pulser.noise_model import NoiseModel
-    nm = getattr(device, "noise_model", None) or device.default_noise_model
+    nm = getattr(device, "noise_model", None)
     dephasing_rate = (1.0 / t2_us) if t2_us else getattr(nm, "dephasing_rate", 0.05)
     temperature    = (temperature_uk if temperature_uk is not None
                       else getattr(nm, "temperature", 20.0))
     det_sigma      = (detuning_sigma if detuning_sigma is not None
                       else getattr(nm, "detuning_sigma", 0.0))
-    noise_model = NoiseModel(
-        runs=1,
+    noise = NoiseModel(
         temperature=temperature,
         dephasing_rate=dephasing_rate,
         detuning_sigma=det_sigma,
@@ -180,14 +179,16 @@ def main():
 
     creds, _ = ensure_credentials(project_id=args.project_id,
                              require_explicit_project=True)
-    from pulser_pasqal import PasqalCloud
-    from pasqal_cloud import SDK, EmulatorType, CreateJob
+    from pasqal_cloud import PasqalCloudConnection
+    from pasqal_cloud.device import DeviceTypeName
+    from pasqal_cloud.job import CreateJob
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
     from pulser.backend import EmulationConfig
     from pulser.backend.default_observables import BitStrings
 
-    conn   = PasqalCloud(**creds)
+    conn   = PasqalCloudConnection(**creds)
     device = conn.fetch_available_devices()[args.device_name]
-    sdk    = SDK(**creds)
+    sdk    = PasqalCloudClient(**creds)
 
     noise_model, overridable_noise_params = _cloud_noise_model(
         device, args.T2, args.temperature, args.detuning_sigma)
@@ -204,7 +205,10 @@ def main():
                       extra=args.tag) + [f"noise:{noise_label}"]
 
     noisy_cfg = EmulationConfig(
-        noise_model=noise_model,
+        noise_model=noise,
+        # n_trajectories left unset: the backend resolves it from its own
+        # configuration. The envelope comes from the --n-envelope repeated
+        # batches anyway, not from trajectory averaging inside one.
         observables=[BitStrings(evaluation_times=[1.0], num_shots=args.shots)],
     ).to_abstract_repr()
 
@@ -244,14 +248,14 @@ def main():
 
             b = sdk.create_batch(serialized_sequence=srz,
                                  jobs=[CreateJob(runs=args.shots)],
-                                 emulator=EmulatorType.EMU_MPS, wait=False,
+                                 device_type=DeviceTypeName.EMU_MPS, wait=False,
                                  tags=tags + ["backend:emu-noiseless",
                                               f"t:{t}"])
             nl_batches[t] = str(b.id)
 
             b = sdk.create_batch(serialized_sequence=srz,
                                  jobs=[CreateJob(runs=args.shots)],
-                                 emulator=EmulatorType.EMU_MPS, wait=False,
+                                 device_type=DeviceTypeName.EMU_MPS, wait=False,
                                  backend_configuration=noisy_cfg,
                                  tags=tags + ["backend:emu-noisy", f"t:{t}"])
             n_batches[t] = str(b.id)
@@ -260,7 +264,7 @@ def main():
             for _ in range(args.n_envelope):
                 b = sdk.create_batch(serialized_sequence=srz,
                                      jobs=[CreateJob(runs=args.shots)],
-                                     emulator=EmulatorType.EMU_MPS, wait=False,
+                                     device_type=DeviceTypeName.EMU_MPS, wait=False,
                                      backend_configuration=noisy_cfg,
                                      tags=tags + ["backend:emu-envelope",
                                                   f"t:{t}"])

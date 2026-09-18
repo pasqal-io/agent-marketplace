@@ -49,12 +49,13 @@ from pasqal_auth import ensure_credentials
 
 def _rates_from_device(device_name: str) -> tuple[float, float]:
     """Read the two detection rates off the live device noise model."""
-    from pasqal_cloud import SDK
-    from pulser_pasqal import PasqalCloud
+    from pasqal_cloud import PasqalCloudConnection
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
 
     creds, _ = ensure_credentials()
-    sdk = SDK(**creds)
-    cloud = PasqalCloud(**creds)
+    sdk = PasqalCloudClient(**creds)
+    cloud = PasqalCloudConnection(**creds)
+
     devices = {d.name: d for d in cloud.fetch_available_devices().values()}
     if device_name not in devices:
         raise SystemExit(
@@ -66,7 +67,6 @@ def _rates_from_device(device_name: str) -> tuple[float, float]:
             f"✘ {device_name} publishes no noise model, so its detection rates "
             "are not readable. Pass --eps and --eps-prime from the calibration "
             "you are working against.")
-    del sdk
     return float(noise.p_false_pos), float(noise.p_false_neg)
 
 

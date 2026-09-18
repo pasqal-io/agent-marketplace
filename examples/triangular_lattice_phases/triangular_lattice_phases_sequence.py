@@ -82,7 +82,7 @@ def _build_register(L: int, spacing_um: float, device) -> Register:
         )
 
     reg = Register.from_coordinates(coords, prefix="q")
-    from pulser.devices._device_datacls import Device, VirtualDevice
+    from pulser.devices import Device, VirtualDevice
     if isinstance(device, Device) and not isinstance(device, VirtualDevice):
         reg = reg.with_automatic_layout(device)
 

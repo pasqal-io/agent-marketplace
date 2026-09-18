@@ -90,7 +90,21 @@ else
 fi
 
 echo "── Secret scan"
-if grep -rnEI "(password|token|api_key)[[:space:]]*[:=][[:space:]]*['\"][^'\"$<{]|glpat-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|OPENSSH) PRIVATE" skills examples .claude-plugin; then
+# Every tracked path, not a hand-listed subset. It previously covered `skills
+# examples .claude-plugin` and so never looked at .github/ (where a workflow
+# secret would live), scripts/, docs/, the root manifests, or the three adapter
+# manifest directories that are exact analogues of the .claude-plugin one it did
+# scan. Patterns widened to the token prefixes GitHub actually issues (ghp_ is
+# only one of five), AWS keys, and more key types.
+#
+# This scans the working tree only. History is not covered — nothing here would
+# catch a credential that was committed and then removed, and this repo is
+# intended to go public, where history goes with it. `git log -p` grep, or a
+# dedicated scanner, is the tool for that; secret scanning with push protection
+# is the real answer and is a repository setting, not a script.
+secret_paths=$(git ls-files 2>/dev/null || echo ".")
+if printf '%s\n' "$secret_paths" | xargs grep -nEI \
+    "(password|passwd|token|api_key|apikey|secret|client_secret)[[:space:]]*[:=][[:space:]]*['\"][^'\"\$<{]{4,}|glpat-[A-Za-z0-9_-]{10,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC|DSA|PGP) PRIVATE"; then
   echo "✘ potential secret found"; exit 1
 fi
 

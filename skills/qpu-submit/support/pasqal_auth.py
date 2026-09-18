@@ -130,8 +130,8 @@ def load_credentials(project_id: str | None = None,
     it can be splatted straight into either client:
 
         creds, _ = load_credentials()
-        sdk  = SDK(**creds)
-        conn = PasqalCloud(**creds)
+        client = PasqalCloudClient(**creds)
+        conn   = PasqalCloudConnection(**creds)
 
     `sources` names where each field *actually* came from on this call. It is
     returned rather than computed on demand because a second pass over the
@@ -329,8 +329,8 @@ def print_whoami(as_json: bool = False) -> None:
 
     sdk = None
     try:
-        from pasqal_cloud import SDK
-        sdk = SDK(**creds)
+        from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
+        sdk = PasqalCloudClient(**creds)
     except Exception as e:
         print(f"⚠  could not open a cloud session ({type(e).__name__}: {e})")
 

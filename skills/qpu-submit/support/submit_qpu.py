@@ -602,12 +602,12 @@ def _open_session(args, device_name: str):
     many are left" into the plan the user approves: a cost without a payer is
     the approval a tester gives by accident.
     """
-    from pasqal_cloud import SDK
+    from pasqal_cloud.job import CreateJob
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
     from pulser.json.abstract_repr.deserializer import deserialize_device
-
     creds, _ = ensure_credentials(project_id=args.project_id,
                                   require_explicit_project=True)
-    sdk   = SDK(**creds)
+    sdk    = PasqalCloudClient(**creds)
     specs = sdk.get_device_specs_dict()
     if device_name not in specs:
         raise SystemExit(f"✘ device {device_name!r} not available in this project. "
@@ -814,10 +814,10 @@ def _close_batch(args, previous, batch_ids_path) -> None:
     """Release the device held by an open batch, and record that it is closed."""
     if not previous or not previous.get("batch_id"):
         raise SystemExit(f"✘ no batch recorded in {batch_ids_path} to close.")
-    from pasqal_cloud import SDK
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
     creds, _ = ensure_credentials(project_id=args.project_id,
                                   require_explicit_project=True)
-    SDK(**creds).close_batch(previous["batch_id"])
+    PasqalCloudClient(**creds).close_batch(previous["batch_id"])
     previous["open"] = False
     batch_ids_path.write_text(json.dumps(previous, indent=2))
     print(f"  batch {previous['batch_id']} closed — the device is released.")
