@@ -19,7 +19,9 @@ Usage:
     seq = build_para_chiral_potts_sequence(
         n_atoms=21, spacing_um=5.74, omega_max_radus=2*np.pi*4e6,
         delta_i_radus=-2*np.pi*8e6, delta_f_radus=+2*np.pi*8e6,
-        device="Ruby",   # or "FRESNEL_CAN1" or "DigitalAnalogDevice"
+        device_str="AnalogDevice",   # or "DigitalAnalogDevice", "MockDevice";
+                                     # for Ruby/FRESNEL_CAN1 pass the
+                                     # connection-fetched object as device=...
     )
     # tau gets bound at submission time, as the single swept Variable.
 
@@ -37,6 +39,31 @@ def _pulser():
     from pulser.waveforms import RampWaveform, ConstantWaveform
     from pulser.parametrized import Variable
     return pulser, Pulse, Register, Sequence, RampWaveform, ConstantWaveform
+
+
+def _resolve_device_str(device_str: str):
+    """Look a device up by name among the ones Pulser actually ships.
+
+    Pulser bundles only the generic devices (AnalogDevice, DigitalAnalogDevice,
+    MockDevice). Real machines — Ruby, FRESNEL_CAN1 — are descriptions held by
+    the connection (cloud or hpc), not constants in the library, so they are fetched per project and
+    per calibration and passed in as a `device` object. Naming one here used to
+    raise ImportError; say what to do instead.
+    """
+    import pulser.devices as devices
+    # Instances only: `Device` and `VirtualDevice` are the base classes, not
+    # machines, and naming one of those must be refused like any other miss.
+    shipped = {name: obj for name in dir(devices)
+               if not isinstance(obj := getattr(devices, name), type)
+               and isinstance(obj, devices.VirtualDevice | devices.Device)}
+    if device_str in shipped:
+        return shipped[device_str]
+    raise ValueError(
+        f"{device_str!r} is not a device Pulser ships ({', '.join(sorted(shipped))}). "
+        "A real machine has to be fetched from the connection and passed in as the "
+        "`device` argument: "
+        'device = PasqalCloudConnection(**creds).fetch_available_devices()'
+        f'["{device_str}"]')
 
 
 # Default sweep grid (Kibble-Zurek log-spaced)
@@ -82,7 +109,7 @@ def build_register(n_atoms: int = DEFAULT_N,
     # NOTE: with_automatic_layout may reorder qubits. An observable that indexes
     # atoms by position must check that, or it will read the wrong sites.
     if device is not None:
-        from pulser.devices._device_datacls import Device, VirtualDevice
+        from pulser.devices import Device, VirtualDevice
         if isinstance(device, Device):
             reg = reg.with_automatic_layout(device)
     return reg
@@ -109,7 +136,7 @@ def build_ring_register(n_atoms: int = DEFAULT_N,
               for i in range(n_atoms)}
     reg = Register(qubits)
     if device is not None:
-        from pulser.devices._device_datacls import Device, VirtualDevice
+        from pulser.devices import Device, VirtualDevice
         if isinstance(device, Device):
             reg = reg.with_automatic_layout(device)
     return reg
@@ -122,7 +149,7 @@ def build_para_chiral_potts_sequence(
     delta_i_radus: float = DEFAULT_DELTA_I_RADUS,
     delta_f_radus: float = DEFAULT_DELTA_F_RADUS,
     hold_ns: int = DEFAULT_HOLD_NS,
-    device_str: str = "Ruby",
+    device_str: str = "AnalogDevice",
 ):
     """Build the parametric Pulser sequence with `tau_ns` as the single swept Variable.
 
@@ -138,19 +165,7 @@ def build_para_chiral_potts_sequence(
     """
     pulser, Pulse, _, Sequence, RampWaveform, ConstantWaveform = _pulser()
 
-    # Pick the device by name
-    if device_str == "Ruby":
-        from pulser.devices import Ruby as device  # noqa: N813
-    elif device_str == "FRESNEL_CAN1":
-        from pulser.devices import FRESNEL_CAN1 as device  # noqa: N813
-    elif device_str == "DigitalAnalog":
-        from pulser.devices import DigitalAnalogDevice as device  # noqa: N813
-    elif device_str == "AnalogDevice":
-        from pulser.devices import AnalogDevice as device  # noqa: N813
-    elif device_str == "MockDevice":
-        from pulser.devices import MockDevice as device  # noqa: N813
-    else:
-        raise ValueError(f"unknown device_str: {device_str}")
+    device = _resolve_device_str(device_str)
 
     reg = build_register(n_atoms=n_atoms, spacing_um=spacing_um, device=device)
     seq = Sequence(reg, device)
@@ -190,7 +205,7 @@ def build_para_chiral_potts_ring_sequence(
     delta_i_radus: float = DEFAULT_DELTA_I_RADUS,
     delta_f_radus: float = DEFAULT_DELTA_F_RADUS,
     hold_ns: int = DEFAULT_HOLD_NS,
-    device_str: str = "FRESNEL_CAN1",
+    device_str: str = "AnalogDevice",
     device=None,
 ):
     """Ring variant of build_para_chiral_potts_sequence.
@@ -199,12 +214,13 @@ def build_para_chiral_potts_ring_sequence(
     hold, ramp-down); only the register topology changes from chain to ring.
 
     Two ways to specify the target device:
-    * `device_str` — one of the Pulser-shipped device names ("Ruby",
-      "FRESNEL_CAN1", "DigitalAnalog", "AnalogDevice"). Note: in Pulser 1.6.x
-      Ruby/FRESNEL_CAN1 are NOT shipped — they must come from the live SDK
-      (`conn.fetch_available_devices()["FRESNEL_CAN1"]`); pass that via `device`.
-    * `device` — a Pulser `Device` object obtained from the live SDK; takes
-      precedence over `device_str` when both are given.
+    * `device_str` — one of the device names Pulser ships ("AnalogDevice",
+      "DigitalAnalogDevice", "MockDevice"). Real machines — Ruby, FRESNEL_CAN1 —
+      are NOT shipped by Pulser at any version: they are connection-held
+      descriptions, per project and per calibration, and must be fetched
+      (`conn.fetch_available_devices()["FRESNEL_CAN1"]`) and passed via `device`.
+    * `device` — a Pulser `Device` object obtained from the live connection client;
+      takes precedence over `device_str` when both are given.
 
     Prefer the SDK-fetched real device for any sequence bound for QPU or EMU, so
     that the same builder is used both ways and the emulation matches the
@@ -213,18 +229,7 @@ def build_para_chiral_potts_ring_sequence(
     pulser, Pulse, _, Sequence, RampWaveform, ConstantWaveform = _pulser()
 
     if device is None:
-        if device_str == "Ruby":
-            from pulser.devices import Ruby as device  # noqa: N813
-        elif device_str == "FRESNEL_CAN1":
-            from pulser.devices import FRESNEL_CAN1 as device  # noqa: N813
-        elif device_str == "DigitalAnalog":
-            from pulser.devices import DigitalAnalogDevice as device  # noqa: N813
-        elif device_str == "AnalogDevice":
-            from pulser.devices import AnalogDevice as device  # noqa: N813
-        elif device_str == "MockDevice":
-            from pulser.devices import MockDevice as device  # noqa: N813
-        else:
-            raise ValueError(f"unknown device_str: {device_str}")
+        device = _resolve_device_str(device_str)
 
     reg = build_ring_register(n_atoms=n_atoms, spacing_um=spacing_um, device=device)
     seq = Sequence(reg, device)

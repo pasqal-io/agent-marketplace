@@ -73,14 +73,13 @@ def _cloud_noise_model(device, t2_us=None, temperature_uk=None, detuning_sigma=N
     Returns (noise_model, effective_params_dict).
     """
     from pulser.noise_model import NoiseModel
-    nm = getattr(device, "noise_model", None) or device.default_noise_model
+    nm = getattr(device, "noise_model", None)
     dephasing_rate = (1.0 / t2_us) if t2_us else getattr(nm, "dephasing_rate", 0.05)
     temperature    = (temperature_uk if temperature_uk is not None
                       else getattr(nm, "temperature", 20.0))
     det_sigma      = (detuning_sigma if detuning_sigma is not None
                       else getattr(nm, "detuning_sigma", 0.0))
     noise = NoiseModel(
-        runs=1,
         temperature=temperature,
         dephasing_rate=dephasing_rate,
         detuning_sigma=det_sigma,
@@ -155,19 +154,24 @@ def main():
     compute_obs = mod.compute_observable
 
     creds = load_credentials()
-    from pulser_pasqal import PasqalCloud
-    from pasqal_cloud import SDK, EmulatorType, CreateJob
+    from pasqal_cloud import PasqalCloudConnection
+    from pasqal_cloud.device import DeviceTypeName
+    from pasqal_cloud.job import CreateJob
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
     from pulser.backend import EmulationConfig
     from pulser.backend.default_observables import BitStrings
 
-    conn   = PasqalCloud(**creds)
+    conn   = PasqalCloudConnection(**creds)
     device = conn.fetch_available_devices()[args.device_name]
-    sdk    = SDK(**creds)
+    sdk    = PasqalCloudClient(**creds)
 
     noise, noise_params = _cloud_noise_model(device, args.T2, args.temperature,
                                              args.detuning_sigma)
     noisy_cfg = EmulationConfig(
         noise_model=noise,
+        # n_trajectories left unset: the backend resolves it from its own
+        # configuration. The envelope comes from the --n-envelope repeated
+        # batches anyway, not from trajectory averaging inside one.
         observables=[BitStrings(evaluation_times=[1.0], num_shots=args.shots)],
     ).to_abstract_repr()
 
@@ -201,12 +205,12 @@ def main():
 
             b = sdk.create_batch(serialized_sequence=srz,
                                  jobs=[CreateJob(runs=args.shots)],
-                                 emulator=EmulatorType.EMU_MPS, wait=False)
+                                 device_type=DeviceTypeName.EMU_MPS, wait=False)
             nl_batches[t] = str(b.id)
 
             b = sdk.create_batch(serialized_sequence=srz,
                                  jobs=[CreateJob(runs=args.shots)],
-                                 emulator=EmulatorType.EMU_MPS, wait=False,
+                                 device_type=DeviceTypeName.EMU_MPS, wait=False,
                                  backend_configuration=noisy_cfg)
             n_batches[t] = str(b.id)
 
@@ -214,7 +218,7 @@ def main():
             for _ in range(args.n_envelope):
                 b = sdk.create_batch(serialized_sequence=srz,
                                      jobs=[CreateJob(runs=args.shots)],
-                                     emulator=EmulatorType.EMU_MPS, wait=False,
+                                     device_type=DeviceTypeName.EMU_MPS, wait=False,
                                      backend_configuration=noisy_cfg)
                 env_batches[t].append(str(b.id))
 

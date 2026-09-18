@@ -43,11 +43,11 @@ Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`
 Before collecting, confirm jobs are done:
 
 ```python
-from pasqal_cloud import SDK
+from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
 import json, os
-sdk = SDK(username=os.environ["PASQAL_USERNAME"],
-          password=os.environ["PASQAL_PASSWORD"],
-          project_id=os.environ["PASQAL_PROJECT_ID"])
+sdk = PasqalCloudClient(username=os.environ["PASQAL_USERNAME"],
+                        password=os.environ["PASQAL_PASSWORD"],
+                        project_id=os.environ["PASQAL_PROJECT_ID"])
 
 batch_ids = json.loads(open("batch_ids.json").read())
 # for per_point format:

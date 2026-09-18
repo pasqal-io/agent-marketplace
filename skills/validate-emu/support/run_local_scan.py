@@ -74,9 +74,9 @@ def _resolve_device(name: str, live: bool):
     """
     if live:
         from pasqal_auth import load_credentials
-        from pasqal_cloud import SDK
+        from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
         from pulser.json.abstract_repr.deserializer import deserialize_device
-        specs = SDK(**load_credentials()).get_device_specs_dict()
+        specs = PasqalCloudClient(**load_credentials()).get_device_specs_dict()
         if name not in specs:
             raise SystemExit(f"✘ device {name!r} not available in this project. "
                              f"Available: {sorted(specs)}")

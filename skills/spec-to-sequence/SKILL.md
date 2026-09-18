@@ -113,7 +113,7 @@ reg = Register(qubits)
 Always add the layout guard (required by real FC1/Ruby device, skipped for VirtualDevice):
 ```python
 if device is not None:
-    from pulser.devices._device_datacls import Device, VirtualDevice
+    from pulser.devices import Device, VirtualDevice
     if isinstance(device, Device) and not isinstance(device, VirtualDevice):
         reg = reg.with_automatic_layout(device)
 ```

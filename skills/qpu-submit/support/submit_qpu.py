@@ -374,10 +374,11 @@ def main():
     if not args.no_calibration:
         _check_builder_accepts_offsets(build_sequence)
 
-    from pasqal_cloud import SDK, CreateJob
+    from pasqal_cloud.job import CreateJob
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
     from pulser.json.abstract_repr.deserializer import deserialize_device
 
-    sdk    = SDK(**load_credentials())
+    sdk    = PasqalCloudClient(**load_credentials())
     specs  = sdk.get_device_specs_dict()
     if device_name not in specs:
         raise SystemExit(f"✘ device {device_name!r} not available in this project. "

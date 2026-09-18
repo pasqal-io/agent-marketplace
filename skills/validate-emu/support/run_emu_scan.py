@@ -55,12 +55,11 @@ def _emu_noise_model(device):
     taken from the live device spec. Returns (noise_model, params_dict).
     """
     from pulser.noise_model import NoiseModel
-    nm = getattr(device, "noise_model", None) or device.default_noise_model
+    nm = getattr(device, "noise_model", None)
     dephasing_rate = getattr(nm, "dephasing_rate", 0.05)
     temperature    = getattr(nm, "temperature", 20.0)
     det_sigma      = getattr(nm, "detuning_sigma", 0.0)
     noise = NoiseModel(
-        runs=1,
         temperature=temperature,
         dephasing_rate=dephasing_rate,
         detuning_sigma=det_sigma,
@@ -144,14 +143,16 @@ def main():
     compute_obs      = mod.compute_observable
 
     creds = load_credentials()
-    from pulser_pasqal import PasqalCloud
-    from pasqal_cloud import SDK, EmulatorType, CreateJob
+    from pasqal_cloud import PasqalCloudConnection
+    from pasqal_cloud.device import DeviceTypeName
+    from pasqal_cloud.job import CreateJob
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
     from pulser.backend import EmulationConfig
     from pulser.backend.default_observables import BitStrings
 
-    conn   = PasqalCloud(**creds)
+    conn   = PasqalCloudConnection(**creds)
     device = conn.fetch_available_devices()[spec["device"]]
-    sdk    = SDK(**creds)
+    sdk    = PasqalCloudClient(**creds)
 
     noisy_cfg = None
     noise_params = None
@@ -159,6 +160,9 @@ def main():
         noise, noise_params = _emu_noise_model(device)
         noisy_cfg = EmulationConfig(
             noise_model=noise,
+            # n_trajectories left unset: the backend resolves it from its own
+            # configuration. The scan's error bars come from the `shots`
+            # samples anyway, not from averaging trajectories.
             observables=[BitStrings(evaluation_times=[1.0], num_shots=shots)],
         ).to_abstract_repr()
 
@@ -188,7 +192,7 @@ def main():
             b = sdk.create_batch(
                 serialized_sequence=seq.to_abstract_repr(),
                 jobs=[CreateJob(runs=shots)],
-                emulator=EmulatorType.EMU_MPS, wait=False,
+                device_type=DeviceTypeName.EMU_MPS, wait=False,
             )
             nl_batches[val] = str(b.id)
             print(f"  [noiseless] {variable}={val}  →  {b.id}", flush=True)
@@ -197,7 +201,7 @@ def main():
             b = sdk.create_batch(
                 serialized_sequence=seq.to_abstract_repr(),
                 jobs=[CreateJob(runs=shots)],
-                emulator=EmulatorType.EMU_MPS, wait=False,
+                device_type=DeviceTypeName.EMU_MPS, wait=False,
                 backend_configuration=noisy_cfg,
             )
             n_batches[val] = str(b.id)
