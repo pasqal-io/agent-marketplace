@@ -181,9 +181,9 @@ between calibrations and between devices. Ask the device.
 With cloud credentials, from the live spec:
 
 ```python
-from pasqal_cloud import SDK
+from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
 from pulser.json.abstract_repr.deserializer import deserialize_device
-sdk    = SDK(...)                      # credentials per the pipeline convention
+sdk    = PasqalCloudClient(...)        # credentials per the pipeline convention
 device = deserialize_device(sdk.get_device_specs_dict()["<device name>"])
 ```
 
