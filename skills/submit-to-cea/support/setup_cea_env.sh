@@ -1,94 +1,61 @@
 #!/bin/bash
-
-# Setup script for CEA/TGCC environment
-# Run this script after uploading the zip files and unzipping them
+# Build (or top up) the Pulser venv inside the ccc-quantum container.
 #
-# The Pulser version below (1.6.5) is deliberately older than the one CI pins.
-# Compute nodes here have no network, so Pulser is installed from a zip a human
-# downloaded, alongside Pulser-myQLM 0.8.3 — and that pair is what was last
-# validated inside the ccc-quantum container. Bumping it means re-checking myQLM
-# against the newer Pulser on the cluster itself; it is not a local edit.
+# The compute nodes have no internet, so this installs from archives that were
+# downloaded on a machine that does and rsync'd to ~/cea_pkgs/ (see the skill's
+# "Environment setup" section). Versions are whatever those archives are — this
+# script pins nothing. Re-run it after adding more archives to the same dir; it
+# reinstalls the whole set and re-checks the imports.
+#
+# Usage:  bash setup_cea_env.sh [PKG_DIR]        (PKG_DIR default: ~/cea_pkgs)
+#
+# Exit 0  -> `import pulser` and `import pulser_myqlm` both work.
+# Exit 1  -> prints one `MISSING: <module>` line per unmet import; the caller
+#            decides whether to fetch it (a `qat`/`myqlm` line means: give up).
 
-set -e  # Exit on error
+set -euo pipefail
 
-echo "========================================="
-echo "Setting up CEA environment for Pulser"
-echo "========================================="
-echo ""
-echo "Prerequisites:"
-echo "1. Download and upload these zip files to TGCC:"
-echo "   - Pulser-1.6.5.zip from https://github.com/pasqal-io/Pulser/releases/tag/v1.6.5"
-echo "   - Pulser-myQLM-0.8.3.zip from https://github.com/pasqal-io/Pulser-myQLM/releases/tag/v0.8.3"
-echo "2. Unzip them in your home directory"
-echo "3. Access the ccc-quantum container: pcocc-rs run ccc-quantum"
-echo ""
-read -p "Press Enter when ready to continue..."
+PKG_DIR="${1:-$HOME/cea_pkgs}"
+ENV_DIR="$HOME/pulser-env"
 
-# Check if we're in the container (optional check)
-echo ""
-echo "Checking environment..."
-
-# Define environment name
-ENV_NAME="pulser-env"
-
-# Create virtual environment with system site packages
-echo ""
-echo "Creating virtual environment: $ENV_NAME"
-/usr/bin/python3 -c "import venv; venv.create('$ENV_NAME', system_site_packages=True)"
-
-# Activate environment
-echo "Activating environment..."
-source $ENV_NAME/bin/activate
-
-# Install Pulser
-echo ""
-echo "========================================="
-echo "Installing Pulser 1.6.5..."
-echo "========================================="
-if [ -d "Pulser-1.6.5/pulser-core" ]; then
-    cd Pulser-1.6.5/pulser-core
-    pip install --no-deps --no-build-isolation .
-    cd ../..
-    echo "pulser-core installed successfully!"
-else
-    echo "ERROR: Pulser-1.6.5/pulser-core directory not found!"
-    echo "Please unzip Pulser-1.6.5.zip first"
+shopt -s nullglob
+pkgs=("$PKG_DIR"/*.whl "$PKG_DIR"/*.tar.gz)
+if [ ${#pkgs[@]} -eq 0 ]; then
+    echo "ERROR: no .whl or .tar.gz archives in $PKG_DIR" >&2
     exit 1
 fi
 
-# Install Pulser-myQLM
-echo ""
-echo "========================================="
-echo "Installing Pulser-myQLM 0.8.3..."
-echo "========================================="
-if [ -d "Pulser-myQLM-0.8.3" ]; then
-    cd Pulser-myQLM-0.8.3
-    python3 setup.py install
-    cd ..
-    echo "Pulser-myQLM installed successfully!"
-else
-    echo "ERROR: Pulser-myQLM-0.8.3 directory not found!"
-    echo "Please unzip Pulser-myQLM-0.8.3.zip first"
-    exit 1
+if [ ! -d "$ENV_DIR" ]; then
+    echo "Creating venv: $ENV_DIR (system site packages on -> reuse container numpy/scipy)"
+    /usr/bin/python3 -c "import venv; venv.create('$ENV_DIR', system_site_packages=True)"
 fi
+# shellcheck disable=SC1091
+source "$ENV_DIR/bin/activate"
 
+echo "Installing ${#pkgs[@]} archive(s) from $PKG_DIR (--no-deps)..."
+pip install --no-deps --no-index --no-build-isolation "${pkgs[@]}"
 
-# numpy and scipy are available as system packages via system_site_packages=True
-# No pip install needed (TGCC has no internet access)
-echo ""
-echo "Verifying system packages..."
-python3 -c "import numpy; print(f'  numpy {numpy.__version__} OK')"
-python3 -c "import scipy; print(f'  scipy {scipy.__version__} OK')"
-python3 -c "import pulser; print(f'  pulser-core OK')"
+# Report unmet imports for the caller (SKILL.md "Environment setup", step E.4).
+rc=0
+python3 - <<'EOF' || rc=$?
+import importlib, sys
 
-echo ""
-echo "========================================="
-echo "Setup complete!"
-echo "========================================="
-echo ""
-echo "To activate the environment, run:"
-echo "    source $ENV_NAME/bin/activate"
-echo ""
-echo "To submit jobs:"
-echo "    python submit_claude.py --backend cea --n-shots 200"
-echo ""
+missing = []
+for mod in ("pulser", "pulser_myqlm"):
+    try:
+        importlib.import_module(mod)
+    except ModuleNotFoundError as e:
+        missing.append(e.name or mod)
+    except ImportError as e:
+        missing.append(getattr(e, "name", None) or mod)
+
+for m in dict.fromkeys(missing):  # de-dup, keep order
+    print(f"MISSING: {m}")
+sys.exit(1 if missing else 0)
+EOF
+
+if [ "$rc" -eq 0 ]; then
+    echo "ENV OK: $(python3 -c 'import pulser, pulser_myqlm; print("pulser", pulser.__version__, "pulser-myqlm", getattr(pulser_myqlm, "__version__", "?"))')"
+    echo "Activate with:  source $ENV_DIR/bin/activate"
+fi
+exit "$rc"
