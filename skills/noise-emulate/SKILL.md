@@ -1,6 +1,6 @@
 ---
 name: noise-emulate
-description: Emulate a Pulser sequence's time evolution under the target device's live noise model, producing noiseless and noisy trajectory curves with a quantile envelope. Asks where to run — this machine, a SLURM GPU cluster, or cloud emulators. Use this to study how noise shapes a signal over time; use validate-emu to decide whether an experiment is worth submitting. Triggered by phrases like "run noise emulation", "emulate with noise", "noisy simulation", "noise envelope", "run on GPU with noise".
+description: Emulate a neutral-atom Pulser sequence's time evolution under the target Rydberg device's live noise model, producing noiseless and noisy trajectory curves with a quantile envelope. Asks where to run — this machine, a SLURM GPU cluster, or Pasqal Cloud emulators. Use this to study how noise shapes a signal over time; use validate-emu to decide whether an experiment is worth submitting. Triggered by phrases like "run a noise emulation of this sequence", "emu-mps with noise", "noise envelope".
 argument-hint: "[sequence-description-or-file]"
 ---
 
@@ -17,7 +17,7 @@ detuning, Doppler, relaxation).
   access. Verify the exact device key with `sdk.get_device_specs_dict().keys()`.
 - **Devices not on the cloud SDK** (an on-premise QPU reached through a cluster,
   for instance): no live noise model is available. Build against `AnalogDevice`
-  constraints instead, and submit through `submit-via-hpc`.
+  constraints instead, and submit through `submit-to-cea`.
 
 The user never needs to touch the Python scripts: this skill reads their
 sequence, writes the builder, runs everything, and shows the result.
@@ -60,6 +60,52 @@ with the recommended option marked:
 
 Quick heuristics if the user has no preference: `which sbatch` succeeds → SLURM;
 otherwise a CUDA GPU present (`nvidia-smi`) → local; otherwise → cloud.
+
+### The budget question — N, χ and trajectories
+
+Users arrive with a register size and expect the emulator to either handle it or
+refuse. It does neither: it runs whatever it is given, and how much of the answer
+is real depends on `--max-chi`. Explain the three knobs before agreeing to a run,
+because they trade against each other:
+
+| Knob | What it costs | What too little looks like |
+|---|---|---|
+| `N` (atoms) | bond dimension needed grows with entanglement, not with N alone | nothing — the failure shows up as χ being too small |
+| `--max-chi` (χ) | memory and time, steeply | **a smooth, plausible, wrong curve** |
+| `--n-traj` | linear; each trajectory is an independent GPU job on SLURM | a noise band too jagged to read |
+
+**χ is an accuracy knob, not a size knob.** Lowering it to fit 60 atoms on one
+GPU does not trade size for a coarser answer, it trades size for an answer whose
+error is invisible: MPS truncation does not warn, it just returns a state that
+cannot hold the entanglement the dynamics generated. An adiabatic sweep through a
+transition is the worst case, since that is where entanglement peaks.
+
+**Do not go hunting for the right χ.** It is the most tempting way to burn a week
+here, and it does not converge on an answer: at a size where χ matters, no χ this
+GPU can hold is ever large enough, and each attempt costs more than the last. The
+decision has two branches and no search:
+
+- **Inside the calibrated envelope → run once, no convergence study.** The
+  `--max-chi` default of 128 was validated against χ=200 for S(π,π), local and
+  two-point observables on systems up to 6×6, agreeing to ~0.05% (t_fall sweep,
+  2026-06). That class of observable, at that size, needs nothing further.
+- **Outside it → change the register, not χ.** Take a **sub-system**: a smaller
+  register with the same geometry motif, the same R_b/a and the same protocol,
+  small enough to sit inside the envelope, and check that it reproduces something
+  approaching the expected signal. That validates the approach. The full-size
+  number is then the QPU's job, not the emulator's.
+
+One step up in χ, if the user asks for it, is fine. A sweep over χ is not: it
+answers a question the QPU is going to answer anyway, and a curve defended by
+"we tried several χ and picked the one that looked stable" is not defensible.
+
+Which observable is asked for decides which branch you are in: ⟨n⟩, S(K) and
+correlators need far less χ than entanglement entropy, full bitstring
+distributions or higher moments — those leave the calibrated envelope
+immediately, whatever N is.
+
+`--n-traj 5 --max-chi 64` stays useful as a smoke test, whose curve nobody
+should quote.
 
 Then read the user's sequence carefully:
 - Register layout? (N×N square, chain, custom)
@@ -256,6 +302,14 @@ Save figures as `.png` only.
 3. If `--cal-offsets` was used and the calibration band is much wider than the
    stochastic band, flag that calibration precision matters more than noise.
 4. Paths to the saved data file and figure.
+5. Which χ produced it, and whether the register was inside the calibrated
+   envelope. If it was not, say so in the same sentence as the result — an
+   unqualified curve from a possibly truncated run is the one output of this
+   skill that can mislead silently.
+6. **Next step.** This skill diagnoses; it does not authorise anything. If the
+   user came from a `validate-emu` NO-GO, the next step is the protocol change
+   the envelope suggests, then re-running `validate-emu` — its cloud verdict is
+   still the only thing that gates a QPU submission.
 
 ---
 
@@ -267,7 +321,7 @@ Save figures as `.png` only.
 | `<device> not in available devices` | Cloud SDK connection failed or device hidden from the project (for SA1: is `PASQAL_REGION=sa` set?); retry / check project |
 | `build_sequence not found` | Pass `--fn-name <name>` |
 | Builder returned a parametric sequence | Call `.build(...)` inside the builder |
-| GPU OOM (local/SLURM) | Reduce `--max-chi`; start at 64–128 |
+| GPU OOM (local/SLURM) | Reduce N, not χ. Lowering `--max-chi` to make it fit buys a curve whose truncation error is invisible, and no χ that fits will settle it — emulate a sub-system that stays inside the calibrated envelope instead |
 | `emu_mps` not found | Wrong virtualenv; install from `requirements.txt` |
 | `partial_*.npz` missing after SLURM job | Check the `.err` log: time limit, OOM, or missing venv |
 | Cloud batches stuck PENDING | Queue congestion — normal; re-poll later with `--resume` |

@@ -1,6 +1,6 @@
 ---
 name: validate-emu
-description: Scan an experiment_spec.json and its sequence file, noiseless and noisy, and return a go/no-go decision on whether the signal survives device noise well enough to be worth hardware time. Asks where to run: locally (free, small registers, offered first) or on cloud emulators at the real size. This is the gate before a QPU submission, not the submission. Triggered by phrases like "validate with EMU", "run an emulation scan", "check noise retention", "is this worth submitting to hardware".
+description: Scan a neutral-atom experiment_spec.json and its Pulser sequence, noiseless and noisy, and return a go/no-go on whether the signal survives the Rydberg device's noise well enough to be worth QPU time. Asks where to run: locally (free, small registers, offered first) or on Pasqal Cloud emulators at the real size. This is the gate before a QPU submission, not the submission. Triggered by phrases like "validate this sequence on the emulator", "check noise retention", "is this worth QPU time".
 argument-hint: "[spec-file] [seq-file]"
 ---
 
@@ -73,6 +73,59 @@ Ask the user, and say what each one buys:
 **Default to 2a when the register is small enough or can be shrunk for a check,
 and run 2b before recommending hardware.** A user without an account can still
 get everything 2a gives — say so rather than stopping at the credential error.
+
+### Why the small run first — explain this, do not just do it
+
+A user who is told "I will run a downsized emulation first" hears a delay. Tell
+them what it buys, in one or two sentences of their experiment's terms:
+
+Nearly everything that goes wrong at this stage is an **implementation** error,
+not physics: a structure-factor wavevector with the wrong sign, an observable
+that returns the same number at every scan point, a ramp too fast to be
+adiabatic, a register that violates the device's spacing limit. On a downsized
+run those cost seconds and are obvious. Arriving as QPU data they are
+indistinguishable from "the physics is not there" — the shots are spent, and the
+null result cannot be interpreted. The small run is what makes a null result at
+full size mean something.
+
+Say equally plainly what it does not settle: a transition sharpens with N, so a
+9-atom stand-in can show a feature that is a finite-size artefact or miss one
+that only develops at scale. Small **then** full size — and "full size" often
+exists only on hardware, which is fine; what is not fine is quoting the small
+run as if it were the full-size result.
+
+### Emulation budget — the ladder, and where each rung stops
+
+When the user proposes a size, place it on this ladder rather than answering yes
+or no:
+
+| Rung | Reach | Cost | Note |
+|---|---|---|---|
+| 2a, exact state vector (this skill) | ~14 atoms noiseless, ~12 noisy | seconds, free | cost is 2^N; a wall, not a tuning parameter |
+| MPS locally or on a GPU cluster (`noise-emulate`) | tens of atoms | free, minutes to hours | accuracy depends on the bond dimension χ — see below |
+| 2b, cloud MPS emulator | the real size, degrading past N ≳ 60–100 | queue time, metered | the only verdict that gates hardware |
+
+**If the user wants a big register on their own machine** — 60 atoms locally by
+lowering χ, say — the answer is not a χ to find. **Do not go looking for the
+right bond dimension.** χ caps the entanglement the MPS can hold, so a truncated
+run still prints a smooth, plausible, quietly wrong curve; but hunting for the χ
+where that stops is days of runs for a number nobody can defend, and at a size
+that matters no χ is ever large enough. Treat it as a two-way decision, not an
+optimisation:
+
+- **Small enough that the emulator's default χ is already calibrated** → run it,
+  once, and move on. No convergence study. (`noise-emulate` records what its
+  default covers.)
+- **Bigger than that** → stop emulating the full register. Build a **sub-system**
+  instead: a smaller register that keeps the physics — same geometry motif, same
+  R_b/a, same protocol shape — and reproduces something approaching the target
+  signal. Validate the *approach* there, then let the real size be measured on
+  the QPU. That is what hardware is for.
+
+Say the division of labour out loud, because it is the point: the emulator's job
+is to establish that the protocol and the observable work, and the QPU's job is
+to give the full-size number. An emulation of the full register is a bonus when
+it is affordable, never the thing the plan depends on.
 
 ---
 
@@ -200,6 +253,32 @@ model" is a useful sentence; "GO" on its own, from that file, is a false one.
 - Adjust scan range to better centre on the transition
 - Ask the user before proceeding
 
+---
+
+## Step 4b — Offer a noise study, do not impose one
+
+This scan gives one number per scan point, noiseless and noisy. It does not show
+*how* the noise got there. `noise-emulate` does: it emulates the time evolution
+under the live noise model and returns the trajectory envelope, which answers a
+different question — where in the pulse the signal is lost, and whether the
+spread comes from stochastic noise or from calibration uncertainty.
+
+It is **optional**, it is not a gate, and it costs GPU or emulator time. So
+offer it, with the reason it might be worth their time, and accept "no":
+
+- **After a NO-GO** — the most useful case. "The signal drops to 31% of the
+  noiseless peak. A noise emulation over time would show whether that happens
+  early in the ramp, which would point at dephasing and a shorter protocol, or
+  only at the end, which would point at readout. Worth a run before we change
+  the protocol blind?"
+- **After a GO, before spending real shots** — only if the margin is thin, or if
+  the user intends to buy a large scan: an envelope says how much of the
+  variation to expect shot to shot, so a QPU point inside it is not a surprise.
+- **Not at all** when the retention is comfortable and the user wants to submit.
+  Proposing every optional step every time trains them to ignore the proposals.
+
+Ask once, in one sentence, and move on with their answer.
+
 **In addition to retention, visually check the plot:**
 - Does the noiseless curve show a clear onset / peak?
 - Does the noisy curve follow the same qualitative shape?
@@ -216,10 +295,11 @@ Summarise:
 4. Go/no-go verdict with reasoning, and its scope
 5. Path to the plot
 6. If GO **from the cloud scan**: **Next step** is QPU submission via
-   `qpu-submit` (cloud API) or `submit-via-hpc` (cluster over SSH)
+   `qpu-submit` (cloud API) or `submit-to-cea` (cluster over SSH)
 7. If GO **from the local scan**: next step is the cloud scan at the real size,
    which is what a hardware recommendation needs
-8. If NO-GO: concrete suggestion for how to improve signal retention
+8. If NO-GO: concrete suggestion for how to improve signal retention, and the
+   `noise-emulate` offer from Step 4b if it would inform the next change
 
 ---
 

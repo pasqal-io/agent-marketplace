@@ -513,7 +513,7 @@ def check_pulser_pins() -> None:
     examples assert on device constants Pulser ships, which is what makes the
     number load-bearing rather than cosmetic. `requirements.txt` deliberately
     keeps a floor rather than a pin — users are not forced onto one release —
-    and `submit-via-hpc` installs from offline zips on an air-gapped cluster,
+    and `submit-to-cea` installs from offline zips on an air-gapped cluster,
     where the version is whatever was last validated in that container.
     """
     found: dict[str, list[str]] = {}

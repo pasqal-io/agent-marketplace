@@ -113,7 +113,7 @@ others — `scripts/check.sh` fails while they differ and names the odd ones out
      hardcode a credential. Do not reach for `pasqal_cloud.SDK` or
      `pulser_pasqal.PasqalCloud`: both are deprecated aliases of those two, and
      pulser-pasqal pins an incompatible pasqal-cloud.
-     The one exception is `submit-via-hpc/templates/submit_template.py`, which
+     The one exception is `submit-to-cea/templates/submit_template.py`, which
      runs inside a container on a compute node where no keyring exists; it reads
      env vars only and says so in a comment.
    - Device selection: default `FRESNEL_CAN1`, always overridable (`--device` /
@@ -240,7 +240,7 @@ claiming a tested version must name that one — CI compares them, because they
 drifted before and users installed a version nothing had exercised. Two places
 deliberately differ and are not compared: `noise-emulate/support/requirements.txt`
 keeps a floor rather than a pin, so users are not forced onto one release, and
-`submit-via-hpc/support/setup_cea_env.sh` installs from offline zips inside an
+`submit-to-cea/support/setup_cea_env.sh` installs from offline zips inside an
 air-gapped container, where the version is whatever was last validated there.
 Bumping the pin is its own PR: the examples assert on device constants Pulser
 ships, so a bump can legitimately move the expected numbers. Users receive the update via `/plugin marketplace update pasqal` (Claude

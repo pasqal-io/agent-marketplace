@@ -6,7 +6,10 @@ hardware access works.**
 
 An idea is enough to start: describe what you want to measure. A paper, a patent
 or a PDF you want to reproduce is one way of having such an idea, not the only
-one. What comes back is a specification you can review, a working Pulser
+one. If the idea is still a vague interest, or a problem from your own field
+rather than an experiment, the first step is a conversation that turns it into
+one: which documented method could serve it, and whether one does at all. What
+comes back is a specification you can review, a working Pulser
 sequence, an emulation that says whether the signal survives the device's noise,
 a costed submission you approve before anything is spent, and an analysis that
 puts the hardware next to the prediction.
@@ -18,6 +21,7 @@ off.
 
 | | You provide | You get |
 |---|---|---|
+| **0. Frame it** *(if you need it)* | an application, a problem or a hunch, in your own words — a selection to make, data to classify, a phenomenon you are curious about | a conversation that ends in `<name>_idea.md`: at most three documented methods with their maturity and their risks, what would be measured, what size is checkable — or a reasoned "no documented fit", with what would change it |
 | **1. Specify** | the experiment you want, described in your own words, or a paper, patent or PDF to reproduce | `<name>_spec.json`: register, pulses, observable, and every question your description or source left open |
 | **2. Implement** | your review of that spec | `<name>_sequence.py`: Pulser code that self-tests against states whose value is known by hand |
 | **3. Emulate** | nothing for the local run; an account to emulate at the real register size | the scan, noiseless and noisy, and a go/no-go on whether the signal is worth hardware time |
@@ -64,7 +68,7 @@ You need:
   enough to specify an experiment, generate a sequence, and emulate it locally.
 - **A Pasqal Cloud account** for the cloud emulator, and one with **QPU access**
   to submit to hardware. Larger local emulation wants a GPU.
-- **A cluster account** only for the HPC route (`submit-via-hpc`).
+- **A cluster account** only for the CEA/TGCC route (`submit-to-cea`).
 
 You should know:
 
@@ -117,12 +121,32 @@ small enough to emulate still answers anything, and then writes
 `<name>_spec.json`, `<name>_sequence.py` and a local emulation verdict. Read each
 file, correct it, and continue when it says what you meant.
 
+If your idea is not that concrete yet, or is not an experiment at all, say that
+instead — the toolkit starts a step earlier and works it out with you:
+
+> I have access to a neutral-atom machine and I would like to do something with
+> it that says something about thermalisation. I don't know what to measure.
+
+Or, when the problem is not physics at all:
+
+> I have to choose about 200 projects out of 900 and some pairs conflict with
+> each other. Could a neutral-atom machine do anything useful with that, and
+> what would it cost me to find out?
+
+You get questions rather than a spec: what would count as an answer, what you
+solve it with today, which documented method could serve it and how mature that
+method actually is, which observable could resolve it, what this hardware cannot
+do at all, and what size is small enough to check for free before anything is
+spent. The result is a short note you review, which then goes through the same
+steps as above — or a reasoned no, which is a frequent answer and a much cheaper
+one than discovering it three steps later.
+
 To reproduce something instead, hand over the source and the rest is identical:
 
 > Read arXiv:2302.08963 and turn it into an experiment spec for a neutral-atom
 > QPU. Downsize the register so I can emulate it locally first.
 
-**[docs/tutorial.md](docs/tutorial.md)** walks that second case end to end, with
+**[docs/tutorial.md](docs/tutorial.md)** walks the paper case end to end, with
 the exact words to type, what each step produces and the output to expect. Every
 command and number on that page was run to produce it, on one machine, with no
 account and nothing spent.
@@ -131,17 +155,21 @@ account and nothing spent.
 
 | Skill | What it does | Needs |
 |---|---|---|
+| `application-to-idea` | *(optional, upstream)* A guided conversation from an application, a problem or a hunch to a first technical idea: which documented method could serve it — MIS, QUBO, an Ising or XY simulation, a graph kernel — with its maturity and its baseline, what would be measured, at what size, and what this hardware cannot do at all | nothing |
 | `idea-to-spec` | Turn an experiment you describe, or a paper or patent you want to reproduce, into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec, self-testing | Python + `pulser` |
 | `validate-emu` | Noiseless and noisy scan, then a go/no-go for QPU. Asks where to run: **locally** (free, ~14 atoms) or **cloud emulator** at the real size | nothing for local; account for cloud |
-| `noise-emulate` | Noise emulation with the live device noise model, over time. Runs **locally**, **via SLURM on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
+| `noise-emulate` | *(optional)* Noise emulation with the live device noise model, over time — where in the pulse the signal is lost. Runs **locally**, **via SLURM on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
 | `qpu-submit` | Calibrated submission of a spec and sequence to a cloud QPU, after you approve the shot count | account with QPU access |
-| `submit-via-hpc` | Parametric experiments on a QPU behind an HPC cluster, over SSH. Includes a first-time-access guide | an account on the cluster |
+| `submit-to-cea` | Parametric experiments on Ruby, the QPU at CEA/TGCC, over SSH. Includes a first-time-access guide, and says what a sibling cluster needs changed | an account on the cluster |
 | `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account |
 
-The pipeline order is `idea-to-spec`, `spec-to-sequence`, `validate-emu`,
-optionally `noise-emulate`, then `qpu-submit` or `submit-via-hpc`, then
-`harvest-and-analyze`. Each step is usable on its own. They interoperate only
+The pipeline order is optionally `application-to-idea`, then `idea-to-spec`,
+`spec-to-sequence`, `validate-emu`, optionally `noise-emulate`, then
+`qpu-submit` or `submit-to-cea`, then `harvest-and-analyze`. The two optional
+ones are offered, never assumed: `application-to-idea` only if you do not yet
+have an experiment, `noise-emulate` only when you want to know *how* the noise
+gets there. Each step is usable on its own. They interoperate only
 through `experiment_spec.json` and a sequence file exporting `build_sequence()`
 and `compute_observable()`, so the toolkit carries no experiment of its own and
 yours does not have to look like the examples.
@@ -206,7 +234,7 @@ the file where a reviewer can find them.
    Targeting **SA1**? Also set `PASQAL_REGION=sa` (or `"region": "sa"` in the
    credentials file). **Never commit credentials to this or any repo.**
 
-3. **For `submit-via-hpc` only**: an account on the target cluster and an ssh
+3. **For `submit-to-cea` only**: an account on the cluster and an ssh
    alias for it in `~/.ssh/config`. The skill's "Getting access" section covers
    onboarding at the reference site (TGCC).
 

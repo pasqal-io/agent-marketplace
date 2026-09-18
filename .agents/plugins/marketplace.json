@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "neutral-atom-toolkit",
-      "description": "Neutral Atom Toolkit — the QPU experiment pipeline: idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
+      "description": "Neutral Atom Toolkit — the QPU experiment pipeline: rough problem → technical idea → spec → Pulser sequence → EMU validation → noise emulation → QPU submission → harvest & analysis.",
       "source": {
         "source": "local",
         "path": "."
