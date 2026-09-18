@@ -1,0 +1,132 @@
+[global]
+
+flavor = "standard"
+
+exclude = [".git", "node_modules", ".venv", ".github/PULL_REQUEST_TEMPLATE.md"]
+
+
+[MD003]
+# Heading: Heading style should be consistent
+
+style = "atx"
+
+
+[MD004]
+# List: Unordered list style should be consistent
+
+style = "dash"
+
+
+[MD007]
+# List: Keep list indentation consistent
+
+# indent = 4
+style = "text-aligned"
+
+
+[MD009]
+# Whitespaces: Remove trailing spaces
+
+strict = true
+
+
+[MD013]
+# Whitespaces: Keep lines short for better readability
+
+line-length = 0
+
+
+[MD022]
+# Heading: Add blank lines around headings
+
+lines-above = 1
+lines-below = 1
+allowed-at-start = true
+
+
+[MD025]
+# Heading: Keep your document organized with one main title
+
+level = 1
+
+# Disable front matter checking (treat front matter and body separately)
+front-matter-title = ""
+
+allow-document-sections = false
+allow-with-separators = false
+
+
+[MD028]
+# Whitespaces: No blank lines inside blockquote
+
+enabled = false
+fix = false
+
+
+[MD029]
+# List: Use consistent numbers for ordered lists
+
+# Use "one_or_ordered" to allow both lazy and explicit numbering
+
+style = "one_or_ordered"
+
+
+[MD030]
+# List: Add consistent spacing after list markers
+
+ol-align-column = 3
+
+
+[MD031]
+# Whitespaces: Code blocks need blank lines around them
+
+enabled = false
+
+
+[MD032]
+# List: Separate lists with blank lines
+
+enabled = false
+
+
+[MD033]
+# Formatting: No HTML tags
+
+enabled = false
+
+
+[MD040]
+# Code blocks: Fenced code blocks should have a language specified
+
+enabled = false
+
+
+[MD041]
+# Heading: First line in a file should be a top-level heading
+
+allow-preamble = true
+
+
+[MD046]
+# Code blocks: Use Consistent Code Block Style
+
+style = "fenced"
+
+
+[MD049]
+# Formatting: Keep italic text formatting consistent
+
+style = "asterisk"
+
+
+[MD060]
+# Other: Table formatting should be consistent
+
+enabled = false
+style = "aligned"
+max-width = 0
+column-align = "auto"
+column-align-header = "auto"
+column-align-body = "auto"
+loose-last-column = false
+aligned-delimiter = false

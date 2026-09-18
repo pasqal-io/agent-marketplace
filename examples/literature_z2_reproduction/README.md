@@ -94,7 +94,9 @@ real and checked.
 S(k = 2π/3). This example targets Z₂, where the natural quantity is the
 *connected* density-density correlator
 
-    G(r) = (1/N) Σ_i [ ⟨n_i n_{i+r}⟩ - ⟨n_i⟩⟨n_{i+r}⟩ ],   indices mod N
+```
+G(r) = (1/N) Σ_i [ ⟨n_i n_{i+r}⟩ - ⟨n_i⟩⟨n_{i+r}⟩ ],   indices mod N
+```
 
 from which ξ follows by a log-linear fit — and ξ against τ is the Kibble-Zurek
 observable the paper is about.
