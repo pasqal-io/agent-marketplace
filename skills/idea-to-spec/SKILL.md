@@ -366,13 +366,16 @@ It should report issues, ranked by severity, and proposed improvements: do not i
 
 Typical errors you should look for: mistakes, unjustified claims, fabricated numbers without being anchored by their reasoning, etc. The subagent should not trust the spec's own stated derivations: it should redo the math itself from the paper's given formulas and constants.
 
-This advrsarial review step is not optional: it is better to catch mistakes early rather than late, especially when preparing runs on a cluster or a QPU.
+This adversarial review step is optional.
+While it is better to catch mistakes early rather than late, especially when preparing runs on a cluster or a QPU, some users may just want a quick prototyping for testing without spending too many tokens.
+Hence, you should propose to perform the review before the final report, but let the user decide.
 
 ---
 
 ## Step 6 — Report
 
 Summarise:
+
 1. The objective, in the user's terms — if you cannot state it in one sentence,
    the spec is not ready
 2. Paper → protocol translation (what was directly taken vs. adapted)
