@@ -1,22 +1,27 @@
 #!/usr/bin/env python3
 """Collect QPU results and compare to EMU baseline.
 
+RUNS ON: this machine. Reads a finished submission from Pasqal Cloud — no shots
+are bought here, and nothing is submitted.
+
 Reads QPU batch IDs (written by qpu-submit or submit-to-cea), pulls bitstrings
 from Pasqal Cloud, computes the observable, and compares to the EMU scan from
 validate-emu. Writes a final accept/reject verdict.
 
-Supports two batch formats (written by the QPU submission scripts):
-  per_point   : one batch per scan point (Guo/launch_fc1 pattern)
-  parametric  : one batch with multiple parametric jobs (Z2 pattern)
+A scan is one batch, in either of the two shapes qpu-submit writes:
+  single_batch : one job per scan point. The scan value of each job comes from
+                 the `jobs` list in batch_ids.json, because a job that carries
+                 its own sequence cannot also carry `variables`
+  parametric   : one batch whose jobs are keyed by their variable bindings
 
 Usage:
     python harvest_qpu.py \\
         --spec       experiment_spec.json \\
         --seq-file   my_experiment_sequence.py \\
-        --batch-ids  results/my_experiment/qpu/batch_ids.json \\
-        --emu-dir    results/my_experiment/emu/ \\
-        --out-dir    results/my_experiment/qpu/ \\
-        [--bootstrap 300]
+        --batch-ids  experiments/my_experiment/results/qpu/batch_ids.json \\
+        --emu-dir    experiments/my_experiment/results/emu/ \\
+        --out-dir    experiments/my_experiment/results/qpu/ \\
+        [--project-id <id>] [--bootstrap 300]
 
 Outputs (in --out-dir):
     qpu_counts.json     raw bitstring counts per scan point, exactly as the
@@ -34,7 +39,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pasqal_auth import load_credentials
+from pasqal_auth import ensure_credentials
 
 
 def _load_seq_module(path: str):
@@ -69,43 +74,27 @@ def _bootstrap_std(counts: dict[str, int], obs_fn, n_boot: int = 300) -> float:
     return float(np.std(boot))
 
 
-def _collect_per_point(sdk, batch_ids_data: dict, obs_fn, n_boot: int) -> list:
-    """Collect per_point format: one batch per scan point."""
-    records = []
-    for entry in batch_ids_data["batches"]:
-        val = entry["scan_value"]
-        bid = entry["batch_id"]
-        B   = sdk.get_batch(bid)
-        job = B.ordered_jobs[0]
-        if job.status != "DONE":
-            print(f"  WARNING: {entry['scan_value']} batch {bid[:8]} status={job.status}")
-        counts = _counts_from_job(job)
-        obs    = obs_fn(counts) if counts else float("nan")
-        err    = _bootstrap_std(counts, obs_fn, n_boot) if counts else float("nan")
-        records.append({
-            "scan_value":  val,
-            "observable":  obs,
-            "obs_err":     err,
-            "n_shots":     sum(counts.values()),
-            "n_unique":    len(counts),
-            "batch_id":    bid,
-            "status":      job.status,
-            "counts":      counts,
-        })
-        print(f"  collected {entry['scan_value']:>8}  obs={obs:.4f} ± {err:.4f}"
-              f"  ({sum(counts.values())} shots)", flush=True)
-    return records
+def _collect_one_batch(sdk, batch_ids_data: dict, obs_fn, scan_var: str,
+                       n_boot: int) -> list:
+    """Collect one batch whose jobs are the scan points.
 
-
-def _collect_parametric(sdk, batch_ids_data: dict, obs_fn, scan_var: str,
-                         n_boot: int) -> list:
-    """Collect parametric format: one batch, multiple jobs keyed by variable."""
+    A job's scan value comes from its variable binding when it has one, and
+    otherwise from the `job_id → scan_value` pairing that qpu-submit recorded at
+    submission — the per-job-sequence shape has no variables to read, so that
+    file is the only place the pairing exists.
+    """
     bid = batch_ids_data["batch_id"]
     B   = sdk.get_batch(bid)
+    recorded = {j["job_id"]: j["scan_value"]
+                for j in batch_ids_data.get("jobs", []) if j.get("job_id")}
     records = []
     for job in B.ordered_jobs:
         val = (job.variables or {}).get(scan_var)
         if val is None:
+            val = recorded.get(str(job.id))
+        if val is None:
+            print(f"  WARNING: job {str(job.id)[:8]} has no recorded scan value "
+                  "— skipped. Its counts are on the cloud; the pairing is not.")
             continue
         counts = _counts_from_job(job)
         obs    = obs_fn(counts) if counts else float("nan")
@@ -133,6 +122,9 @@ def main():
     ap.add_argument("--batch-ids",  required=True)
     ap.add_argument("--emu-dir",    required=True)
     ap.add_argument("--out-dir",    required=True)
+    ap.add_argument("--project-id", default=None,
+                    help="project that owns these batches (default: the one "
+                         "recorded in batch_ids.json, then the environment)")
     ap.add_argument("--bootstrap",  type=int, default=300)
     args = ap.parse_args()
 
@@ -147,17 +139,28 @@ def main():
     mod      = _load_seq_module(args.seq_file)
     obs_fn   = mod.compute_observable
 
+    if "batch_id" not in batch_data:
+        raise SystemExit(
+            f"✘ {args.batch_ids} carries no 'batch_id' — it was not written by "
+            "this version of qpu-submit.\n"
+            "  A scan is one batch now: re-submit with qpu-submit, or read the "
+            "old batches directly with the SDK.")
+
+    # Read-only, so a project need not be re-chosen — but say which one is being
+    # read, since a batch id is only meaningful inside the project that owns it.
+    submitted_by = batch_data.get("account", {})
+    creds, _ = ensure_credentials(
+        project_id=args.project_id or submitted_by.get("project_id"))
     from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
-    sdk = PasqalCloudClient(**load_credentials())
+    sdk = PasqalCloudClient(**creds)
 
+    print("RUNS ON: this machine — reads a finished submission, buys nothing.")
+    print(f"  project {creds['project_id']}"
+          + (f"  (submitted by {submitted_by['username']})"
+             if submitted_by.get("username") else ""))
     print(f"=== harvest-and-analyze: {spec['experiment_name']} ===")
-    fmt = batch_data.get("format", "per_point")
-
-    if fmt == "per_point":
-        qpu_records = _collect_per_point(sdk, batch_data, obs_fn, args.bootstrap)
-    else:
-        qpu_records = _collect_parametric(sdk, batch_data, obs_fn, scan_var,
-                                          args.bootstrap)
+    qpu_records = _collect_one_batch(sdk, batch_data, obs_fn, scan_var,
+                                     args.bootstrap)
 
     # Raw bitstrings first, and in their own file. The observable is a *choice*:
     # re-analysing this run with a different one, or with a corrected

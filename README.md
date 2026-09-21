@@ -78,8 +78,13 @@ You should know:
   channels first. Everything up to and including local emulation works without
   any account.
 - **QPU shots are metered and a submitted batch cannot be recalled.** The
-  submission script prints the full shot count and exits rather than run until
-  you have approved it.
+  submission script prints the full shot count — with the project it would be
+  billed to and that project's remaining credits — and exits rather than run
+  until you have approved it.
+- **Being logged in is not permission to spend.** Credentials found on the
+  machine are shown to you, and the project is one you pick: the scripts that
+  spend refuse to run on the project id that happens to be in your
+  environment.
 
 ## Install
 
@@ -159,7 +164,7 @@ account and nothing spent.
 | `idea-to-spec` | Turn an experiment you describe, or a paper or patent you want to reproduce, into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec, self-testing | Python + `pulser` |
 | `validate-emu` | Noiseless and noisy scan, then a go/no-go for QPU. Asks where to run: **locally** (free, ~14 atoms) or **cloud emulator** at the real size | nothing for local; account for cloud |
-| `noise-emulate` | *(optional)* Noise emulation with the live device noise model, over time — where in the pulse the signal is lost. Runs **locally**, **via SLURM on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
+| `noise-emulate` | *(optional)* Noise emulation with the live device noise model, over time — where in the pulse the signal is lost. Runs **locally**, **on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
 | `qpu-submit` | Calibrated submission of a spec and sequence to a cloud QPU, after you approve the shot count | account with QPU access |
 | `submit-to-cea` | Parametric experiments on Ruby, the QPU at CEA/TGCC, over SSH. Includes a first-time-access guide, and says what a sibling cluster needs changed | an account on the cluster |
 | `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account |
@@ -174,11 +179,19 @@ through `experiment_spec.json` and a sequence file exporting `build_sequence()`
 and `compute_observable()`, so the toolkit carries no experiment of its own and
 yours does not have to look like the examples.
 
-Two rules do not bend, and both are enforced in the scripts rather than asked of
-the model: **emulation precedes any hardware recommendation**, and **nothing is
-submitted without your explicit go-ahead for the shot count you were shown**. A
-runner also refuses to resubmit over batch IDs it already recorded, so a dropped
-session cannot buy the same shots twice.
+Three rules do not bend, and all three are enforced in the scripts rather than
+asked of the model: **emulation precedes any hardware recommendation**,
+**nothing is submitted without your explicit go-ahead for the shot count you
+were shown**, and **no run bills a project you did not name**. A runner also
+refuses to resubmit over batch IDs it already recorded, so a dropped session
+cannot buy the same shots twice.
+
+Everything one experiment produces lands in one tree, as it is produced:
+`experiments/<name>/` holds the spec, the sequence, `notes/`, `analysis/`,
+`figures/`, `results/<stage>/`, and a `NOTEBOOK.md` that each step appends to —
+where it ran, the command, the files written, the numbers. Nothing is left in
+your working directory's root, and no number reaches you that is not in a file
+you can open.
 
 ## Worked examples
 
@@ -207,7 +220,7 @@ the file where a reviewer can find them.
 ## One-time setup
 
 1. **Python environment**: a venv with `pulser`, `pulser-pasqal`, `pasqal-cloud`,
-   numpy/scipy/matplotlib, plus `emu-mps` and `torch` for local or SLURM noise
+   numpy/scipy/matplotlib, plus `emu-mps` and `torch` for local or cluster noise
    emulation (see [skills/noise-emulate/support/requirements.txt](skills/noise-emulate/support/requirements.txt)):
 
    ```bash
@@ -222,6 +235,12 @@ the file where a reviewer can find them.
    ```bash
    export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
    ```
+
+   `PASQAL_PROJECT_ID` is a convenience, not a decision: every script that
+   spends credits requires `--project-id` explicitly, and
+   `python <skill>/support/pasqal_auth.py --whoami` prints — free, read-only,
+   never a password or a token — which account was found, where each field came
+   from, and what each of your projects has left in QPU and EMU credits.
 
    Every skill resolves each field from the same three sources, in this order:
    the environment variables above, then the system keyring (password only,

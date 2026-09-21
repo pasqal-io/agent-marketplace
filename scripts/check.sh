@@ -58,6 +58,21 @@ else
   echo "  (numpy not importable — skipping)"
 fi
 
+# The rest need neither Pulser nor numpy: labels, the job-to-scan-point mapping,
+# the refusal to spend on a project nobody chose, and the noise-source
+# resolution. Those are the paths a wrong edit would break silently — a batch
+# submitted under the wrong project, or a scan point paired with the wrong job.
+for selftest in \
+  skills/qpu-submit/support/pasqal_auth.py \
+  skills/qpu-submit/support/batch_tags.py \
+  skills/validate-emu/support/spec_noise.py \
+  skills/qpu-submit/support/submit_qpu.py ; do
+  ( cd "$(dirname "$selftest")" \
+    && "$example_python" "$(basename "$selftest")" --self-test >/dev/null ) \
+    || { echo "✘ self-test failed: $selftest"; exit 1; }
+  echo "   $(basename "$selftest"): --self-test passed"
+done
+
 echo "── Support script wiring (--help must work with no credentials, no GPU)"
 # py_compile only parses. This imports each script for real and runs its argparse
 # setup, which is where a missing top-level import, a duplicate flag or a bad

@@ -2,6 +2,10 @@
 """
 run_noise_emu.py — GPU noise emulation runner.
 
+RUNS ON: this machine, or a GPU node through SLURM. No batch is submitted and
+nothing is billed; the only cloud call reads the device's noise model, which is
+free.
+
 Fetches the FRESNEL_CAN1 noise_model live from the Pasqal cloud client,
 prints all parameter values being used, then runs 1 noiseless + N noisy MPS
 trajectories sequentially on GPU. Optionally sweeps calibration offsets
@@ -86,7 +90,8 @@ except ModuleNotFoundError:
     # the missing package once a run actually starts, which is where it belongs.
     MPSBackend = MPSConfig = Occupation = CorrelationMatrix = BitStrings = None
 
-from pasqal_auth import load_credentials
+import spec_noise
+from pasqal_auth import ensure_credentials
 
 
 # ── Optional noise overrides ────────────────────────────────────────────────────
@@ -102,7 +107,8 @@ def fetch_fcan1(device_name="FRESNEL_CAN1",
                 override_detuning_sigma=None):
     import dataclasses
     from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
-    sdk    = PasqalCloudClient(**load_credentials())
+    creds, _ = ensure_credentials()
+    sdk    = PasqalCloudClient(**creds)
     specs  = sdk.get_device_specs_dict()
     if device_name not in specs:
         raise ValueError(f"{device_name} not in available devices: {list(specs.keys())}")
@@ -369,6 +375,15 @@ def main():
                         help="Parallel mode: run only this single trajectory and save "
                              "partial_<run-id>.npz. run-id=0 → noiseless, "
                              "run-id=1..n-traj → noisy. Combine with --merge afterwards.")
+    parser.add_argument("--spec",        default=None,
+                        help="the experiment_spec.json this sequence came from. "
+                             "If it carries a noise model of its own, this is "
+                             "what --noise-source can switch to.")
+    parser.add_argument("--noise-source", default="device",
+                        choices=("device", "paper"),
+                        help="whose noise model to emulate: this device's "
+                             "(default) or the one the source described "
+                             "(needs --spec)")
     parser.add_argument("--noise-model-json", default=None,
                         help="Path to pre-saved noise model JSON (avoids cloud fetch per "
                              "parallel job). Generate with --save-noise-model first.")
@@ -448,6 +463,10 @@ def main():
         print(save_path)
         return
 
+    print("RUNS ON: this machine or a SLURM GPU node — nothing is submitted "
+          "and nothing is billed.\n  The only cloud call reads the device's "
+          "noise model, which is free.")
+
     # ── Load or fetch noise model ─────────────────────────────────────────────
     if args.noise_model_json:
         from pulser.noise_model import NoiseModel
@@ -459,6 +478,18 @@ def main():
                                  override_temperature_uK=args.device_temperature,
                                  override_detuning_sigma=args.device_detuning_sigma)
         print_noise_model_summary(noise_model, args.device_name)
+
+    # The source's own noise model, when the spec carries one. Never silent: the
+    # difference is printed whichever way the choice goes.
+    if args.spec:
+        spec_dict = json.loads(Path(args.spec).read_text())
+        wanted    = (spec_dict.get("noise_model") or {}).get("params") or {}
+        device_params = {k: getattr(noise_model, k, "—") for k in wanted}
+        _, noise_model, _ = spec_noise.resolve(
+            args.noise_source, spec_dict, noise_model, device_params)[0]
+    elif args.noise_source != "device":
+        parser.error("--noise-source needs --spec: the source's noise model is "
+                     "recorded in the spec, not in the sequence file")
 
     if args.seq_file is None:
         parser.error("--seq-file is required unless using --save-noise-model or --merge")

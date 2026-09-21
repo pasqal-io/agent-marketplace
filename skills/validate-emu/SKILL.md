@@ -25,19 +25,59 @@ support/
   run_local_scan.py    ← local emulator scan, no account, no cost (start here)
   run_emu_scan.py      ← cloud scan submission, polling, observable computation
   plot_emu_scan.py     ← scan curve figure (reads either scan's output)
-  pasqal_auth.py       ← Pasqal Cloud credential loading (shared, do not edit here)
+  spec_noise.py        ← the source's own noise model, if it has one (shared)
+  batch_tags.py        ← the labels every batch carries (shared, do not edit here)
+  pasqal_auth.py       ← credentials, projects and credits (shared, do not edit here)
 ```
 
 Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`
-Credentials (cloud mode only): `$PASQAL_USERNAME` / `$PASQAL_PASSWORD` /
-`$PASQAL_PROJECT_ID`, or `~/.pasqal_credentials.json`
+Credentials (cloud mode only): `$PASQAL_USERNAME` / `$PASQAL_PASSWORD`, resolved
+by `pasqal_auth.py`. The **project** is chosen by the user, not read from the
+environment — Step 2b.
+
+## Decisions that are not yours
+
+Not even under "do whatever you think is best". Ask, recommend, and wait:
+
+- **where it runs** (2a or 2b) and, for 2b, **which project** pays
+- **the register size** if the real one does not fit, and what the downsized run
+  therefore does not establish
+- **sub-system versus the full register** when the emulator's calibrated
+  envelope is exceeded — never a hunt for the right bond dimension
+- **whose noise model** runs, when the spec carries one of its own
+- **what to do about a NO-GO**: change the protocol, the range, or the question
+
+After about **three** failed attempts at the same obstacle — a builder that will
+not serialize, a batch that keeps erroring — stop. Say what was tried, what
+failed and what is now known, then offer changing the objective, narrowing the
+scope, or digging further.
+
+## Where the outputs land
+
+One tree per experiment, written as the work happens:
+
+```
+experiments/<name>/
+  <name>_spec.json   <name>_sequence.py
+  results/emu_local/    Step 2a data, verdict and figure
+  results/emu/          Step 2b data, verdict and figure
+  figures/              anything you plot for the report
+  analysis/             any script you write to look at these files
+  NOTEBOOK.md           one appended block per step
+```
+
+Every number you quote comes from one of those files or from a script saved in
+`analysis/` — not from a one-liner run and forgotten. Each script prints where
+it runs as its first line (`RUNS ON: …`); say the same thing to the user before
+starting, because "the retention is 77%" means different things on this machine
+and on the cloud emulator.
 
 ---
 
 ## What this skill needs
 
-1. `<experiment_name>_spec.json` — from `idea-to-spec`
-2. `<experiment_name>_sequence.py` — from `spec-to-sequence`
+1. `experiments/<name>/<name>_spec.json` — from `idea-to-spec`
+2. `experiments/<name>/<name>_sequence.py` — from `spec-to-sequence`
 
 Check both files exist and that `spec["sequence_file"]` matches the actual filename.
 
@@ -49,7 +89,7 @@ Before emulating anything:
 
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
-python <experiment_name>_sequence.py
+python experiments/<name>/<name>_sequence.py
 ```
 
 Must print: `Sequence OK: <duration> ns, <N> atoms` with no errors.
@@ -135,11 +175,12 @@ it is affordable, never the thing the plan depends on.
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
 python support/run_local_scan.py \
-    --spec       <experiment_name>_spec.json \
-    --seq-file   <experiment_name>_sequence.py \
-    --out-dir    <spec.output_dir>/emu_local/ \
+    --spec       experiments/<name>/<name>_spec.json \
+    --seq-file   experiments/<name>/<name>_sequence.py \
+    --out-dir    experiments/<name>/results/emu_local/ \
     [--shots 200] [--noiseless-only] \
-    [--seq-kwargs '{"N": 3}']      # shrink the register for the check
+    [--seq-kwargs '{"N": 3}'] \    # shrink the register for the check
+    [--noise-source device|paper|both]
 ```
 
 Exact state-vector emulation, so cost is 2^N: the script refuses past
@@ -151,6 +192,15 @@ it, and report that the check ran downsized.
 `--live-device` fetches the real device's specs and noise model and still
 emulates locally. That costs no emulator time, only credentials, and is the
 sharpest local check available.
+
+**If the spec carries its own noise model** — `spec["noise_model"]` with a
+`source` other than `device`, because the paper stated its own error budget —
+the script prints the difference field by field and runs the **device** model
+unless told otherwise. This is the free place to compare them:
+`--noise-source both` runs the scan twice locally and writes
+`emu_noise_paper.json` beside `emu_noise.json`. Tell the user the model exists
+and what it would change; never substitute it silently, and never quote a
+retention obtained under the paper's T₂ as if the device had given it.
 
 **Scope.** `verdict.json` from this mode carries `"gates_hardware": false`. A
 local GO means the implementation is sound and the observable responds to the
@@ -166,13 +216,28 @@ to the user as authorisation to submit.
 ```bash
 source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"
 
+python support/pasqal_auth.py --whoami     # free, read-only: account, projects, credits
+
 python support/run_emu_scan.py \
-    --spec     <experiment_name>_spec.json \
-    --seq-file <experiment_name>_sequence.py \
-    --out-dir  <spec.output_dir>/emu/ \
-    [--shots   <override>] \
-    [--poll    30]
+    --spec       experiments/<name>/<name>_spec.json \
+    --seq-file   experiments/<name>/<name>_sequence.py \
+    --out-dir    experiments/<name>/results/emu/ \
+    --project-id <the project the user picked> \
+    [--shots     <override>] \
+    [--poll      30] [--tag "run 2"] [--noise-source device|paper]
 ```
+
+**Emulator time is billed to a project, so the user picks it.** Run `--whoami`
+first: it prints which account was found, where each credential came from, and
+the QPU and EMU credits each of their projects has left — no password, no token.
+Show that, ask which project should pay, and pass `--project-id`. The script
+refuses to run without it, because the id sitting in `PASQAL_PROJECT_ID` is the
+last one somebody exported, not a decision. The plan it prints names the account,
+the project and its remaining credits.
+
+`--noise-source both` is refused here on purpose: it would buy the whole scan
+twice on metered emulators. Compare the two models locally in Step 2a, which is
+free, or run this twice into two `--out-dir`s and say which is which.
 
 **If the session drops while polling, add `--resume`** — never re-run the plain
 command. A submission is not idempotent: it creates a fresh pair of batches per
@@ -185,7 +250,11 @@ attributed to a spec the hardware never ran.
 The script:
 1. Fetches the live device from the cloud
 2. Builds a non-parametric sequence for each scan point (calls `build_sequence(**params)`)
-3. Submits noiseless + noisy EMU_MPS batches for each point in parallel (non-blocking)
+3. Submits noiseless + noisy EMU_MPS batches for each point in parallel
+   (non-blocking), each **tagged** `exp:<name>`, `stage:emu-scan`,
+   `backend:emu-noiseless|emu-noisy`, `noise:device|paper` — so the emulation and
+   the later QPU run of one experiment are findable together with
+   `sdk.get_batches(filters=BatchFilters(tag="exp:<name>"))`
 4. Saves `batch_ids.json` immediately (crash recovery)
 5. Polls all batches until DONE
 6. Calls `compute_observable(counts)` for each point
@@ -208,8 +277,8 @@ first — that is exactly what Step 2a is for, and it costs nothing.
 Run in the background for large scans:
 ```bash
 python support/run_emu_scan.py ... \
-    > <spec.output_dir>/emu/run.log 2>&1 &
-tail -f <spec.output_dir>/emu/run.log
+    > experiments/<name>/results/emu/run.log 2>&1 &
+tail -f experiments/<name>/results/emu/run.log
 ```
 
 ---
@@ -218,12 +287,16 @@ tail -f <spec.output_dir>/emu/run.log
 
 ```bash
 python support/plot_emu_scan.py \
-    --noiseless <spec.output_dir>/emu/emu_noiseless.json \
-    --noisy     <spec.output_dir>/emu/emu_noise.json \
-    --out       <spec.output_dir>/emu/emu_scan.png \
-    --verdict   <spec.output_dir>/emu/verdict.json \
-    --title     "<experiment_name>"
+    --noiseless experiments/<name>/results/emu/emu_noiseless.json \
+    --noisy     experiments/<name>/results/emu/emu_noise.json \
+    --out       experiments/<name>/results/emu/emu_scan.png \
+    --verdict   experiments/<name>/results/emu/verdict.json \
+    --title     "<name>"
 ```
+
+The figure belongs with the data it came from. A figure you make for the report
+— a comparison, an annotated version — goes in `experiments/<name>/figures/`,
+never in the working directory's root.
 
 ---
 
@@ -293,32 +366,41 @@ Summarise:
 2. Noiseless peak observable value and at which scan point
 3. Noisy peak and retention fraction
 4. Go/no-go verdict with reasoning, and its scope
-5. Path to the plot
-6. If GO **from the cloud scan**: **Next step** is QPU submission via
+5. Path to the plot, and to every file the numbers came from
+6. If the spec carried its own noise model: that it exists, how it differs, and
+   which one produced the verdict you are quoting
+7. If GO **from the cloud scan**: **Next step** is QPU submission via
    `qpu-submit` (cloud API) or `submit-to-cea` (cluster over SSH)
-7. If GO **from the local scan**: next step is the cloud scan at the real size,
+8. If GO **from the local scan**: next step is the cloud scan at the real size,
    which is what a hardware recommendation needs
-8. If NO-GO: concrete suggestion for how to improve signal retention, and the
+9. If NO-GO: concrete suggestion for how to improve signal retention, and the
    `noise-emulate` offer from Step 4b if it would inform the next change
+
+Then append the block to `experiments/<name>/NOTEBOOK.md`: locus (this machine
+or the cloud emulator, at what register size, under which noise model), the
+command, the files written, and the retention. That file is what lets someone
+reading the directory next month tell a 9-atom local check from the cloud
+verdict that justified the shots.
 
 ---
 
 ## Output layout
 
 ```
-<output_dir>/emu_local/          Step 2a
-  emu_noiseless.json   {records: [{scan_value, observable, n_shots, batch_id}...]}
-  emu_noise.json       same format, noisy — with noise_params.source
-  verdict.json         {go, reasons, scope, gates_hardware, retention, ...}
-  emu_scan.png         noiseless + noisy scan curves
+experiments/<name>/results/emu_local/     Step 2a
+  emu_noiseless.json     {records: [{scan_value, observable, n_shots, batch_id}...]}
+  emu_noise.json         same format, noisy — with noise_params.source
+  emu_noise_paper.json   only with --noise-source paper|both
+  verdict.json           {go, reasons, scope, gates_hardware, retention, ...}
+  emu_scan.png           noiseless + noisy scan curves
 
-<output_dir>/emu/                Step 2b
-  batch_ids.json       submitted batch IDs (noiseless + noisy per scan point)
-  emu_noiseless.json   same schema as above
-  emu_noise.json       same format, noisy backend
-  verdict.json         {go, reasons, nl_max, n_max, retention}
-  emu_scan.png         noiseless + noisy scan curves
-  run.log              (if run in background)
+experiments/<name>/results/emu/           Step 2b
+  batch_ids.json         submitted batch IDs, their labels, the paying account
+  emu_noiseless.json     same schema as above
+  emu_noise.json         same format, noisy backend
+  verdict.json           {go, reasons, nl_max, n_max, retention}
+  emu_scan.png           noiseless + noisy scan curves
+  run.log                (if run in background)
 ```
 
 Keep the two directories apart. Same filenames, different authority: overwriting
@@ -331,6 +413,9 @@ submission.
 
 | Issue | Fix |
 |---|---|
+| `no project was chosen` | Expected, not a bug to route around: run `pasqal_auth.py --whoami`, ask the user which project, pass `--project-id`. |
+| `--noise-source both would buy this whole scan twice` | Compare the two models in Step 2a, which is free, or run 2b twice into two `--out-dir`s. |
+| `--noise-source paper … the spec carries no noise model` | Only the spec records the source's model. Add it in `idea-to-spec`, or stay on the device's. |
 | `Pasqal Cloud credentials incomplete` | Export `PASQAL_USERNAME` / `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID`, or see `noise-emulate` first-time setup. No account? Step 2a needs none |
 | `N atoms is past the local emulator's reach` | Expected above ~14 atoms. Shrink the register with `--seq-kwargs` for the local check, or run Step 2b at the real size — do not raise `--max-atoms` |
 | `<device> not in available devices` | Cloud connection failed or device offline; for SA1, is `PASQAL_REGION=sa` set? Retry. |
