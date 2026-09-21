@@ -174,7 +174,7 @@ def main():
     compute_obs      = mod.compute_observable
 
     creds, _ = ensure_credentials(project_id=args.project_id,
-                             require_explicit_project=True)
+                                  require_explicit_project=True)
     from pasqal_cloud import PasqalCloudConnection
     from pasqal_cloud.device import DeviceTypeName
     from pasqal_cloud.job import CreateJob
