@@ -27,9 +27,9 @@ and never passed on a command line where they would land in your shell history
 or in `ps` output. CI rejects a second credential loader anywhere under
 `skills/`, so this policy cannot apply to only some scripts.
 
-`submit-via-hpc` never handles your cluster password: authentication is
+`submit-to-cea` never handles your cluster password: authentication is
 interactive and yours to perform. One exception to the loader rule is documented
-in the code — `submit-via-hpc/templates/submit_template.py` runs inside a
+in the code — `submit-to-cea/templates/submit_template.py` runs inside a
 container on a compute node where no keyring exists, so it reads environment
 variables only.
 
@@ -52,7 +52,7 @@ behalf. Two of them spend real resources.
   approve, and `--confirm` carries whatever agreement you gave — so read the
   shot count in the plan, and treat a changed device, scan or shot count as
   needing a fresh look rather than a re-used flag.
-- **`submit-via-hpc`** consumes allocation hours on a cluster you have access to.
+- **`submit-to-cea`** consumes allocation hours on a cluster you have access to.
   Launching there is not idempotent either, and nothing on the cluster prevents a
   duplicate; the skill checks the queue first, but that check is an instruction,
   not code.

@@ -276,5 +276,5 @@ worth reporting:
   the skills is specific to these examples.
 - The [worked examples](../examples/) — including, in each README, the earlier
   version that was **rejected** and why. The failure modes are the useful part.
-- [The seven skills](../AGENTS.md), each usable on its own: bring a sequence and
+- [The eight skills](../AGENTS.md), each usable on its own: bring a sequence and
   ask for an emulation, or bring batch IDs and ask for the analysis.

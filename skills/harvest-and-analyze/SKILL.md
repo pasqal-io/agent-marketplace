@@ -1,6 +1,6 @@
 ---
 name: harvest-and-analyze
-description: Collect QPU bitstrings by batch ID once a submission has run, compute the target observable, compare it to the emulated baseline from validate-emu, and return an accept/reject verdict. Runs after a submission, never instead of one. Triggered by phrases like "collect QPU results", "harvest results", "analyze QPU data", "compare QPU to EMU", "is the QPU data consistent with the noise model", "accept or reject".
+description: Collect neutral-atom QPU bitstrings by batch ID once a submission has run, correct them for detection error, compute the target observable, compare it to the emulated baseline from validate-emu, and return an accept/reject verdict. Runs after a submission, never instead of one. Triggered by phrases like "collect the QPU results", "harvest these batch IDs", "compare the QPU data to the emulation", "is the QPU data consistent with the noise model".
 argument-hint: "[spec-file] [batch-ids-file]"
 ---
 
@@ -52,7 +52,7 @@ Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`
 2. `experiments/<name>/<name>_sequence.py` — from `spec-to-sequence`
    (for `compute_observable`)
 3. `experiments/<name>/results/qpu/batch_ids.json` — from `qpu-submit` or
-   `submit-via-hpc`
+   `submit-to-cea`
 4. `experiments/<name>/results/emu/` — from `validate-emu` (contains
    `emu_noiseless.json` + `emu_noise.json`)
 
@@ -263,7 +263,7 @@ Summarise:
 
 ```
 experiments/<name>/results/qpu/
-  batch_ids.json        (written by qpu-submit / submit-via-hpc)
+  batch_ids.json        (written by qpu-submit / submit-to-cea)
   qpu_counts.json       raw bitstring counts per scan point, untransformed
   qpu_results.json      {records: [{scan_value, observable, obs_err, n_shots, ...}]}
                         — derived from qpu_counts.json, names the observable used

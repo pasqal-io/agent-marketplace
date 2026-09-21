@@ -4,7 +4,7 @@
 RUNS ON: this machine. Reads a finished submission from Pasqal Cloud — no shots
 are bought here, and nothing is submitted.
 
-Reads QPU batch IDs (written by qpu-submit or submit-via-hpc), pulls bitstrings
+Reads QPU batch IDs (written by qpu-submit or submit-to-cea), pulls bitstrings
 from Pasqal Cloud, computes the observable, and compares to the EMU scan from
 validate-emu. Writes a final accept/reject verdict.
 

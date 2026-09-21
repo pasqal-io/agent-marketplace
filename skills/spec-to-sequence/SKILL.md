@@ -1,6 +1,6 @@
 ---
 name: spec-to-sequence
-description: Generate a Pulser sequence builder file from an experiment_spec.json. Output is a *_sequence.py with two standardised functions — build_sequence() and compute_observable() — consumed by validate-emu and harvest-and-analyze. Triggered by phrases like "generate the sequence", "write the sequence file", "spec to sequence", "build the Pulser sequence from spec", "convert spec to code".
+description: Generate a Pulser sequence builder for a neutral-atom (Rydberg) experiment from an experiment_spec.json. Output is a *_sequence.py with two standardised functions — build_sequence() and compute_observable() — consumed by validate-emu, qpu-submit and harvest-and-analyze. Triggered by phrases like "generate the Pulser sequence", "write the sequence file for this spec", "spec to sequence", "turn the spec into Pulser code".
 argument-hint: "[spec-file]"
 ---
 

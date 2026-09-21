@@ -1,14 +1,19 @@
 ---
-name: submit-via-hpc
-description: Submit a Pulser parametric experiment to a QPU behind an HPC cluster reached over SSH — generate the job bundle, deploy it, launch the scheduler jobs, monitor them, and collect the results, with no manual copying. Use this when the QPU is not reachable through a cloud API; use qpu-submit when it is. Triggered by phrases like "submit to the cluster", "run on the on-premise QPU", "deploy over SSH to the supercomputer", "collect results from the cluster", "submit to CEA", "launch on Ruby".
+name: submit-to-cea
+description: Submit a Pulser parametric experiment to Ruby, the neutral-atom QPU hosted at CEA/TGCC on the irene supercomputer, over SSH — generate the job bundle, deploy it, launch the ccc_msub jobs, monitor them, collect the results, with no manual copying. The templates are TGCC-specific and say what a sibling Bull or Slurm site needs changed; use qpu-submit for a cloud-API QPU. Triggered by phrases like "submit to CEA", "launch on Ruby", "submit to TGCC".
 argument-hint: "[sequence-file-or-description]"
 ---
 
-# submit-via-hpc
+# submit-to-cea
 
 This skill takes a Pulser parametric experiment from source code to running QPU
 jobs on a machine reached over SSH, entirely autonomously. The user never needs
 to copy files, run remote commands, or touch the server manually.
+
+The name is deliberate: what is bundled here was written for and tested against
+**Ruby at CEA/TGCC**, and the deployment path is that site's. It generalises to a
+sibling cluster by editing three files (**Site scope**, below), but calling it
+generic would promise a portability nothing here has tested.
 
 RUNS ON: a QPU behind an HPC scheduler, over SSH. Node hours and shots are
 billed to someone's allocation, and jobs queued remotely cannot be recalled.
@@ -108,24 +113,12 @@ TGCC access is granted per person, per project. If the user has never connected:
    The alias name is what goes in `HPC_HOST`. Then authenticate once
    interactively (`ssh "$HPC_HOST"`) — subsequent calls in this skill ride the
    shared connection without prompting.
-5. **One-time environment setup on the remote machine.** TGCC has no internet
-   access, so the Pulser packages must be transferred from your machine. Use the
-   same Pulser version your sequence was written against — the remote install
-   and your local venv must agree, or a sequence that builds locally will fail
-   remotely:
-
-   ```bash
-   # On your machine (get the archives from PyPI or your team):
-   scp Pulser-<version>.zip Pulser-myQLM-<version>.zip "$HPC_HOST":~/
-   ssh "$HPC_HOST" "cd ~ && unzip -o 'Pulser-*.zip' && unzip -o 'Pulser-myQLM-*.zip'"
-   ssh "$HPC_HOST" "mkdir -p ~/$HPC_REMOTE_DIR"
-   # Copy the env setup script and run it inside the container:
-   scp support/setup_cea_env.sh "$HPC_HOST":~/$HPC_REMOTE_DIR/
-   ssh "$HPC_HOST" "pcocc-rs run ccc-quantum -- bash $HPC_REMOTE_DIR/setup_cea_env.sh"
-   ```
-
-   This creates `~/pulser-env/` on the remote machine with Pulser and
-   Pulser-myQLM installed.
+5. **Remote environment — optional, set up once.** The compute nodes have no
+   internet, so Pulser is pushed from your machine into a container venv
+   (`~/pulser-env/`) that persists between sessions. **You do not run this every
+   time:** Phase 0 probes for it and only sends you to **Environment setup**
+   (below) when it is missing, or when the user asks to rebuild it. A cluster
+   that already has a working `~/pulser-env/` needs nothing here.
 
 ---
 
@@ -152,6 +145,127 @@ authentication is theirs to perform interactively.
 
 All remote files live under `~/$HPC_REMOTE_DIR/`. Always use `nohup` for
 long-running scripts.
+
+### Phase 0.1 — Environment probe
+
+Connectivity is not enough — the `ccc-quantum` container needs a working
+`~/pulser-env/`. Probe it:
+
+```bash
+ssh "$HPC_HOST" 'pcocc-rs run ccc-quantum -- bash -c "
+source ~/pulser-env/bin/activate 2>/dev/null || { echo \"ENV MISSING: no venv\"; exit 0; }
+python3 - <<EOF
+try:
+    import pulser, pulser_myqlm
+    print(\"ENV OK\", \"pulser\", pulser.__version__,
+          \"pulser-myqlm\", getattr(pulser_myqlm, \"__version__\", \"?\"))
+except Exception as e:
+    print(\"ENV MISSING:\", e)
+EOF
+"'
+```
+
+- **`ENV OK`** → skip all environment setup and go straight to Phase 1, **unless
+  the user explicitly asked to (re)build the environment** — then run
+  **Environment setup** below.
+- **`ENV MISSING`** → tell the user the container has no usable Pulser and
+  **ask** whether to set it up now — it downloads packages and writes to their
+  remote home, so do not start unprompted. On yes, run **Environment setup**
+  below. If they decline, stop: submission cannot proceed without it.
+
+Run **Environment setup** in exactly these two cases — `ENV MISSING`, or an
+explicit user request. Never as a routine step.
+
+---
+
+## Environment setup (only on `ENV MISSING`, or an explicit user request)
+
+The compute nodes have no internet, so Pulser and any missing dependencies are
+downloaded on **this** machine and pushed to the cluster. This runs **once per
+cluster** — Phase 0.1 skips it on every later session.
+
+### E.1 — Resolve versions
+
+Default to the latest **stable** release of each package on PyPI — never a
+pre-release (`a`/`b`/`rc`/`dev` are all excluded by the version regex below):
+
+```bash
+for pkg in pulser-core pulser-myqlm; do
+  curl -sf "https://pypi.org/pypi/$pkg/json" | python3 -c "
+import json, sys, re
+rel = json.load(sys.stdin)['releases']
+ok = [v for v, files in rel.items()
+      if files and not files[0].get('yanked') and re.fullmatch(r'[0-9]+(\.[0-9]+)*', v)]
+ok.sort(key=lambda s: [int(x) for x in s.split('.')])
+print('$pkg', ok[-1])
+"
+done
+```
+
+Show both versions to the user and ask whether to use them or pin different
+ones. Reject any version they give that contains a letter — that is a
+pre-release. Also grab the container's Python version, needed for the download:
+
+```bash
+PYVER=$(ssh "$HPC_HOST" 'pcocc-rs run ccc-quantum -- python3 -c "import sys; print(f\"{sys.version_info.major}.{sys.version_info.minor}\")"')
+```
+
+### E.2 — Download on this machine
+
+```bash
+PKGDIR="$(pwd)/cea_pkgs"; mkdir -p "$PKGDIR"
+python3 -m pip download --no-deps --only-binary :all: \
+    --python-version "$PYVER" --platform manylinux2014_x86_64 --platform any \
+    --dest "$PKGDIR" "pulser-core==<CORE_VERSION>" "pulser-myqlm==<MYQLM_VERSION>"
+```
+
+`--no-deps` is deliberate: dependencies are resolved against the container in
+E.4, not mirrored blindly from here.
+
+### E.3 — Upload and build the venv
+
+Template/support paths are relative to this skill's directory — expand them.
+
+```bash
+ssh "$HPC_HOST" "mkdir -p ~/cea_pkgs ~/$HPC_REMOTE_DIR"
+rsync -avz "$PKGDIR"/ "$HPC_HOST":~/cea_pkgs/
+scp support/setup_cea_env.sh "$HPC_HOST":~/$HPC_REMOTE_DIR/
+ssh "$HPC_HOST" 'pcocc-rs run ccc-quantum -- bash ~/'"$HPC_REMOTE_DIR"'/setup_cea_env.sh'
+```
+
+`setup_cea_env.sh` creates `~/pulser-env/` (system site packages on, so the
+container's numpy/scipy are reused), installs every archive in `~/cea_pkgs/`
+with `--no-deps`, then tries `import pulser` and `import pulser_myqlm`. It prints
+one `MISSING: <module>` line per unmet import and exits non-zero.
+
+### E.4 — Satisfy remaining dependencies
+
+For each `MISSING: <module>` line:
+
+- **`qat…` or `myqlm`** → **stop here.** myQLM / QAT cannot be built in the
+  `ccc-quantum` container. Report it to the user: the environment cannot be
+  completed this way and needs a container image that already ships myQLM.
+- **anything else** → tell the user which dependency is missing and ask whether
+  to fetch it the same way. On yes:
+
+  ```bash
+  python3 -m pip download --no-deps --only-binary :all: \
+      --python-version "$PYVER" --platform manylinux2014_x86_64 --platform any \
+      --dest "$PKGDIR" "<module>"
+  rsync -avz "$PKGDIR"/ "$HPC_HOST":~/cea_pkgs/
+  ssh "$HPC_HOST" 'pcocc-rs run ccc-quantum -- bash ~/'"$HPC_REMOTE_DIR"'/setup_cea_env.sh'
+  ```
+
+  Re-running the script re-installs the whole `~/cea_pkgs/` set and re-checks the
+  imports. Repeat until it exits 0, a `qat`/`myqlm` dependency appears, or the
+  user declines. If `pip download` finds no compatible wheel for a dependency
+  (native code, no `manylinux` build), say so — that is a hard limit, like the
+  myQLM case.
+
+pip resolves the latest stable release of each dependency by default; pass
+`"<module>==<version>"` only if the user asks.
+
+When `setup_cea_env.sh` exits 0, the environment is ready — go to Phase 1.
 
 ---
 
@@ -382,6 +496,9 @@ After launch, tell the user:
    `collect_results.py` exit code 0 = all jobs merged; exit code 1 = some still pending
    (normal while jobs are running). The merged JSONL lands at
    `<output_dir>/batch_ids/<name>.json` on the remote machine and is mirrored into `$LOCAL_DIR/` here.
+6. **Next step**: `harvest-and-analyze`, pointed at the merged file — it computes
+   the observable, compares it with the emulated baseline and returns the
+   accept/reject verdict. This skill stops at raw data on disk.
 
 ---
 
@@ -401,7 +518,8 @@ Only escape variables that must be evaluated by the **inner** `bash -c` shell (e
 - All duration values **must** be multiples of 4 ns (hardware clock). Round during parameter list generation.
 - Builder **must** call `.with_automatic_layout(device)` on the register.
 - Import builder via `import utils.sequence_utils as su` — never inline it in the submit script.
-- `setup_cea_env.sh` must be run from `~/` (not `~/$HPC_REMOTE_DIR/`), creating `~/pulser-env/`.
+- Environment setup is **optional** — run it only when Phase 0.1 reports `ENV MISSING`, or when the user explicitly asks to (re)build it. Never as a routine step. `setup_cea_env.sh` reads archives from `~/cea_pkgs/` (override with a path argument) and creates `~/pulser-env/` regardless of the working directory.
+- Never try to build `myqlm` or any `qat…` package in the container — it will not work. Surface it to the user and stop.
 - Always use `nohup ... &` when launching long-running scripts over SSH.
 - If SSH is refused, wait a few seconds and retry silently — do not surface this as an error to the user unless it persists beyond 3 attempts.
 - Say where each step runs before running it, and record every number you report
