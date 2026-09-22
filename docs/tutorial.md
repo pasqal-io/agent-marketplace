@@ -109,7 +109,7 @@ the register for the check, and say so:
 $ python <validate-emu>/support/run_local_scan.py \
       --spec       triangular_lattice_phases_spec.json \
       --seq-file   triangular_lattice_phases_sequence.py \
-      --out-dir    results/triangular_lattice_phases/emu_local/ \
+      --out-dir    experiments/triangular_lattice_phases/results/emu_local/ \
       --shots      200 --seq-kwargs '{"L": 3}' --noiseless-only
 
 === validate-emu (local): triangular_lattice_phases ===
@@ -177,27 +177,64 @@ knowing about now because of what they refuse to do.
 the *live* device noise model. That verdict — not the local one — is what
 justifies hardware.
 
-**The submission** prices itself and stops. Before any credential is read, before
-the cloud is contacted:
+**Whose credits.** Before any of this, the agent shows you what is on the
+machine and asks — it does not decide:
+
+```console
+$ python <qpu-submit>/support/pasqal_auth.py --whoami
+=== Pasqal Cloud account — nothing has been submitted ===
+  username   you@example.com
+  region     fr (default)
+  resolved from:
+    username    environment (PASQAL_USERNAME)
+    password    system keyring
+    project_id  environment (PASQAL_PROJECT_ID)
+
+  2 project(s) available to this account:
+    Rydberg phases 2026
+      id       7f3a…                ← the environment's default, NOT a choice
+      QPU: 4200,  EMU: 18000
+    Shared teaching project
+      id       b91c…
+      QPU: 0,  EMU: 2500
+
+  Ask the user which project should pay for this run, then pass it as
+  --project-id <id>. Do not infer it from the environment.
+```
+
+That the environment already held a project id is not permission to spend it:
+`submit_qpu.py` refuses to run without an explicit `--project-id`.
+
+**The submission** then prices itself and stops:
 
 ```console
 === qpu-submit: square_lattice_eom_quench — submission plan ===
   device            FRESNEL_CAN1
   scan              t_ns ∈ [16, 100, 300, 600, 1000, 1500, 2000, 2600, 3200, 4000]
-  batches           10  (one per scan point)
-  shots per batch   300
+  batches           1  (10 jobs, one per scan point)
+  shots per job     300
   experiment shots  3000
-  calibration       50 jobs × 20 shots = 1000 shots
+  calibration       50 jobs × 20 shots = 1000 shots  (its own batch)
   TOTAL QPU SHOTS   4000
+  account           you@example.com
+  project           Rydberg phases 2026  [7f3a…]
+  region            fr (default)
+  credits left      QPU: 4200,  EMU: 18000
 
   Metered, and a submitted batch cannot be recalled.
 ✘ nothing has approved this submission, and there is no terminal to ask at.
 ```
 
-It exits non-zero. Nothing was submitted, nothing was contacted. Approving means
-your agent passes `--confirm` after **you** agreed to those numbers, or you type
-`y` yourself. Change the scan, the shots or the device and the previous agreement
-no longer applies.
+It exits non-zero. Nothing was submitted. Approving means your agent passes
+`--confirm` after **you** agreed to those numbers — the shots *and* the project
+they are billed to — or you type `y` yourself. Change the scan, the shots, the
+device or the project and the previous agreement no longer applies.
+
+One scan is **one batch with one job per point**, tagged with the experiment,
+the device, the scan variable, the register size and your own words if you pass
+`--tag`. That is what makes it findable next month:
+`sdk.get_batches(filters=BatchFilters(tag="exp:square_lattice_eom_quench"))`
+returns the emulation, the calibration and the QPU run together.
 
 Then `harvest-and-analyze` collects the results and writes three files in a
 deliberate order: `qpu_counts.json` (the raw bitstrings, untransformed),
@@ -239,5 +276,5 @@ worth reporting:
   the skills is specific to these examples.
 - The [worked examples](../examples/) — including, in each README, the earlier
   version that was **rejected** and why. The failure modes are the useful part.
-- [The seven skills](../AGENTS.md), each usable on its own: bring a sequence and
+- [The eight skills](../AGENTS.md), each usable on its own: bring a sequence and
   ask for an emulation, or bring batch IDs and ask for the analysis.

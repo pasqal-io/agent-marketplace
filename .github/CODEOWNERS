@@ -1,0 +1,13 @@
+# Review routing. Inert until a ruleset on `main` requires Code Owner review —
+# see .github/rulesets/main.json, which cannot be applied while the repository
+# is private on the org's current plan.
+#
+# EDIT THIS BEFORE RELYING ON IT. The owners below are the accounts that have
+# actually authored here plus the repo admins driving it; "who must approve a
+# change to the physics" is a decision for the team, not something a tool should
+# infer from git history. Prefer @pasqal-io/<team> handles over individuals once
+# a team exists on this repo — today it has none, so every entry is a person and
+# every person is a single point of failure.
+
+# Default owner for anything not matched below.
+*                               @MGarrigues-pasqal @bejito @cdalyac

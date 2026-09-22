@@ -1,19 +1,43 @@
 ---
 name: spec-to-sequence
-description: Generate a Pulser sequence builder file from an experiment_spec.json. Output is a *_sequence.py with two standardised functions — build_sequence() and compute_observable() — consumed by validate-emu and harvest-and-analyze. Triggered by phrases like "generate the sequence", "write the sequence file", "spec to sequence", "build the Pulser sequence from spec", "convert spec to code".
+description: Generate a Pulser sequence builder for a neutral-atom (Rydberg) experiment from an experiment_spec.json. Output is a *_sequence.py with two standardised functions — build_sequence() and compute_observable() — consumed by validate-emu, qpu-submit and harvest-and-analyze. Triggered by phrases like "generate the Pulser sequence", "write the sequence file for this spec", "spec to sequence", "turn the spec into Pulser code".
 argument-hint: "[spec-file]"
 ---
 
 # spec-to-sequence
 
-Generate `<experiment_name>_sequence.py` from `<experiment_name>_spec.json`.
+Generate `experiments/<name>/<name>_sequence.py` from
+`experiments/<name>/<name>_spec.json` — beside the spec, in the experiment's own
+tree, not in the working directory's root.
 
-The file must export exactly **two public functions** with standardised signatures.
+RUNS ON: this machine. Writing and smoke-testing a sequence file costs nothing
+and contacts nothing.
+
+The file must export **two required public functions** with standardised
+signatures, and may export a third (`build_parametric_sequence`, below).
 Everything else (register helpers, intermediate constants) can be private.
+
+## Decisions that are not yours
+
+A geometry or an observable has more than one defensible encoding, and picking
+one silently makes the result unreviewable. Ask, with the alternatives named:
+
+- **how the spec's geometry maps onto a Pulser register** when the spec is
+  ambiguous (which sites, which layout, what happens at the boundary)
+- **the observable's exact definition** — the wavevector, the sign convention,
+  whether the mean occupation is subtracted
+- **any deviation from the spec** you had to make for the device to accept the
+  sequence, which belongs in the spec's `_notes` too
+
+If the sequence will not build or the smoke test will not pass after about
+**three** attempts, stop and report: the error, what you changed, and what you
+now believe is wrong (the spec, the device limit, or the observable). Then offer
+changing the spec, reducing the register, or a different observable. Do not keep
+editing the same file hoping the constraint moves.
 
 ---
 
-## Two required functions
+## The functions this file exports
 
 ### `build_sequence(device=None, **params) -> pulser.Sequence`
 
@@ -32,6 +56,30 @@ def build_sequence(device=None, **params) -> pulser.Sequence:
              Example: {"tau_ns": 4000, "delta_f_mhz": 6.0}
     """
 ```
+
+### `build_parametric_sequence(device=None, **fixed) -> (Sequence, (var_name,))`
+
+**Optional, and worth writing.** Returns a Pulser sequence with the spec's scan
+variable left as a declared variable, plus the tuple of variable names — exactly
+one, the scan variable:
+
+```python
+def build_parametric_sequence(device=None, **fixed):
+    # Same physics as build_sequence, with the scan variable left free.
+    # Lets qpu-submit send one batch-level sequence and bind one value per job,
+    # which is what the cloud is built for. Without it, the same scan still goes
+    # out as one batch, with each job carrying its own serialized sequence.
+    seq = pulser.Sequence(_register(device, **fixed), device)
+    seq.declare_channel("ising", "rydberg_global")
+    t = seq.declare_variable("t_ns", dtype=int)      # the spec's scan variable
+    ...                                              # same schedule, t in place
+    return seq, ("t_ns",)
+```
+
+Everything else — `fixed_params`, the calibration offsets — is baked in as it is
+in `build_sequence`. Write it when the scan variable maps cleanly onto a Pulser
+variable (a duration, an amplitude, a detuning); skip it when it would change
+the register or the number of pulses, and say why in the file.
 
 ### `compute_observable(counts: dict[str, int]) -> float`
 
@@ -68,7 +116,7 @@ The `references/` directory is bundled inside this skill's own directory.
 
 ## Step 1 — Read the spec
 
-Load `<experiment_name>_spec.json`. Note:
+Load `experiments/<name>/<name>_spec.json`. Note:
 - `register.geometry`, `register.builder_params`
 - `channel.eom_mode` (true = EOM, false = adiabatic ramp)
 - `pulse.type` and all pulse parameters
@@ -113,7 +161,7 @@ reg = Register(qubits)
 Always add the layout guard (required by real FC1/Ruby device, skipped for VirtualDevice):
 ```python
 if device is not None:
-    from pulser.devices._device_datacls import Device, VirtualDevice
+    from pulser.devices import Device, VirtualDevice
     if isinstance(device, Device) and not isinstance(device, VirtualDevice):
         reg = reg.with_automatic_layout(device)
 ```
@@ -239,7 +287,8 @@ Add at the bottom of the file:
 if __name__ == "__main__":
     import json
     from pathlib import Path
-    spec = json.loads(Path("<experiment_name>_spec.json").read_text())
+    spec = json.loads(
+        Path(__file__).with_name("<experiment_name>_spec.json").read_text())
     scan = spec["scan"]
     mid  = scan["values"][len(scan["values"])//2]
     params = {**scan["fixed_params"], scan["variable"]: mid}
@@ -263,7 +312,8 @@ if __name__ == "__main__":
         raise SystemExit(f"✘ compute_observable wrong for: {', '.join(failures)}")
 ```
 
-Run `python <experiment_name>_sequence.py` — every line must read `ok`.
+Run `python experiments/<name>/<name>_sequence.py` — every line must read `ok`.
+The spec is resolved beside the file, so the smoke test works from anywhere.
 
 Two things to get right in the comparisons:
 
@@ -303,7 +353,12 @@ Two things to get right in the comparisons:
 
 ## Step 6 — Report
 
-1. Confirm the file is written at `spec["sequence_file"]`
-2. Show smoke test output
+1. Confirm the file is written beside the spec, at
+   `experiments/<name>/` + `spec["sequence_file"]`
+2. Show smoke test output — the actual lines, not a summary of them
 3. Print Rb/a = (C6/Ω)^(1/6) / spacing to verify blockade regime
-4. **Next step**: run `validate-emu` with this spec and sequence file
+4. Say whether `build_parametric_sequence` was written, and if not, why — it
+   decides which shape `qpu-submit` uses for the batch
+5. Append the block to `experiments/<name>/NOTEBOOK.md`: what was generated,
+   which reference it followed, the smoke-test result, Rb/a
+6. **Next step**: run `validate-emu` with this spec and sequence file

@@ -5,24 +5,65 @@ on:
   push:
     branches: [main]
 
+# Least privilege, set here rather than left to the repository default. Nothing
+# in this workflow writes to the repo: it validates manifests and runs the
+# example smoke tests. A read token is all it needs, and a read token cannot be
+# used to push to main, cut a release or approve a PR if anything running in
+# this job turns out to be hostile.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # Third-party actions are pinned to a commit SHA, not a tag: a tag is
+      # mutable, so `@v4` is a promise from whoever can move that tag. The
+      # trailing comment is the human-readable version the SHA corresponds to —
+      # keep both in sync when bumping.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # actions/checkout stores the GITHUB_TOKEN in .git/config by default
+          # so later git commands work. No step here talks to the remote, so
+          # the credential is dropped instead of left on disk for the rest of
+          # the job, where any dependency installed below could read it.
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "20"
       - name: Install Claude Code CLI (for manifest validation)
-        run: npm install -g @anthropic-ai/claude-code
+        # Pinned like every other dependency. Unpinned, this resolved a fresh
+        # tree of transitive packages on every run, with no diff anyone reviews.
+        # Bump deliberately when `claude plugin validate` changes.
+        run: npm install -g @anthropic-ai/claude-code@2.1.247
       - name: Install Pulser (for the example smoke tests)
         # Pinned deliberately: the examples assert on device constants Pulser
         # ships (AnalogDevice's C6 sets the printed R_b/a, its 38 µm radial cap
         # is what the 56-atom ring is expected to be refused by). A Pulser bump
         # can move those numbers, so it should arrive as its own PR.
         run: pip install "pulser==1.9.0"
+      
       - name: Run repo checks
         run: bash scripts/check.sh
+
+      - name: Install gitleaks
+        # The gitleaks binary (Apache-2.0), not gitleaks-action: the action is
+        # licensed per-organisation. Pinned to a version + SHA-256 like every
+        # other dependency in this repo; bump both together.
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+          GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+        run: |
+          set -euo pipefail
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSL "$url" -o gitleaks.tar.gz
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install gitleaks /usr/local/bin/
+
+      - name: Scan full history
+        run: gitleaks git --no-banner --redact --verbose --log-opts="--all" .

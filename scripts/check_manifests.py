@@ -93,7 +93,7 @@ CODEX_INSTALLATION = {"AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE"}
 CODEX_AUTHENTICATION = {"ON_INSTALL", "ON_USE"}
 
 # Modules vendored byte-identical into every skill's support/ directory.
-VENDORED_MODULES = ("pasqal_auth.py",)
+VENDORED_MODULES = ("pasqal_auth.py", "spec_noise.py", "batch_tags.py")
 
 # Nothing under skills/ may name one harness's tools or variables. Each entry is
 # a pattern and what to write instead; the message is what a contributor reads.
@@ -344,7 +344,7 @@ def check_vendored_modules() -> None:
                 "corrected version over the others.")
 
     # A second loader anywhere would apply a different policy to some scripts.
-    loader = re.compile(r"^\s*def _?load_credentials\b", re.M)
+    loader = re.compile(r"^\s*def _?(?:load|ensure)_credentials\b", re.M)
     for script in sorted((ROOT / "skills").glob("*/support/*.py")):
         if script.name in VENDORED_MODULES:
             continue
@@ -513,7 +513,7 @@ def check_pulser_pins() -> None:
     examples assert on device constants Pulser ships, which is what makes the
     number load-bearing rather than cosmetic. `requirements.txt` deliberately
     keeps a floor rather than a pin — users are not forced onto one release —
-    and `submit-via-hpc` installs from offline zips on an air-gapped cluster,
+    and `submit-to-cea` installs from offline zips on an air-gapped cluster,
     where the version is whatever was last validated in that container.
     """
     found: dict[str, list[str]] = {}

@@ -48,7 +48,7 @@
     "noise_retention_min": 0.5
   },
   "shots_per_point": 500,
-  "output_dir": "results/literature_z2_reproduction",
+  "output_dir": "experiments/literature_z2_reproduction/results",
   "sequence_file": "literature_z2_reproduction_sequence.py",
   "builder_fn": "build_sequence",
   "open_questions": [

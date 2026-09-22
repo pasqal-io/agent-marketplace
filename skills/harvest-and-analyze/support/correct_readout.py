@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Invert the detection channel on harvested bitstrings.
 
+RUNS ON: this machine, offline. Reads a counts file; submits nothing, bills
+nothing, and needs no account when the two rates are passed explicitly.
+
 A neutral-atom readout mislabels sites in two ways: an atom in the ground state
 is sometimes read as excited (p_false_pos, "epsilon"), and an atom in the Rydberg
 state is sometimes read as absent (p_false_neg, "epsilon'"). Both are single-site
@@ -41,16 +44,18 @@ from pathlib import Path
 
 import numpy as np
 
-from pasqal_auth import load_credentials
+from pasqal_auth import ensure_credentials
 
 
 def _rates_from_device(device_name: str) -> tuple[float, float]:
     """Read the two detection rates off the live device noise model."""
-    from pasqal_cloud import SDK
-    from pulser_pasqal import PasqalCloud
+    from pasqal_cloud import PasqalCloudConnection
+    from pasqal_cloud.pasqal_cloud_client import PasqalCloudClient
 
-    sdk = SDK(**load_credentials())
-    cloud = PasqalCloud(**load_credentials())
+    creds, _ = ensure_credentials()
+    sdk = PasqalCloudClient(**creds)
+    cloud = PasqalCloudConnection(**creds)
+
     devices = {d.name: d for d in cloud.fetch_available_devices().values()}
     if device_name not in devices:
         raise SystemExit(
@@ -62,7 +67,6 @@ def _rates_from_device(device_name: str) -> tuple[float, float]:
             f"✘ {device_name} publishes no noise model, so its detection rates "
             "are not readable. Pass --eps and --eps-prime from the calibration "
             "you are working against.")
-    del sdk
     return float(noise.p_false_pos), float(noise.p_false_neg)
 
 
