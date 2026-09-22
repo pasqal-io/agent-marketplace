@@ -1,24 +1,16 @@
 ---
 name: apply-genci-tgcc-cea
 description: >-
-  Help a researcher apply for QPU hours on the Pasqal Ruby (Orion) analogue
-  neutral-atom simulator hosted at GENCI/CEA TGCC. Two application routes to the
-  same machine, chosen by one question - which country is the organisation in?
-  French organisations apply through the national GENCI eDARI portal (edari.fr,
-  Dynamic Allocation up to 100 h); non-French EU / Digital-Europe / Horizon-Europe
-  organisations apply through the EuroHPC Quantum Access Pilot call
-  (access.eurohpc-ju.europa.eu, 10-25 h). Everything else - eligibility posture,
-  eliciting the science, drafting the text, the early connection-IP check, and the
-  shared TGCC computing-account + onboarding tail - is common to both. Coaches the
-  user through their own application: guides click-by-click (default) or, with
-  direct browser access (browser plugin / integrated browser like Claude Desktop),
-  fills the forms itself. Batches questions upfront, shows a review table before
-  touching the browser, stops at every credential/consent/submit gate for explicit
-  approval. Triggered by "apply for TGCC hours", "eDARI application", "request QPU
-  computing hours", "apply for Ruby/Pasqal QPU allocation", "GENCI allocation",
-  "request a TGCC computing account", "EuroHPC quantum hours", "Quantum Access
-  Pilot", "apply on access.eurohpc-ju.europa.eu", "attach to a project /
-  rattachement".
+  Guides a user through applying for QPU hours on the Pasqal Ruby (Orion) analogue
+  neutral-atom quantum computer at GENCI/CEA TGCC - via either the French GENCI eDARI
+  portal or the EuroHPC Quantum Access Pilot call - and through the follow-on TGCC
+  computing account. Relevant to requests such as "apply for TGCC hours", "eDARI
+  application", "request QPU computing hours", "apply for Ruby/Pasqal QPU
+  allocation", "GENCI allocation", "request a TGCC computing account", "EuroHPC
+  quantum hours", "Quantum Access Pilot", "apply on access.eurohpc-ju.europa.eu",
+  or "attach to a project / rattachement". Concerns obtaining access only, not
+  running sequences, submitting jobs, or analysing results on already-granted
+  hardware.
 ---
 
 # Apply for QPU hours on Ruby at GENCI/CEA TGCC (eDARI or EuroHPC route)
@@ -132,9 +124,9 @@ Ask the country directly; do not infer it from an email domain.
 Only the **middle** branches - *which portal you apply on, the account there, the
 eligibility rules and the allocation form*. Everything else is shared: the
 posture/fill-mode/hard-rules above, Phase A/B below, and - after an allocation
-exists - the **TGCC computing-account + onboarding tail** (both routes land on the
-same machine, so both need the same TGCC account, connection IP and first-jobs
-steps).
+exists - the **TGCC computing-account tail** (both routes land on the same machine,
+so both need the same TGCC account and connection IP). Running jobs afterwards is
+the separate `submit-via-cea` skill.
 
 > Edge cases (don't guess): a French org needing the EuroHPC pilot's terms, or a
 > non-French org wanting >25 h, are unusual. Mention the other route exists and
@@ -585,7 +577,7 @@ or, for >25 h on Ruby, switch to **Route FR**.
 
 ---
 
-# Shared tail - TGCC computing account, IP, and first jobs (both routes)
+# Shared tail - TGCC computing account and connection IP (both routes)
 
 Once an allocation exists (an eDARI project code, or an EuroHPC award), the user
 still needs the **actual TGCC computing account** to SSH in - this is the same
@@ -690,20 +682,19 @@ Remedy: **ask IT to configure a dedicated route to CEA** (source-NAT CEA-bound
 traffic from a dedicated, DNS-consistent, org-owned IP); then re-verify (live ipify
 may still show the general egress - the CEA traceroute confirms the route).
 
-## After access - first jobs (point the user to docs; don't automate the cluster)
-1. `ssh -m hmac-sha2-512 <login>@irene-eu.ccc.cea.fr` (Windows form), change
-   password, accept terms, reconnect.
-2. Check QPU status:
-   `pcocc-rs run ccc-quantum -- python3 -c "from qlmaas.qpus import PasqalQPU;
-   print(PasqalQPU().get_specs().meta_data['operational_status'])"`
-3. Validate on the emulator (QAPTIVA / QutipBackend) before Ruby; submit to Ruby via
-   `QPUBackend` with a small `runs=`; async jobs via `ccc_msub`, monitor `squeue
-   --me`.
-4. Publish open access (deposit on HAL, hal.science/GENCI, for the eDARI route) and
-   **acknowledge the resources** (GENCI project number, or EuroHPC JU) in
-   publications; file the outcome report (mandatory on the EuroHPC route).
-5. **Use the allocation only for what the application described** - misuse is held
-   against the PI in future calls.
+## After access - hand off to `submit-via-cea`
+Once the TGCC computing account exists, **onboarding and running jobs on the
+cluster** (SSH login, checking QPU status, emulator validation, submitting to Ruby,
+monitoring) are out of scope here - they are covered by the separate
+**`submit-via-cea`** skill. Point the user there; do not describe or automate the
+cluster from this skill.
+
+Allocation obligations that remain the applicant's responsibility (conditions of
+the grant this skill obtained): publish open access (deposit on HAL,
+hal.science/GENCI, for the eDARI route) and **acknowledge the resources** (GENCI
+project number, or EuroHPC JU) in publications; file the outcome report (mandatory
+on the EuroHPC route); and **use the allocation only for what the application
+described** (misuse is held against the PI in future calls).
 
 ---
 
@@ -759,11 +750,3 @@ may still show the general egress - the CEA traceroute confirms the route).
 - Confirm state at each step (eDARI `TMP#####` / EuroHPC `DRAFT-#####`; greyed *Save
   Changes*; section advanced; validation messages; "taken into account" / "validated"
   banners; rattachement pending owner approval) and report it.
-
-## Plugin integration
-Standard `name` + `description` frontmatter only, so this loads cleanly as a plugin
-skill; packaging metadata belongs in `.claude-plugin/plugin.json`. This single skill
-now owns **both** application routes to Ruby (eDARI national + EuroHPC pilot) plus
-the shared TGCC access tail - keep its triggers distinct from toolkit skills that
-build sequences or analyse results; this skill is about obtaining access, not doing
-the physics.
