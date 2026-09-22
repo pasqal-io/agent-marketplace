@@ -22,6 +22,7 @@ inline is how a submission gets billed for a wrong sequence.
 | `qpu-submit` | run an experiment on a QPU reachable through a cloud API | spec + sequence → batch IDs |
 | `submit-to-cea` | run one on Ruby at CEA/TGCC, reachable only over SSH through the cluster scheduler | sequence → remote jobs |
 | `harvest-and-analyze` | collect and judge the results of a submission | batch IDs → raw counts + observable + verdict |
+| `apply-genci-tgcc-cea` | apply for time at RUBY QPU or Emulator at Genci TGCC CEA | → |
 
 The pipeline order is (`application-to-idea`) → `idea-to-spec` →
 `spec-to-sequence` → `validate-emu` → (`noise-emulate`) → `qpu-submit` *or*

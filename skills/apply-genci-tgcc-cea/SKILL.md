@@ -49,8 +49,8 @@ access - see the mode choice below).
 
 > Field maps are **dated snapshots** (eDARI selectors re-verified against the
 > English UI Sep 2026; EuroHPC portal walked end to end Sep 2026, footer v1.7.0).
-> Both portals are "in continuous evolution." Always `read_page` / screenshot the
-> real page and adapt; if the live portal diverges, follow the page and, if
+> Both portals are "in continuous evolution." Always read the live page (accessibility
+> tree or a screenshot) and adapt; if the live portal diverges, follow the page and, if
 > unsure, explain the choice to the user instead of guessing.
 
 ## Choose the fill mode (both routes; do this before any form work)
@@ -67,7 +67,7 @@ access - see the mode choice below).
   browser (e.g. Claude Desktop). In a plain terminal/CLI with no browser tool it
   is impossible - use guided.
 
-When you present this as an AskUserQuestion, **keep the voice consistent: "you" =
+When you present this as a multiple-choice question, **keep the voice consistent: "you" =
 the user, "I" = the assistant, in every option** (the confusing version flips -
 "*I* drive my browser" then "*I* fill the forms" mean different actors). Phrase it
 like: *"Guided - you drive your browser, I instruct you field-by-field"* vs
@@ -220,7 +220,7 @@ This is an offer, not a gate.
 
 ## Phase B - Batch the questions, then show a review table (both routes)
 
-Ask in as few turns as possible (AskUserQuestion for choices; prose for
+Ask in as few turns as possible (multiple-choice for choices; prose for
 free-text). Do **not** open the browser yet. Then present a **single review
 table** of every value to be entered - the user's own text and any drafted
 wording - flag placeholders, and **wait for explicit approval** before touching
@@ -729,31 +729,30 @@ may still show the general egress - the CEA traceroute confirms the route).
   code and connection IP are the user's own data - ask/read-from-profile and confirm.
 
 ## Execution notes (browser automation robustness, both routes)
-- Field maps are snapshots: `read_page`/screenshot the real page and adapt. The
-  Browser pane may open hidden - ask the user to reveal it. `read_page` can report a
-  0x0 viewport before the first screenshot; screenshot to force a render; the pane
-  may reflow to a narrow layout - re-read coordinates after that.
-- **Route FR:** set the UI to **English** (flag toggle) and turn off Chrome
+- Field maps are snapshots: read the real page (accessibility tree or a screenshot)
+  and adapt. The browser view may open hidden - ask the user to reveal it. A page
+  read can report a 0x0 viewport before the first screenshot; take a screenshot to
+  force a render; the view may reflow to a narrow layout - re-read coordinates after that.
+- **Route FR:** set the UI to **English** (flag toggle) and turn off the browser's
   auto-translate ("Show original") - selectors are native English strings; a
   translation layer shifts labels and breaks input. On the TGCC-account "Connection
-  information" tab, `ref_N` mapping is **unstable** and `form_input` can land in the
-  wrong field (IP ended up in the outgoing-flow table) - fill main IP + FQDN by
+  information" tab, element references are **unstable** and a set-field action can land
+  in the wrong field (IP ended up in the outgoing-flow table) - fill main IP + FQDN by
   **clicking the field by coordinate then typing**, re-screenshot, use
   "Delete"/"supprimer" for stray rows, keep away from the password field. The phone
   widget mangles input if the field holds a value - clear first, then set a clean
   full "+NN ..." value.
 - **Route EU:** single-page app - deep links (`/login`, `/calls/<id>`) may 404 or
   bounce; navigate to root and **click** through. The Calls list mixes Open and
-  Closed calls with near-identical names - **match on the status badge**. Refs shift
-  after every re-render - click radios **one at a time** and screenshot between;
-  re-`read_page` after a dependent field appears (VAT after Organization type,
-  sub-title after research panel). Batched `form_input` may be refused - fill one at
-  a time (one retry on transient failure). **Don't scroll with the pointer over the
-  form** - the DOB picker captures the wheel and changes the year; scroll over the
-  sidebar or use `scroll_to`; Cancel an open picker rather than Escape. **"Code(s)
-  used" is a chip input** - type each name and commit it (a comma made one chip
-  "Pulser Qoolqit"); verify with
-  `[...document.querySelectorAll('.MuiChip-label')].map(e=>e.textContent)`. Long
+  Closed calls with near-identical names - **match on the status badge**. Element
+  references shift after every re-render - click radios **one at a time** and screenshot
+  between; re-read the page after a dependent field appears (VAT after Organization
+  type, sub-title after research panel). Batched set-field actions may be refused - fill
+  one at a time (one retry on transient failure). **Don't scroll with the pointer over
+  the form** - the DOB picker captures the wheel and changes the year; scroll over the
+  sidebar or scroll the element into view directly; Cancel an open picker rather than
+  Escape. **"Code(s) used" is a chip input** - type each name and commit it (a comma
+  made one chip "Pulser Qoolqit"); verify the chips read as separate entries. Long
   dropdowns (Organization country, ERC panels) have **no type-ahead** - scroll the
   open list. The systems table on the public call page is an **image** - screenshot
   it or read the in-form dropdown.
