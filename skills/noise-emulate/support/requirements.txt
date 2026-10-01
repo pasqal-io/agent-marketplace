@@ -15,5 +15,5 @@ pasqal-cloud>=0.23.0
 emu-mps>=2.7.0
 torch>=2.0.0
 matplotlib>=3.5.0
-numpy>=1.24.0
+numpy>=2.5.3
 keyring>=24.0.0      # optional but recommended — stores password in OS keyring
