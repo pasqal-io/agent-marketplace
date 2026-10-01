@@ -166,6 +166,13 @@ if device is not None:
         reg = reg.with_automatic_layout(device)
 ```
 
+The guard is the whole layout requirement. `with_automatic_layout` builds a
+layout for whatever geometry the spec asks for, and `Sequence(reg, device)` is
+the validity check: if it does not raise, the register is allowed. Do not
+restrict the geometry to `device.pre_calibrated_layouts` or swap it for a
+triangular one — on a device whose `accepts_new_layouts` is True (the Fresnel
+devices) those are a convenience, not a constraint.
+
 ---
 
 ## Step 3 — Pulse schedule

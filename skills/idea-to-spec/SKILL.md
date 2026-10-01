@@ -203,6 +203,10 @@ Work through these questions and fill the spec:
 - Atom number N and side length L?
 - Atom spacing a in µm?
 - Does N fit the target device? Read the limit, don't assume one (Step 3).
+- Keep the source's geometry. Whether the device allows it is a validity check
+  (`with_automatic_layout(device)` then `Sequence(reg, device)`), not a match
+  against `device.pre_calibrated_layouts` — those bind only when
+  `device.accepts_new_layouts` is False.
 
 ### Drive
 - Global Rydberg drive only? (local addressing is not supported in this pipeline)
