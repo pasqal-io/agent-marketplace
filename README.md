@@ -160,6 +160,7 @@ account and nothing spent.
 
 | Skill | What it does | Needs |
 |---|---|---|
+| `create-pasqal-cloud-account` | *(optional, upstream)* Get access in the first place: the account and project on `portal.pasqal.cloud`, free and enough for `EMU_FREE`, then — only if you want QPUs and the advanced emulators — the Google Cloud Marketplace coupling that bills them | nothing (a card only for the Google Cloud step) |
 | `application-to-idea` | *(optional, upstream)* A guided conversation from an application, a problem or a hunch to a first technical idea: which documented method could serve it — MIS, QUBO, an Ising or XY simulation, a graph kernel — with its maturity and its baseline, what would be measured, at what size, and what this hardware cannot do at all | nothing |
 | `idea-to-spec` | Turn an experiment you describe, or a paper or patent you want to reproduce, into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec, self-testing | Python + `pulser` |
@@ -235,6 +236,11 @@ the file where a reviewer can find them.
    ```bash
    export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
    ```
+
+   No account yet? `create-pasqal-cloud-account` walks you through getting one
+   and finding the project ID — and through deciding whether you need the
+   Google Cloud coupling at all, since the free project already runs the whole
+   pipeline on `EMU_FREE`.
 
    `PASQAL_PROJECT_ID` is a convenience, not a decision: every script that
    spends credits requires `--project-id` explicitly, and

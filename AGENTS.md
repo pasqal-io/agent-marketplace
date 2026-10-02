@@ -1,6 +1,6 @@
 # Neutral Atom Toolkit — skills index
 
-This repository is one plugin: eight [Agent Skills](https://agentskills.io) that
+This repository is one plugin: nine [Agent Skills](https://agentskills.io) that
 carry a neutral-atom (Rydberg) quantum experiment from an idea to hardware and
 back. Each skill is a directory under `skills/` containing a `SKILL.md` plus the
 scripts, templates and reference implementations it runs.
@@ -14,6 +14,7 @@ inline is how a submission gets billed for a wrong sequence.
 
 | Skill | Use it when the user wants to | Reads / writes |
 |---|---|---|
+| `create-pasqal-cloud-account` | get access at all — no Pasqal Cloud account, no project ID, or a project that only offers `EMU_FREE` | → an account + project (and optionally Google Cloud billing) |
 | `application-to-idea` | find out *whether and what* to run — they have an application, a problem or a hunch, no protocol and no view of the stack | → `<name>_idea.md` |
 | `idea-to-spec` | turn a paper, a patent, a PDF, an arXiv ID or a described protocol into a structured experiment | → `experiment_spec.json` |
 | `spec-to-sequence` | generate the Pulser code for a spec | spec → `*_sequence.py` |
@@ -30,7 +31,10 @@ user chooses them: `application-to-idea` is for someone whose problem is not an
 experiment yet and who needs to know which documented method — if any — applies;
 `noise-emulate` is a diagnostic, not a gate. The first is a conversation that
 ends in a prose note, and it may end in a documented "this hardware cannot answer
-that" — which is a result, not a failure. Skills interoperate only through
+that" — which is a result, not a failure. `create-pasqal-cloud-account` sits
+outside this chain: it is a prerequisite, reached for when the user has no
+credentials or no QPU-capable project rather than as a stage of an experiment.
+Skills interoperate only through
 `experiment_spec.json` and a sequence file exporting
 `build_sequence(device=None, **params)` and `compute_observable(counts)`; they
 contain no experiment of their own — worked experiments live in `examples/`.
