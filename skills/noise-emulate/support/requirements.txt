@@ -11,7 +11,7 @@
 # which replaces the deprecated pulser-pasqal package) landed in 0.23.
 # pulser 1.9 itself requires pasqal-cloud>=0.23, so the two move together.
 pulser>=1.8.0,<2.0
-pasqal-cloud>=0.23.0
+pasqal-cloud>=0.24.0
 emu-mps>=2.7.0
 torch>=2.0.0
 matplotlib>=3.5.0
