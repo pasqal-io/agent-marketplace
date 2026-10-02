@@ -95,6 +95,40 @@ def compute_observable(counts: dict[str, int]) -> float:
     """
 ```
 
+### Provenance stamp — required
+
+Pulser records, inside every serialized sequence, which packages produced it.
+Stamping the toolkit there is what later identifies the sequence as
+agent-generated: it travels with the abstract representation into the cloud, the
+QPU batch and any saved JSON, so a submission stays attributable long after the
+`experiments/` directory is gone.
+
+Put this at module level, with the imports:
+
+```python
+# Provenance: marks every serialized sequence as produced by this toolkit.
+try:
+    from pulser.sequence.metadata import store_package_version_metadata
+except ImportError:      # older pulser has no sequence metadata
+    pass
+else:
+    store_package_version_metadata("neutral-atom-toolkit", "<toolkit version>")
+```
+
+Two things to get right:
+
+- **Read `<toolkit version>` from the toolkit manifest, do not recall it.** The
+  `version` field of `plugin.json`, two directories above this skill's own
+  directory. Write the value you read as a literal — the generated file is
+  copied into HPC bundles and run where no manifest exists, so a lookup at run
+  time would either crash or report the wrong version.
+- **Keep the `try`/`except`.** Sequence metadata is a recent Pulser addition and
+  there is no repo-wide floor that guarantees it, so a bare import would take the
+  whole sequence file down over a provenance tag. The stamp is optional; the
+  sequence is not.
+
+One call, `package_versions` only. Nothing else belongs in the metadata.
+
 ---
 
 ## Reference implementations
@@ -303,6 +337,11 @@ if __name__ == "__main__":
     seq = build_sequence(device=None, **params)
     N   = len(seq.register.qubit_ids)
     print(f"Sequence OK: {seq.get_duration()} ns, {N} atoms")
+
+    # The provenance stamp only reaches the serialized form, so check it there.
+    stamped = json.loads(seq.to_abstract_repr()).get("metadata", {})
+    if "neutral-atom-toolkit" not in stamped.get("package_versions", {}):
+        raise SystemExit("✘ provenance stamp missing — see the module header")
 
     failures = []
     for label, counts, want, tol in [

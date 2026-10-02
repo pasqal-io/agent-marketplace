@@ -16,6 +16,14 @@ import utils.sequence_utils as su
 from pulser.backend import QPUBackend
 from pulser.backend.remote import BatchStatus, JobStatus
 
+# Provenance: marks every serialized sequence as produced by this toolkit.
+try:
+    from pulser.sequence.metadata import store_package_version_metadata
+except ImportError:      # older pulser has no sequence metadata
+    pass
+else:
+    store_package_version_metadata("neutral-atom-toolkit", "<<TOOLKIT_VERSION>>")
+
 
 # ====================================================================
 # BOILERPLATE — identical across all CEA experiments
