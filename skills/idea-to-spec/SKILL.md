@@ -362,9 +362,8 @@ can pick up and a pile of JSON.
 ## Step 5 — Adversarial review
 
 Perform an adversarial review of of the proposed spec.
-You should spawn a subagent with a fresh context to avoid any bias.
 
-The subagent should read **only** the paper and the spec `<experiment_name>_spec.json`.
+To avoid any bias, run this review in a fresh context that has seen only the paper and the spec – a separate agent, if the harness can start one. If it cannot, say so and ask the user to open a new session with only those two files, rather than reviewing here.
 
 It should report issues, ranked by severity, and proposed improvements: do not implement them blindly and discuss them with the user in case of doubt.
 
