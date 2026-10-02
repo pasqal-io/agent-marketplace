@@ -361,7 +361,7 @@ can pick up and a pile of JSON.
 
 ## Step 5 — Adversarial review
 
-Perform an adversarial review of of the proposed spec.
+Perform an adversarial review of the proposed spec.
 
 To avoid any bias, run this review in a fresh context that has seen only the paper and the spec – a separate agent, if the harness can start one. If it cannot, say so and ask the user to open a new session with only those two files, rather than reviewing here.
 
