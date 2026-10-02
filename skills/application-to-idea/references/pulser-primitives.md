@@ -44,6 +44,16 @@ frustration, the neighbourhood structure and the boundary effects.
 Check: minimum atom distance, maximum register extent, device layout, filling
 fraction, coordinate-to-bitstring ordering, loading constraints.
 
+Choose the geometry for the physics, not for the device's pre-calibrated
+layouts. A device that `requires_layout` but `accepts_new_layouts` (the Fresnel
+devices do) takes any register that validates: build it, call
+`with_automatic_layout(device)`, and construct `Sequence(reg, device)` — if that
+does not raise, the geometry is allowed. `device.pre_calibrated_layouts` is a
+list of layouts already calibrated, not a list of what the device supports.
+Only when `accepts_new_layouts` is False must the register come from one of
+them. Never rule out a geometry (a square or King's grid, say) because no
+pre-calibrated layout matches it.
+
 ## Addressing
 
 - **Global** — adiabatic ramps, global quenches, ordered-state preparation, QAA,
