@@ -32,6 +32,17 @@ from pulser import Pulse, Register, Sequence
 from pulser.devices import MockDevice
 from pulser.waveforms import ConstantWaveform, RampWaveform
 
+# Provenance: marks every serialized sequence as produced by this toolkit.
+# 0.0.0 is a deliberate sentinel — this file is committed, not generated, so it
+# claims no toolkit release. A generated sequence writes the real version here,
+# and its smoke test rejects 0.0.0: copy the header, never the version.
+try:
+    from pulser.sequence.metadata import store_package_version_metadata
+except ImportError:      # older pulser has no sequence metadata
+    pass
+else:
+    store_package_version_metadata("neutral-atom-toolkit", "0.0.0")
+
 # Module-level geometry, closed over by compute_observable: a bitstring carries
 # no geometry, so the atom count the observable assumes and the one the builder
 # places have to agree by construction.

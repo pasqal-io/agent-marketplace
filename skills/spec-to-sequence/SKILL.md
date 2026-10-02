@@ -129,6 +129,18 @@ Two things to get right:
 
 One call, `package_versions` only. Nothing else belongs in the metadata.
 
+The reference implementations and the examples carry the same header with the
+version fixed at `0.0.0`. That is a sentinel, not a release: those files are
+committed rather than generated, so they claim no version. Copy the header from
+them and substitute the real one — the Step 5 smoke test rejects `0.0.0`, which
+is what catches a header pasted across unchanged.
+
+One ordering trap, latent today: the metadata is a process-wide mapping and the
+last write for a key wins. A script that imported an example *and* a generated
+sequence file would serialize both under whichever stamp ran second. Nothing
+does — a skill may not import `examples/` — so this only matters if you write
+something that loads both.
+
 ---
 
 ## Reference implementations
@@ -339,9 +351,12 @@ if __name__ == "__main__":
     print(f"Sequence OK: {seq.get_duration()} ns, {N} atoms")
 
     # The provenance stamp only reaches the serialized form, so check it there.
+    # 0.0.0 means the header was copied from an example without substituting
+    # the real version — see the module header.
     stamped = json.loads(seq.to_abstract_repr()).get("metadata", {})
-    if "neutral-atom-toolkit" not in stamped.get("package_versions", {}):
-        raise SystemExit("✘ provenance stamp missing — see the module header")
+    version = stamped.get("package_versions", {}).get("neutral-atom-toolkit")
+    if version in (None, "0.0.0"):
+        raise SystemExit(f"✘ provenance stamp is {version!r}, expected a version")
 
     failures = []
     for label, counts, want, tol in [
