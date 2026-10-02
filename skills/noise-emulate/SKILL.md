@@ -331,7 +331,9 @@ observation time** (what the real QPU does) and submits noiseless + noisy
 EMU_MPS batches per point. Batch budget = n_times × (2 + n_envelope); warn the
 user beyond ~100 batches. `--n-envelope K` adds K independent noisy batches per
 point for a client-side quantile band. Batch IDs are saved immediately; if the
-session dies mid-poll, re-run with `--resume` and the same `--out-dir`.
+session dies mid-poll, re-run with `--resume` and the same `--out-dir`; a
+re-run without `--resume` into a directory that already records batches is
+refused.
 
 ---
 
