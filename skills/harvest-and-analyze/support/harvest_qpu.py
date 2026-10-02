@@ -4,7 +4,7 @@
 RUNS ON: this machine. Reads a finished submission from Pasqal Cloud — no shots
 are bought here, and nothing is submitted.
 
-Reads QPU batch IDs (written by qpu-submit or submit-to-cea), pulls bitstrings
+Reads QPU batch IDs (written by qpu-submit), pulls bitstrings
 from Pasqal Cloud, computes the observable, and compares to the EMU scan from
 validate-emu. Writes a final accept/reject verdict.
 
@@ -36,6 +36,7 @@ import importlib.util
 import json
 import time
 from pathlib import Path
+from statistics import NormalDist
 
 import numpy as np
 
@@ -202,10 +203,10 @@ def main():
     n_map  = {str(r["scan_value"]): r["observable"] for r in n_recs}
 
     # ── verdict ──────────────────────────────────────────────────────────────
-    # QPU is "accepted" if it lies within noise model prediction
-    # (within N sigma of the noisy EMU value at each scan point).
-    SIGMA_TOL = 2.0   # accept if |QPU - noisy_emu| < SIGMA_TOL * qpu_err
-
+    # QPU is "accepted" if every compared point lies within the noisy EMU value,
+    # at a threshold corrected for the number of points (Bonferroni, 5% family-
+    # wise): a fixed 2σ on the max of 6 points fails a correct model ~24% of runs.
+    # ponytail: QPU error only — the EMU records carry no obs_err to add in quadrature.
     deviations = []
     for r in qpu_records:
         key   = str(r["scan_value"])
@@ -215,6 +216,9 @@ def main():
             dev = abs(r["observable"] - n_val) / err
             deviations.append(dev)
 
+    n_dropped = len(qpu_records) - len(deviations)
+    SIGMA_TOL = (NormalDist().inv_cdf(1 - 0.05 / (2 * len(deviations)))
+                 if deviations else float("nan"))
     max_dev = float(max(deviations)) if deviations else float("nan")
     accept  = (max_dev < SIGMA_TOL) if not np.isnan(max_dev) else False
 
@@ -222,6 +226,8 @@ def main():
         "accept":             accept,
         "max_deviation_sigma": max_dev,
         "sigma_tolerance":    SIGMA_TOL,
+        "n_compared":         len(deviations),
+        "n_dropped":          n_dropped,
         "reasons":            [],
     }
 
@@ -230,12 +236,28 @@ def main():
             "could not compute deviation — missing EMU noise baseline or QPU errors")
     elif accept:
         verdict["reasons"].append(
-            f"QPU max deviation {max_dev:.1f}σ < {SIGMA_TOL}σ — "
-            "consistent with noise model")
+            f"QPU max deviation {max_dev:.1f}σ < {SIGMA_TOL:.2f}σ over "
+            f"{len(deviations)} point(s) — consistent with noise model")
     else:
         verdict["reasons"].append(
-            f"QPU max deviation {max_dev:.1f}σ ≥ {SIGMA_TOL}σ — "
-            "QPU data not fully explained by noise model")
+            f"QPU max deviation {max_dev:.1f}σ ≥ {SIGMA_TOL:.2f}σ over "
+            f"{len(deviations)} point(s) — QPU data not fully explained by noise model")
+    if n_dropped:
+        verdict["reasons"].append(
+            f"{n_dropped} of {len(qpu_records)} scan point(s) not compared "
+            "(no EMU value, nan observable or zero error)")
+
+    # The baseline must be one that gates hardware: a local stand-in-noise run at
+    # a smaller register agreeing with the QPU is not agreement.
+    emu_verdict_file = emu_dir / "verdict.json"
+    emu_verdict = (json.loads(emu_verdict_file.read_text())
+                   if emu_verdict_file.exists() else {})
+    if emu_verdict.get("gates_hardware") is False:
+        verdict["accept"] = False
+        verdict["reasons"].append(
+            f"the EMU baseline in {emu_dir} does not gate hardware "
+            f"({emu_verdict.get('scope', 'not the device noise model')}) — "
+            "compare against the cloud scan at the real register size")
 
     (out / "verdict.json").write_text(json.dumps(verdict, indent=2))
 
@@ -249,7 +271,8 @@ def main():
               f"{r['obs_err']:>8.4f}  {n_v:>12.4f}")
 
     label = "ACCEPT ✓" if verdict["accept"] else "REJECT ✗"
-    print(f"\n  Verdict: {label}  (max deviation {max_dev:.1f}σ)")
+    print(f"\n  Verdict: {label}  (max deviation {max_dev:.1f}σ, "
+          f"{len(deviations)}/{len(qpu_records)} points compared)")
     for r in verdict["reasons"]:
         print(f"    {r}")
     print(f"\n  Results: {out}")

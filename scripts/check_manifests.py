@@ -122,6 +122,13 @@ PULSER_PIN_SOURCES = (
     ("skills/noise-emulate/SKILL.md", r"CI pins pulser ([0-9.]+)"),
 )
 
+# experiment_spec.json: what the support scripts read, and the one closed enum
+# idea-to-spec declares. Keep in step with skills/idea-to-spec/SKILL.md.
+SPEC_REQUIRED = ("experiment_name", "device", "register.N_atoms", "scan.variable",
+                 "scan.values", "pulse.omega_max_mhz", "shots_per_point",
+                 "output_dir")
+SPEC_GEOMETRIES = ("square", "chain", "ring", "triangular_rhombus", "custom")
+
 errors: list[str] = []
 
 
@@ -416,6 +423,14 @@ def check_examples() -> None:
                 errors.append(
                     f"examples/{name}/{spec_path.name}: {field} is "
                     f"{spec.get(field)!r}, expected {want!r}")
+        # The fields the support scripts read without a default: a spec missing
+        # one fails at the paid step, not at the free one.
+        for field in SPEC_REQUIRED:
+            if dig(spec, field) is None:
+                errors.append(f"examples/{name}/{spec_path.name}: missing {field}")
+        if dig(spec, "register.geometry") not in SPEC_GEOMETRIES:
+            errors.append(f"examples/{name}/{spec_path.name}: register.geometry "
+                          f"must be one of {SPEC_GEOMETRIES}")
 
 
 def check_skill_references() -> None:

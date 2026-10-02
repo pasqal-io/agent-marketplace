@@ -58,8 +58,9 @@ before anything else happens:
                    <|m|> already reads 0.18 on a *disordered* 49-atom array —
                    what value should count as having observed order?",
       "provisional": 1.0,
-      "impact": "validate-emu compares retention against this number, so a
-                 ceiling that cannot be reached makes every verdict look weak"
+      "impact": "no step reads this number; it only matters to whoever judges
+                 the result, and a ceiling that cannot be reached makes any
+                 measured order look weak"
     }
   ]
 ```
@@ -117,26 +118,27 @@ $ python <validate-emu>/support/run_local_scan.py \
   tau_ns ∈ [200, 500, 1000, 2000, 3600, 5800]
   shots=200  overrides={'L': 3}
 
-  [noiseless] tau_ns=200   obs=0.5207  (0.1s)
-  [noiseless] tau_ns=500   obs=0.5122  (0.1s)
-  [noiseless] tau_ns=1000  obs=0.4414  (0.1s)
-  [noiseless] tau_ns=2000  obs=0.3984  (0.2s)
-  [noiseless] tau_ns=3600  obs=0.3450  (0.3s)
-  [noiseless] tau_ns=5800  obs=0.3430  (0.4s)
+  [noiseless] tau_ns=200   obs=0.5322  (0.1s)
+  [noiseless] tau_ns=500   obs=0.4949  (0.1s)
+  [noiseless] tau_ns=1000  obs=0.4285  (0.2s)
+  [noiseless] tau_ns=2000  obs=0.3905  (0.3s)
+  [noiseless] tau_ns=3600  obs=0.3180  (0.5s)
+  [noiseless] tau_ns=5800  obs=0.3216  (0.9s)
 
-  Verdict: GO ✓  (local scope — does not authorise hardware)
+  Verdict: NO-GO ✗  (local scope — does not authorise hardware)
+    no noisy scan ran, so nothing was compared — a GO needs one
     emulated 9 atoms, the spec asks for 49 — a downsized check, not the experiment
-    noise model is a stand-in, not this device's calibration
 ```
 
-**Now read it properly, because "GO" is the least informative word on the
-screen.** What this run establishes: the sequence builds on a constrained device,
+**Now read it properly: the NO-GO is not a failure.** `--noiseless-only`
+compared nothing, and a verdict that compared nothing never reads GO. What this
+run establishes: the sequence builds on a constrained device,
 the observable accepts real bitstrings, and it responds to the scan variable.
 That is the class of error which otherwise surfaces after you have paid for shots.
 
 What it does not establish: anything about the physics. The disordered floor for
 this observable is √(π/2N), which is **0.42 at 9 atoms** — against 0.18 at the 49
-the spec asks for — and the whole scan sits between 0.34 and 0.52, straddling it.
+the spec asks for — and the whole scan sits between 0.32 and 0.53, straddling it.
 There is no three-sublattice order to see on a 3×3 patch, and the scan says so.
 That is the correct outcome of this step, not a failure of it.
 
@@ -147,19 +149,22 @@ Which is why the verdict file carries its own limits:
 
 ```json
 {
-  "go": true,
+  "go": false,
   "reasons": [
-    "emulated 9 atoms, the spec asks for 49 — a downsized check, not the experiment",
-    "noise model is a stand-in, not this device's calibration"
+    "no noisy scan ran, so nothing was compared — a GO needs one",
+    "emulated 9 atoms, the spec asks for 49 — a downsized check, not the experiment"
   ],
   "scope": "local emulator",
   "gates_hardware": false,
-  "nl_max": 0.5414
+  "observable_floor": 0.41777137910516676,
+  "nl_max": 0.5321973739193229
 }
 ```
 
-`gates_hardware: false` is enforced downstream: `qpu-submit` will not treat this
-file as authorisation.
+`gates_hardware: false` tells the model not to treat this file as authorisation
+— an instruction `qpu-submit` follows, not a check its script makes.
+`harvest-and-analyze` does check it, and refuses to accept hardware data against
+this baseline.
 
 **Timings, measured.** Noiseless at 9 atoms is instant. The noisy path carries a
 density matrix and grows steeply with sequence duration: on a 9-atom quench it

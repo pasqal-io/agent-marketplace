@@ -124,8 +124,8 @@ against. `open_questions` is empty only when the source really answered
 everything — see below.
 
 **`geometry`** — one of: `square`, `chain`, `ring`, `triangular_rhombus`, `custom`
-**`pulse.type`** — one of: `adiabatic_ramp`, `eom_quench`
-**`observable.type`** — one of: `structure_factor`, `magnetization`, `occupation`, `custom`
+**`pulse.type`** — a short label, e.g. `adiabatic_ramp`, `eom_quench`; no script reads it
+**`observable.type`** — a short label, e.g. `structure_factor`, `occupation`; no script reads it
 
 ---
 

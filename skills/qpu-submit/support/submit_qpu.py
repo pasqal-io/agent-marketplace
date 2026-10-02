@@ -54,7 +54,7 @@ last one somebody exported, not a decision.
 
 Outputs (in --out-dir):
     batch_ids.json       single_batch id, per-job scan values, tags, account
-                         (written immediately after submission, crash recovery)
+                         (batch id written as soon as the batch is created)
     calibration/calibration_fits.png, calib_results.json
 """
 from __future__ import annotations
@@ -99,6 +99,7 @@ def _register_signature(seq) -> str | None:
 # ── Calibration ────────────────────────────────────────────────────────────────
 
 CALIB_OFFSET_PARAMS = ("omega_offset", "delta_offset")
+NOMINAL_OFFSETS     = {"omega_offset": 1.0, "delta_offset": 0.0}
 
 # Calibration batch size. Named here because two places need it: the builder
 # below, and the cost the user approves before anything is submitted.
@@ -502,7 +503,8 @@ def _plan_text(spec: dict, device_name: str, shots: int, values: list,
             calib_note or
             "skipped (--no-calibration): jobs run at nominal Ω and δ"),
         f"  TOTAL QPU SHOTS   {len(values) * shots + calib_shots}",
-    ])
+    ] + [f"  open question     {q.get('field', '?')}: {q.get('question', q)}"
+         for q in spec.get("open_questions", [])])
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -626,7 +628,7 @@ def _resolve_offsets(args, sdk, device, device_name: str, spec: dict,
     """
     import numpy as np                       # lazy, so --self-test runs bare
 
-    nominal = {"omega_offset": 1.0, "delta_offset": 0.0}
+    nominal = NOMINAL_OFFSETS
 
     if args.add_jobs:
         offsets = previous.get("builder_kwargs", nominal)
@@ -750,6 +752,11 @@ def main():
 
     print(account_summary(sdk, creds["project_id"], creds.get("region"),
                           creds.get("username")), flush=True)
+    # Every point validated against the live device before the gate — free —
+    # so a too-long sequence fails before the calibration batch is paid for.
+    build_jobs(mod, spec, device, values, shots,
+               previous.get("builder_kwargs", NOMINAL_OFFSETS) if args.add_jobs
+               else NOMINAL_OFFSETS, CreateJob)
     _confirm_submission("\n  Metered, and a submitted batch cannot be recalled.",
                         args.confirm)
 
@@ -794,9 +801,13 @@ def main():
             "batch_id":       str(batch.id),
             "builder_kwargs": offsets,
             "calibration":    calib,
-            "jobs":           pair_job_scanpoint(
-                _job_list(sdk, batch), values, variable, shots, shape),
+            "jobs":           [],
         }
+        # On disk before any further call: the batch is paid for now, and the
+        # duplicate guard can only refuse a rerun it can read.
+        batch_ids_path.write_text(json.dumps(record, indent=2))
+        record["jobs"] = pair_job_scanpoint(
+            _job_list(sdk, batch), values, variable, shots, shape)
         print(f"  batch {batch.id}  ({len(jobs)} jobs)")
         print(f"  tags  {', '.join(tags)}")
 

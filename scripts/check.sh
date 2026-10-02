@@ -2,12 +2,14 @@
 # Repo health checks — run before every PR. CI runs this on every push/PR.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+skipped=""   # what did not run: a local green is not CI green
 
 echo "── Claude Code manifest + skill validation"
 if command -v claude >/dev/null 2>&1; then
   claude plugin validate .
 else
   echo "  (claude CLI not found — skipping manifest validation; CI runs it)"
+  skipped+=" claude-plugin-validate"
 fi
 
 echo "── Manifest JSON syntax (all agent adapters)"
@@ -42,6 +44,7 @@ if "$example_python" -c "import pulser" >/dev/null 2>&1; then
   done
 else
   echo "  (pulser not importable — skipping; CI installs it)"
+  skipped+=" example-smoke-tests"
 fi
 
 echo "── Analytic self-tests inside the skills"
@@ -56,6 +59,7 @@ if "$example_python" -c "import numpy" >/dev/null 2>&1; then
   echo "   correct_readout.py: inversion recovers known densities"
 else
   echo "  (numpy not importable — skipping)"
+  skipped+=" readout-self-test"
 fi
 
 # The rest need neither Pulser nor numpy: labels, the job-to-scan-point mapping,
@@ -87,6 +91,7 @@ if "$example_python" -c "import pulser" >/dev/null 2>&1; then
   echo "  $(ls skills/*/support/*.py | wc -l | tr -d ' ') scripts importable and argparse-clean"
 else
   echo "  (pulser not importable — skipping; CI installs it)"
+  skipped+=" support-script-wiring"
 fi
 
 echo "── Secret scan"
@@ -113,4 +118,8 @@ if grep -rn '^argument-hint: \[' skills --include=SKILL.md; then
   echo "✘ unquoted argument-hint found (breaks YAML when two [..] groups are present)"; exit 1
 fi
 
-echo "✔ all checks passed"
+if [ -n "$skipped" ]; then
+  echo "⚠ SKIPPED:$skipped — what ran passed, but this is not a full check (CI runs them)"
+else
+  echo "✔ all checks passed"
+fi

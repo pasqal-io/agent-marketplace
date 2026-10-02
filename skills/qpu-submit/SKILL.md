@@ -97,8 +97,8 @@ Before running anything, state the cost to the user and get an explicit go-ahead
 - **plus the calibration batch**: 50 jobs × 20 shots, unless `--no-calibration`
 - **against** the remaining credits from Step 0a
 
-Say those numbers back to the user, name the device and the project, and wait for
-confirmation. If they change the scan, the shots or the device afterwards,
+Say those numbers back to the user, name the device and the project, read out
+the spec's `open_questions` (the plan lists them), and wait for confirmation. If they change the scan, the shots or the device afterwards,
 confirm again — the previous go-ahead was for a different submission.
 
 **The script enforces this, it does not trust you to.** `submit_qpu.py` prints
@@ -210,7 +210,7 @@ site-dependent and can be far longer. The experiment batches queue behind it.
 
 ```bash
 tail -f <out-dir>/submit.log | grep --line-buffered \
-    -E "Calibration|omega_offset|batch_ids saved|ERROR|Traceback"
+    -E "Calibration|omega_offset|batch |job |batch_ids saved|ERROR|Traceback"
 ```
 
 ---
