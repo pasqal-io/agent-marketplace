@@ -1,16 +1,18 @@
 ---
 name: apply-genci-tgcc-cea
 description: >-
-  Guides a user through applying for QPU hours on the Pasqal Ruby (Orion) analogue
-  neutral-atom quantum computer at GENCI/CEA TGCC - via either the French GENCI eDARI
-  portal or the EuroHPC Quantum Access Pilot call - and through the follow-on TGCC
-  computing account. Relevant to requests such as "apply for TGCC hours", "eDARI
-  application", "request QPU computing hours", "apply for Ruby/Pasqal QPU
-  allocation", "GENCI allocation", "request a TGCC computing account", "EuroHPC
-  quantum hours", "Quantum Access Pilot", "apply on access.eurohpc-ju.europa.eu",
-  or "attach to a project / rattachement". Concerns obtaining access only, not
-  running sequences, submitting jobs, or analysing results on already-granted
-  hardware.
+  Guides a user who has decided on the CEA/GENCI route through applying for
+  QPU hours on the Pasqal Ruby (Orion) analogue neutral-atom quantum computer
+  at GENCI/CEA TGCC - via either the French GENCI eDARI portal or the EuroHPC
+  Quantum Access Pilot call - and through the follow-on TGCC computing
+  account. Relevant to requests such as "apply for TGCC hours", "eDARI
+  application", "apply for Ruby/Pasqal QPU allocation", "GENCI allocation",
+  "request a TGCC computing account", "EuroHPC quantum hours", "Quantum
+  Access Pilot", "apply on access.eurohpc-ju.europa.eu", or "attach to a
+  project / rattachement". Concerns obtaining access only, not running
+  sequences, submitting jobs, or analysing results on already-granted
+  hardware. Not sure whether CEA/GENCI or Pasqal Cloud fits? Use
+  choose-access-method first.
 ---
 
 # Apply for QPU hours on Ruby at GENCI/CEA TGCC (eDARI or EuroHPC route)
@@ -126,7 +128,7 @@ eligibility rules and the allocation form*. Everything else is shared: the
 posture/fill-mode/hard-rules above, Phase A/B below, and - after an allocation
 exists - the **TGCC computing-account tail** (both routes land on the same machine,
 so both need the same TGCC account and connection IP). Running jobs afterwards is
-the separate `submit-via-cea` skill.
+the separate `submit-to-cea` skill.
 
 > Edge cases (don't guess): a French org needing the EuroHPC pilot's terms, or a
 > non-French org wanting >25 h, are unusual. Mention the other route exists and
@@ -682,11 +684,11 @@ Remedy: **ask IT to configure a dedicated route to CEA** (source-NAT CEA-bound
 traffic from a dedicated, DNS-consistent, org-owned IP); then re-verify (live ipify
 may still show the general egress - the CEA traceroute confirms the route).
 
-## After access - hand off to `submit-via-cea`
+## After access - hand off to `submit-to-cea`
 Once the TGCC computing account exists, **onboarding and running jobs on the
 cluster** (SSH login, checking QPU status, emulator validation, submitting to Ruby,
 monitoring) are out of scope here - they are covered by the separate
-**`submit-via-cea`** skill. Point the user there; do not describe or automate the
+**`submit-to-cea`** skill. Point the user there; do not describe or automate the
 cluster from this skill.
 
 Allocation obligations that remain the applicant's responsibility (conditions of

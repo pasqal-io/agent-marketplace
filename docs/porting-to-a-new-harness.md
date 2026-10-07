@@ -10,7 +10,7 @@ When this guide and the code disagree, the code wins — fix the guide.
 
 ## Part 1 — What a port is, and is not
 
-`skills/` is the toolkit. All seven skill directories are shared verbatim by
+`skills/` is the toolkit. All eleven skill directories are shared verbatim by
 every harness, and a port **never edits them**. The skills are written to name
 *actions* — "ask the user", "read a file", "run this script", "run this poll in
 the background" — never a tool. That is what lets one skill body run on Claude
@@ -57,7 +57,7 @@ harness qualifies if the model can find the skills and act on them:
 
 | Capability | Why it is needed | If absent |
 |---|---|---|
-| **Skill discovery** — list skills by description, load one on demand | The eight skills are chosen from their descriptions | Degradable: the model reads `skills/<name>/SKILL.md` itself. Ship `AGENTS.md` so it knows they exist (tier C). A harness that can neither discover skills nor read files cannot work. |
+| **Skill discovery** — list skills by description, load one on demand | The eleven skills are chosen from their descriptions | Degradable: the model reads `skills/<name>/SKILL.md` itself. Ship `AGENTS.md` so it knows they exist (tier C). A harness that can neither discover skills nor read files cannot work. |
 | **File read / write** | Every skill produces or consumes a spec, a sequence, results | Essential. No workaround. |
 | **Run shell commands** | Each skill's real work is in `support/*.py` | Essential. Without it the model would have to reimplement the physics inline, which is exactly what these skills exist to prevent. |
 | **Ask the user a question mid-task** | Execution mode, cluster values, cost confirmation before a submission | Degradable to a plain-text question, and the skills already word it that way. **Not** degradable to skipping the question — see Part 5. |

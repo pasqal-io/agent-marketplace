@@ -113,6 +113,9 @@ Ask the user, and say what each one buys:
 **Default to 2a when the register is small enough or can be shrunk for a check,
 and run 2b before recommending hardware.** A user without an account can still
 get everything 2a gives — say so rather than stopping at the credential error.
+No account at all yet? Point them at `choose-access-method` (or straight to
+`create-pasqal-cloud-account` if they already know they want Pasqal Cloud)
+rather than leaving 2b as a dead end.
 
 ### Why the small run first — explain this, do not just do it
 
@@ -423,7 +426,7 @@ submission.
 | `no project was chosen` | Expected, not a bug to route around: run `pasqal_auth.py --whoami`, ask the user which project, pass `--project-id`. |
 | `--noise-source both would buy this whole scan twice` | Compare the two models in Step 2a, which is free, or run 2b twice into two `--out-dir`s. |
 | `--noise-source paper … the spec carries no noise model` | Only the spec records the source's model. Add it in `idea-to-spec`, or stay on the device's. |
-| `Pasqal Cloud credentials incomplete` | Export `PASQAL_USERNAME` / `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID`, or see `noise-emulate` first-time setup. No account? Step 2a needs none |
+| `Pasqal Cloud credentials incomplete` | Export `PASQAL_USERNAME` / `PASQAL_PASSWORD` / `PASQAL_PROJECT_ID`, or see `noise-emulate` first-time setup. No account? Step 2a needs none; to get one, see `choose-access-method` / `create-pasqal-cloud-account` |
 | `N atoms is past the local emulator's reach` | Expected above ~14 atoms. Shrink the register with `--seq-kwargs` for the local check, or run Step 2b at the real size — do not raise `--max-atoms` |
 | `<device> not in available devices` | Cloud connection failed or device offline; for SA1, is `PASQAL_REGION=sa` set? Retry. |
 | `build_sequence` not found in seq file | Check `spec["builder_fn"]` matches the function name |

@@ -1,14 +1,15 @@
 ---
 name: create-pasqal-cloud-account
 description: >-
-  Guides a user through getting access to Pasqal Cloud - creating the account on
-  portal.pasqal.cloud, and optionally coupling it to Google Cloud Marketplace so
-  real QPUs and the advanced emulators become available. Relevant to requests such
-  as "create a Pasqal Cloud account", "sign up for Pasqal Cloud", "get access to
-  Pasqal QPU", "I need a PASQAL_PROJECT_ID", "connect Pasqal to Google Cloud",
-  "subscribe to Pasqal on GCP Marketplace", "pay-as-you-go QPU access", "how do I
-  run on FRESNEL", or "my project only shows EMU_FREE". Concerns obtaining access
-  only, not building sequences, submitting jobs, or analysing results.
+  Guides a user who has decided on Pasqal Cloud through getting access to it -
+  creating the account on portal.pasqal.cloud, and optionally coupling it to
+  Google Cloud Marketplace so real QPUs and the advanced emulators become
+  available. Relevant to requests such as "create a Pasqal Cloud account",
+  "sign up for Pasqal Cloud", "I need a PASQAL_PROJECT_ID", "connect Pasqal to
+  Google Cloud", "subscribe to Pasqal on GCP Marketplace", "how do I run on
+  FRESNEL", or "my project only shows EMU_FREE". Concerns obtaining access
+  only, not building sequences, submitting jobs, or analysing results. Not
+  sure whether Pasqal Cloud or CEA/GENCI fits? Use choose-access-method first.
 ---
 
 # Get access to Pasqal Cloud (account, and optional Google Cloud coupling)
@@ -241,6 +242,17 @@ devices, not the project's entitlements. Expect "why can I see FRESNEL but not u
 it": the dashboard shows the fleet, the project row shows the grant. That gap is
 exactly what stage 2 closes.
 
+**Tell the user what this ceiling actually blocks before they stop here.**
+`validate-emu`'s cloud scan (Step 2b) and `noise-emulate`'s cloud mode both
+submit to `EMU_MPS`, not `EMU_FREE` - a project at this stage cannot run
+either. This free project is genuinely useful: implementation checks, small
+register physics, anything `EMU_FREE`'s 12 qubits cover, and the whole
+pipeline end to end at that size, for nothing. What it will not do is let the
+user progress to real cloud emulation at the register sizes those two skills
+exist for. Say that plainly, then ask: stop here on the free project, or
+continue to Stage 2 now for `EMU_MPS` access. Don't let the user discover the
+ceiling only when a cloud scan fails later.
+
 ## Stage 2 - Couple to Google Cloud Marketplace
 
 Walked as far as the order request; **what follows the account link is
@@ -444,6 +456,28 @@ this toolkit, `PASQAL_PROJECT_ID`, alongside `PASQAL_USERNAME` and
 the cloud-facing skills resolve them from there - `qpu-submit` ships the auth
 helper that prints which account and projects were found.
 
+**This skill is not done until those three values are actually on the
+machine that will run the pipeline - not just known.** Knowing the project id
+is not the same as `--whoami` finding anything. Two ways to close that, both
+the user's own action - never type a password on their behalf:
+
+- **Export the three variables** - the reliable, scriptable path, and the
+  only one that works from inside an automated or piped session:
+  ```bash
+  export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
+  ```
+- **Or `python <any skill>/support/pasqal_auth.py --setup`**, which prompts
+  for the same three values and stores the password to the OS keyring (the
+  username and project id to `~/.pasqal_credentials.json`). This one needs a
+  **real interactive terminal the user is typing into themselves** - it
+  reads the password with the console's own masked-input mechanism, not from
+  redirected input, so it is not something to drive through an automated or
+  piped session on the user's behalf.
+
+Either way, finish by running `python <any skill>/support/pasqal_auth.py
+--whoami` and showing the user that it reports their account and project back
+- that confirmation, not the project UUID alone, is what "done" means here.
+
 **Do not trust a list of entitlements from any document, including this one.** The
 authoritative answer to "what can I actually run now" is the project's own device
 list in the portal, or `fetch_available_devices()` on an SDK connection - which is
@@ -460,6 +494,7 @@ From here the work is a different skill: `idea-to-spec` to build an experiment,
 | Creating a project before asking about Google Cloud | Redundant project; confusion over which id to use |
 | Treating a missing country as a form bug | User retries forever on a hard legal block |
 | Promising QPU access on the free tier | Explorer has none; the dashboard fleet list implies otherwise |
+| Letting a free-route user assume `EMU_FREE` covers cloud emulation too | It doesn't - `validate-emu`'s cloud scan and `noise-emulate`'s cloud mode need `EMU_MPS`; say so before they stop at Stage 1b, not when a scan fails |
 | Expecting the session to survive email verification | The portal says to log in again - it means it |
 | Hunting for an API key | There is none; auth is username + password + project id |
 | Clicking Subscribe to "see the price" | It opens the purchase dialog, one consent tick away from committing the user's card |
@@ -482,3 +517,5 @@ From here the work is a different skill: `idea-to-spec` to build an experiment,
 | Narrating a self-explanatory page field by field | The user is looking at it; say which page and what to do, then stop |
 | Explaining every remaining screen up front | Buries the step the user is actually on; give the next step, plus prerequisites that need lead time |
 | Routing an institutional user to a personal card | An existing org project may already hold entitlement, for free |
+| Calling the skill done once the project UUID is known | Knowing the three values isn't the same as `--whoami` finding them - confirm, don't assume |
+| Running `pasqal_auth.py --setup` through an automated or piped session | Its password prompt needs a real interactive terminal the user types into; export the three variables instead in anything scripted |
