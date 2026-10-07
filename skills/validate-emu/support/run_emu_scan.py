@@ -49,6 +49,12 @@ from batch_tags import build_tags
 from pasqal_auth import account_summary, ensure_credentials
 
 
+def _observable_floor(mod, n_atoms) -> float:
+    """What a disordered state reads, if the sequence file declares it; else 0."""
+    fn = getattr(mod, "observable_floor", None)
+    return float(fn(n_atoms)) if fn and n_atoms else 0.0
+
+
 def _load_seq_module(path: str):
     spec = importlib.util.spec_from_file_location("seq_mod", path)
     mod  = importlib.util.module_from_spec(spec)
@@ -355,47 +361,54 @@ def main():
         }, indent=2))
 
     # ── verdict ──────────────────────────────────────────────────────────────
-    verdict = {"go": True, "reasons": []}
+    # Starts at NO-GO: only a retention measured on both scans promotes it. A run
+    # that compared nothing — one scan skipped, every batch errored — stays NO-GO.
+    verdict = {"go": False, "reasons": [], "scope": "cloud emulator",
+               "gates_hardware": True}
     min_ret = spec.get("validation", {}).get("noise_retention_min", 0.50)
     if run_n and noise_label == "paper":
-        verdict["noise_source"] = "paper"
+        verdict["noise_source"]   = "paper"
+        verdict["gates_hardware"] = False
         verdict["reasons"].append(
             "the noisy scan ran the noise model the source described, not this "
             "device's — it says whether the source's claim reproduces on its "
             "own terms, and does not gate a submission")
 
-    if run_nl and nl_records:
-        nl_obs = [r["observable"] for r in nl_records
-                  if not np.isnan(r["observable"])]
-        if not nl_obs or max(nl_obs) <= 0:
-            verdict["go"] = False
+    nl_obs = [r["observable"] for r in nl_records if not np.isnan(r["observable"])]
+    n_obs  = [r["observable"] for r in n_records  if not np.isnan(r["observable"])]
+    floor  = _observable_floor(mod, spec.get("register", {}).get("N_atoms"))
+    if floor:
+        verdict["observable_floor"] = floor
+    if run_nl and nl_records and (not nl_obs or max(nl_obs) <= floor):
+        verdict["reasons"].append(
+            "noiseless signal does not clear the disorder floor "
+            f"({floor:g}) — check protocol or scan range")
+    elif nl_obs and n_obs:
+        nl_max    = max(nl_obs)
+        n_max     = max(n_obs)
+        # Measured above the disorder floor: a disordered state already reads
+        # `floor`, and counting it as retained signal inflates the ratio.
+        retention = (n_max - floor) / (nl_max - floor)
+        verdict["nl_max"]    = float(nl_max)
+        verdict["n_max"]     = float(n_max)
+        verdict["retention"] = float(retention)
+        if retention < min_ret:
             verdict["reasons"].append(
-                "noiseless signal is zero or negative — check protocol or scan range")
+                f"noise retention {retention:.0%} < threshold {min_ret:.0%} — "
+                "signal may not be observable on QPU")
         else:
-            verdict["nl_max"] = float(max(nl_obs))
+            verdict["go"] = True
+            verdict["reasons"].append(
+                f"noise retention {retention:.0%} ≥ {min_ret:.0%} — signal "
+                "expected to survive QPU noise")
+    else:
+        verdict["reasons"].append(
+            "nothing to compare: a GO needs a noiseless and a noisy scan that "
+            "both returned data")
 
-    if run_nl and run_n and nl_records and n_records:
-        nl_obs = [r["observable"] for r in nl_records
-                  if not np.isnan(r["observable"])]
-        n_obs  = [r["observable"] for r in n_records
-                  if not np.isnan(r["observable"])]
-        if nl_obs and n_obs:
-            nl_max    = max(nl_obs)
-            n_max     = max(n_obs)
-            retention = n_max / nl_max if nl_max > 0 else 0.0
-            verdict["nl_max"]    = float(nl_max)
-            verdict["n_max"]     = float(n_max)
-            verdict["retention"] = float(retention)
-            if retention < min_ret:
-                verdict["go"] = False
-                verdict["reasons"].append(
-                    f"noise retention {retention:.0%} < threshold {min_ret:.0%} — "
-                    "signal may not be observable on QPU")
-            else:
-                verdict["reasons"].append(
-                    f"noise retention {retention:.0%} ≥ {min_ret:.0%} — signal "
-                    "expected to survive QPU noise")
-
+    # The source's noise model says whether its claim reproduces, not whether
+    # this device will show the signal: such a run is never a GO.
+    verdict["go"] = verdict["go"] and verdict["gates_hardware"]
     (out / "verdict.json").write_text(json.dumps(verdict, indent=2))
 
     # ── summary ──────────────────────────────────────────────────────────────

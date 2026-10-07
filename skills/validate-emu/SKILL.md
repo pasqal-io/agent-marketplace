@@ -309,12 +309,19 @@ Read `verdict.json`:
   "reasons": ["noise retention 77% ≥ 50% — signal expected to survive QPU noise"],
   "nl_max": 0.092,
   "n_max":  0.071,
-  "retention": 0.77
+  "retention": 0.77,
+  "scope": "cloud emulator",
+  "gates_hardware": true
 }
 ```
 
-A local verdict carries two extra fields — `"scope": "local emulator"` and
-`"gates_hardware": false` — plus a `reasons` line for every way it falls short of
+The verdict starts at NO-GO and only a retention measured on both scans makes it
+GO: a run that compared nothing (`--noiseless-only`, every batch errored) is a
+NO-GO. Retention is measured above `observable_floor` when the sequence file
+exports one, so a disordered state does not count as retained signal.
+
+A local verdict carries `"scope": "local emulator"` and
+`"gates_hardware": false`, plus a `reasons` line for every way it falls short of
 the cloud verdict (downsized register, stand-in noise model). **Read them before
 quoting the verdict.** "GO, locally, on 9 of the 25 atoms, with a stand-in noise
 model" is a useful sentence; "GO" on its own, from that file, is a false one.
@@ -398,7 +405,7 @@ experiments/<name>/results/emu/           Step 2b
   batch_ids.json         submitted batch IDs, their labels, the paying account
   emu_noiseless.json     same schema as above
   emu_noise.json         same format, noisy backend
-  verdict.json           {go, reasons, nl_max, n_max, retention}
+  verdict.json           {go, reasons, scope, gates_hardware, retention, ...}
   emu_scan.png           noiseless + noisy scan curves
   run.log                (if run in background)
 ```

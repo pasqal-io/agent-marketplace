@@ -56,7 +56,7 @@
       "question": "1.0 is the algebraic maximum of <|m|>, not a prediction. <|m|> already reads 0.18 on a *disordered* 49-atom array — what value should count as having observed order?",
       "provisional": 1.0,
       "why": "no finite-size prediction for this geometry was available when the spec was written",
-      "impact": "validate-emu compares retention against this number, so a ceiling that cannot be reached makes every verdict look weak"
+      "impact": "no step reads this number; it only matters to whoever judges the result, and a ceiling that cannot be reached makes any measured order look weak"
     },
     {
       "field": "register.builder_params.L",

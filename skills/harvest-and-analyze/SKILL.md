@@ -51,10 +51,12 @@ Python environment: `source "${PULSER_VENV:-$HOME/pulser-venv}/bin/activate"`
 1. `experiments/<name>/<name>_spec.json` — from `idea-to-spec`
 2. `experiments/<name>/<name>_sequence.py` — from `spec-to-sequence`
    (for `compute_observable`)
-3. `experiments/<name>/results/qpu/batch_ids.json` — from `qpu-submit` or
-   `submit-to-cea`
-4. `experiments/<name>/results/emu/` — from `validate-emu` (contains
-   `emu_noiseless.json` + `emu_noise.json`)
+3. `experiments/<name>/results/qpu/batch_ids.json` — from `qpu-submit`. The
+   `submit-to-cea` route ends at collection (`collect_results.py`): this skill
+   reads Pasqal Cloud only, and does not analyse those results
+4. `experiments/<name>/results/emu/` — from `validate-emu`'s cloud run
+   (`emu_noiseless.json`, `emu_noise.json`, `verdict.json`). A baseline whose
+   verdict says `"gates_hardware": false` — the local run — is refused
 
 Everything this skill writes goes back into `experiments/<name>/results/qpu/`,
 and any figure or script you produce beyond the standard ones into
@@ -121,7 +123,9 @@ The script:
 4. Calls `compute_observable(counts)` from the sequence file
 5. Computes bootstrap error bars (300 resamples by default)
 6. Loads `emu_noise.json` from `--emu-dir` as the comparison baseline
-7. Accepts if max QPU deviation < 2σ from noisy EMU prediction
+7. Accepts if max QPU deviation from the noisy EMU prediction is under a
+   threshold corrected for the number of points (Bonferroni, 5% family-wise:
+   2.64σ at 6 points), and records how many points were not compared
 8. Writes `qpu_results.json` + `verdict.json`
 
 Step 3 is deliberately first. The observable is a *choice*, and choices get
@@ -230,12 +234,16 @@ Read `qpu/verdict.json`:
 {
   "accept": true,
   "max_deviation_sigma": 1.4,
-  "sigma_tolerance": 2.0,
-  "reasons": ["QPU max deviation 1.4σ < 2σ — consistent with noise model"]
+  "sigma_tolerance": 2.64,
+  "n_compared": 6,
+  "n_dropped": 0,
+  "reasons": ["QPU max deviation 1.4σ < 2.64σ over 6 point(s) — consistent with noise model"]
 }
 ```
 
-**ACCEPT**: QPU agrees with the noise model. The experiment is publishable.
+**ACCEPT**: QPU is consistent with the noise model at the points compared —
+check `n_dropped`. The error bar is the QPU's only, and agreement with a model
+is not by itself a physics result.
 
 **REJECT** (and what to do):
 - **Systematic offset** (QPU curve shifted up/down): possible calibration drift —
@@ -263,7 +271,7 @@ Summarise:
 
 ```
 experiments/<name>/results/qpu/
-  batch_ids.json        (written by qpu-submit / submit-to-cea)
+  batch_ids.json        (written by qpu-submit)
   qpu_counts.json       raw bitstring counts per scan point, untransformed
   qpu_results.json      {records: [{scan_value, observable, obs_err, n_shots, ...}]}
                         — derived from qpu_counts.json, names the observable used
