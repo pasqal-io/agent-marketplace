@@ -192,6 +192,10 @@ def poll_job_status(connection, batch_id, logger, poll_interval=30, max_poll_tim
     raise TimeoutError(f"Job polling timed out after {max_poll_time}s")
 
 
+class BatchCanceled(RuntimeError):
+    """Someone cancelled the batch on purpose: terminal, never resubmitted."""
+
+
 def run_with_retry(qpu, job, para_seq, connection, max_wait_hours, logger, jade_kwargs=None):
     max_retries = 5
     base_delay = 60
@@ -202,14 +206,24 @@ def run_with_retry(qpu, job, para_seq, connection, max_wait_hours, logger, jade_
             results = qpu.run(job_params=[job], wait=False)
             submit_elapsed = (datetime.now() - submit_time).total_seconds()
             logger.info(f"  Submitted in {submit_elapsed:.1f}s, batch_id: {results.batch_id}")
-            batch_status = poll_job_status(connection, results.batch_id, logger)
+            while True:
+                try:
+                    batch_status = poll_job_status(connection, results.batch_id, logger)
+                    break
+                except TimeoutError:
+                    # Still queued, and it will still run: resubmitting would buy
+                    # it twice. Keep polling the same batch; the MSUB wall time
+                    # (-T) bounds the wait.
+                    logger.warning(f"  Batch {results.batch_id} not finished yet, re-polling it")
             if batch_status == BatchStatus.ERROR:
                 raise RuntimeError(f"Batch ended with ERROR (batch_id={results.batch_id})")
             if batch_status == BatchStatus.CANCELED:
-                raise RuntimeError(f"Batch CANCELED (batch_id={results.batch_id})")
+                raise BatchCanceled(f"Batch CANCELED (batch_id={results.batch_id})")
             elapsed = (datetime.now() - submit_time).total_seconds()
             logger.info(f"  Job completed in {elapsed:.1f}s")
             return results, qpu, connection
+        except BatchCanceled:
+            raise
         except Exception as e:
             elapsed = (datetime.now() - submit_time).total_seconds()
             logger.warning(

@@ -253,6 +253,10 @@ plugin.json                         version
 gemini-extension.json               version
 ```
 
+**Every change that should reach users bumps the version — at least the minor
+one.** Harnesses compare the installed version with the published one; a merge
+without a bump is not deployed, and users keep the old skills without any error.
+
 Bump all six in the same PR as the change; a new manifest goes into
 `VERSION_FIELDS` in `scripts/check_manifests.py` in the same PR, or it ships
 stale.

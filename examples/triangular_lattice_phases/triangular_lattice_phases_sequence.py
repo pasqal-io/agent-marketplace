@@ -207,6 +207,11 @@ def compute_observable(counts: dict[str, int]) -> float:
     return acc / total if total else float("nan")
 
 
+def observable_floor(n_atoms: int) -> float:
+    """⟨|m|⟩ of a disordered register: |m| is Rayleigh, mean sqrt(π/2N)."""
+    return float(np.sqrt(np.pi / (2 * n_atoms)))
+
+
 def _expect(label: str, got: float, want: float, tol: float,
             failures: list[str]) -> None:
     """Print a measured value against its analytic target, and record a failure.
@@ -263,7 +268,7 @@ if __name__ == "__main__":
     # A disordered shot has |m| Rayleigh distributed with mean sqrt(π/2N): the
     # level below which a measured ⟨|m|⟩ is no evidence of order whatsoever.
     _expect("uncorrelated 1/3 filling, ⟨|m|⟩ at the finite-size floor",
-            compute_observable(random_counts), float(np.sqrt(np.pi / (2 * N))),
+            compute_observable(random_counts), observable_floor(N),
             0.03, failures)
 
     # Same observable at a second register size, because every route to hardware
@@ -284,7 +289,7 @@ if __name__ == "__main__":
             compute_observable({
                 "".join("1" if rng.random() < 1 / 3 else "0" for _ in range(n_small)): 1
                 for _ in range(4000)}),
-            float(np.sqrt(np.pi / (2 * n_small))), 0.05, failures)
+            observable_floor(n_small), 0.05, failures)
     _expect("bitstring length that is no square register, ⟨|m|⟩ is nan",
             float(np.isnan(compute_observable({"0" * 10: 100}))), 1.0, 0,
             failures)

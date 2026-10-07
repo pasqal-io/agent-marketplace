@@ -447,9 +447,18 @@ instead (Phase 5).
 
 ### 4.4 — Launch jobs with nohup
 
+Two gates first, and neither can be skipped:
+
+- **Emulation.** `validate-emu` must have returned a GO for this sequence. If it
+  has not run, say so and offer to run it — the local mode first, it is free.
+- **The user's go-ahead.** Show the plan — jobs × shots, wall time, the GENCI
+  project code — and wait for a yes. `launch_cea_jobs.sh` refuses to run
+  without `CONFIRM=yes`; set it **only** to carry that yes, and ask again if
+  the plan changes.
+
 ```bash
 LAUNCH_LOG="logs/launch_$(date +%Y%m%d_%H%M%S).out"
-ssh "$HPC_HOST" "cd ~/$HPC_REMOTE_DIR && mkdir -p logs && nohup bash launch_cea_jobs.sh > $LAUNCH_LOG 2>&1 & echo PID:\$!"
+ssh "$HPC_HOST" "cd ~/$HPC_REMOTE_DIR && mkdir -p logs && CONFIRM=yes nohup bash launch_cea_jobs.sh > $LAUNCH_LOG 2>&1 & echo PID:\$!"
 ```
 
 Save the PID for monitoring. Report the launch log path to the user.

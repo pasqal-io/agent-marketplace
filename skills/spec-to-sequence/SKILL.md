@@ -14,7 +14,8 @@ RUNS ON: this machine. Writing and smoke-testing a sequence file costs nothing
 and contacts nothing.
 
 The file must export **two required public functions** with standardised
-signatures, and may export a third (`build_parametric_sequence`, below).
+signatures, and may export two more (`build_parametric_sequence` and
+`observable_floor`, below).
 Everything else (register helpers, intermediate constants) can be private.
 
 ## Decisions that are not yours
@@ -56,6 +57,10 @@ def build_sequence(device=None, **params) -> pulser.Sequence:
              Example: {"tau_ns": 4000, "delta_f_mhz": 6.0}
     """
 ```
+
+It must also accept `omega_offset=1.0` (multiplies Ω) and `delta_offset=0.0`
+(added to δ, in MHz): `qpu-submit` passes its calibration through them, and
+refuses a builder without them before anything is spent.
 
 ### `build_parametric_sequence(device=None, **fixed) -> (Sequence, (var_name,))`
 
@@ -140,6 +145,11 @@ last write for a key wins. A script that imported an example *and* a generated
 sequence file would serialize both under whichever stamp ran second. Nothing
 does — a skill may not import `examples/` — so this only matters if you write
 something that loads both.
+### `observable_floor(n_atoms: int) -> float`
+
+**Optional.** What the observable reads on a disordered register of `n_atoms`
+— e.g. ⟨|m|⟩ ≈ sqrt(π/2N). `validate-emu` measures retention above it; without
+it the floor counts as retained signal, worst at the small local sizes.
 
 ---
 
