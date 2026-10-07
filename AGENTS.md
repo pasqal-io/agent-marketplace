@@ -14,7 +14,6 @@ inline is how a submission gets billed for a wrong sequence.
 
 | Skill | Use it when the user wants to | Reads / writes |
 |---|---|---|
-| `create-pasqal-cloud-account` | get access at all — no Pasqal Cloud account, no project ID, or a project that only offers `EMU_FREE` | → an account + project (and optionally Google Cloud billing) |
 | `application-to-idea` | find out *whether and what* to run — they have an application, a problem or a hunch, no protocol and no view of the stack | → `<name>_idea.md` |
 | `idea-to-spec` | turn a paper, a patent, a PDF, an arXiv ID or a described protocol into a structured experiment | → `experiment_spec.json` |
 | `spec-to-sequence` | generate the Pulser code for a spec | spec → `*_sequence.py` |
@@ -23,6 +22,7 @@ inline is how a submission gets billed for a wrong sequence.
 | `qpu-submit` | run an experiment on a QPU reachable through a cloud API | spec + sequence → batch IDs |
 | `submit-to-cea` | run one on Ruby at CEA/TGCC, reachable only over SSH through the cluster scheduler | sequence → remote jobs |
 | `harvest-and-analyze` | collect and judge the results of a submission | batch IDs → raw counts + observable + verdict |
+| `create-pasqal-cloud-account` | get access at all — no Pasqal Cloud account, no project ID, or a project that only offers `EMU_FREE` | → an account + project (and optionally Google Cloud billing) |
 
 The pipeline order is (`application-to-idea`) → `idea-to-spec` →
 `spec-to-sequence` → `validate-emu` → (`noise-emulate`) → `qpu-submit` *or*

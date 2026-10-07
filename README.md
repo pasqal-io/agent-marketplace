@@ -66,17 +66,9 @@ You need:
 
 - **Python** with `pulser` (plus `numpy`/`scipy`/`matplotlib`). That alone is
   enough to specify an experiment, generate a sequence, and emulate it locally.
-- **A Pasqal Cloud account** for the cloud emulator, and one with **QPU access**
-  to submit to hardware. Larger local emulation wants a GPU.
-- **A cluster account** only for the CEA/TGCC route (`submit-to-cea`).
 
 You should know:
 
-- **Account creation, subscription and payment are not part of this toolkit.**
-  Nothing here signs you up, buys quota or handles an invoice. Bring access you
-  already have; if you do not have it yet, get it through the usual Pasqal
-  channels first. Everything up to and including local emulation works without
-  any account.
 - **QPU shots are metered and a submitted batch cannot be recalled.** The
   submission script prints the full shot count — with the project it would be
   billed to and that project's remaining credits — and exits rather than run
@@ -160,7 +152,6 @@ account and nothing spent.
 
 | Skill | What it does | Needs |
 |---|---|---|
-| `create-pasqal-cloud-account` | *(optional, upstream)* Get access in the first place: the account and project on `portal.pasqal.cloud`, free and enough for `EMU_FREE`, then — only if you want QPUs and the advanced emulators — the Google Cloud Marketplace coupling that bills them | nothing (a card only for the Google Cloud step) |
 | `application-to-idea` | *(optional, upstream)* A guided conversation from an application, a problem or a hunch to a first technical idea: which documented method could serve it — MIS, QUBO, an Ising or XY simulation, a graph kernel — with its maturity and its baseline, what would be measured, at what size, and what this hardware cannot do at all | nothing |
 | `idea-to-spec` | Turn an experiment you describe, or a paper or patent you want to reproduce, into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec, self-testing | Python + `pulser` |
@@ -169,6 +160,7 @@ account and nothing spent.
 | `qpu-submit` | Calibrated submission of a spec and sequence to a cloud QPU, after you approve the shot count | account with QPU access |
 | `submit-to-cea` | Parametric experiments on Ruby, the QPU at CEA/TGCC, over SSH. Includes a first-time-access guide, and says what a sibling cluster needs changed | an account on the cluster |
 | `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account |
+| `create-pasqal-cloud-account` | *(optional, upstream)* Get access in the first place: the account and project on `portal.pasqal.cloud`, free and enough for `EMU_FREE`, then — only if you want QPUs and the advanced emulators — the Google Cloud Marketplace coupling that bills them | nothing (a card only for the Google Cloud step) |
 
 The pipeline order is optionally `application-to-idea`, then `idea-to-spec`,
 `spec-to-sequence`, `validate-emu`, optionally `noise-emulate`, then
