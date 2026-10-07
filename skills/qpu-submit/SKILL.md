@@ -111,11 +111,15 @@ Getting the plan wrong is cheap; getting the flag wrong spends someone's shots.
 
 The same rule covers a re-run after a plan change: new numbers, new go-ahead.
 
+`submit_qpu.py` first checks the spec with `support/validate_spec.py` and
+refuses one missing a field it reads — before the plan, so before anything is
+spent.
+
 Do not submit to hardware before `validate-emu` has returned a GO for this spec.
 If no emulation has been run, say so and offer to run it first. Check the verdict
-you are relying on: `validate-emu`'s local mode writes the same `verdict.json`
-with `"gates_hardware": false`, because it ran a stand-in noise model and often a
-smaller register. That file is not a green light for shots — the cloud verdict at
+you are relying on: `validate-emu`'s local mode, and any run on the source's
+noise model, write `verdict.json` with `"gates_hardware": false` — a stand-in or
+borrowed noise model, often a smaller register. That file is not a green light for shots — the cloud verdict at
 the real size is.
 
 ---

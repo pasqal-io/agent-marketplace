@@ -69,6 +69,7 @@ from pathlib import Path
 
 from batch_tags import build_tags
 from pasqal_auth import account_summary, ensure_credentials
+from validate_spec import spec_problems
 
 
 def _load_seq_module(path: str):
@@ -320,6 +321,9 @@ def run_calibration(sdk, device, device_name: str, omega: float,
     batch = sdk.create_batch(seq.to_abstract_repr(), [], open=True, wait=True,
                              device_type=device_name, tags=tags)
     print(f"  Calibration batch: {batch.id}  tags: {', '.join(tags)}")
+    # On disk before the wait: a crash while polling must not lose a paid batch.
+    (calib_dir / "calib_results.json").write_text(
+        json.dumps({"batch_id": str(batch.id)}, indent=2))
     batch.add_jobs(job_params, wait=False)
     batch.close()
 
@@ -338,7 +342,7 @@ def run_calibration(sdk, device, device_name: str, omega: float,
         batch.ordered_jobs[:n_det], batch.ordered_jobs[n_det:],
         det_scan, tpulse_scan, omega, np.pi / omega * 1e3, calib_dir,
     )
-    results["batch_id"] = batch.id
+    results["batch_id"] = str(batch.id)
     (calib_dir / "calib_results.json").write_text(json.dumps(results, indent=2))
     return results
 
@@ -721,6 +725,8 @@ def main():
     _require(args, "spec", "seq_file")
 
     spec        = json.loads(Path(args.spec).read_text())
+    if problems := spec_problems(spec):
+        raise SystemExit("✘ spec not submittable:\n  " + "\n  ".join(problems))
     shots       = args.shots or spec["shots_per_point"]
     device_name = args.device or spec["device"]
     scan        = spec["scan"]

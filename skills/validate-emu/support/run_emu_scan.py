@@ -406,6 +406,9 @@ def main():
             "nothing to compare: a GO needs a noiseless and a noisy scan that "
             "both returned data")
 
+    # The source's noise model says whether its claim reproduces, not whether
+    # this device will show the signal: such a run is never a GO.
+    verdict["go"] = verdict["go"] and verdict["gates_hardware"]
     (out / "verdict.json").write_text(json.dumps(verdict, indent=2))
 
     # ── summary ──────────────────────────────────────────────────────────────

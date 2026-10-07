@@ -206,7 +206,8 @@ def main():
     # QPU is "accepted" if every compared point lies within the noisy EMU value,
     # at a threshold corrected for the number of points (Bonferroni, 5% family-
     # wise): a fixed 2σ on the max of 6 points fails a correct model ~24% of runs.
-    # ponytail: QPU error only — the EMU records carry no obs_err to add in quadrature.
+    # ponytail: QPU error only — the EMU records carry no obs_err to add in
+    # quadrature. Known ceiling: fewer shots widen err and make ACCEPT easier.
     deviations = []
     for r in qpu_records:
         key   = str(r["scan_value"])
@@ -250,14 +251,24 @@ def main():
     # The baseline must be one that gates hardware: a local stand-in-noise run at
     # a smaller register agreeing with the QPU is not agreement.
     emu_verdict_file = emu_dir / "verdict.json"
-    emu_verdict = (json.loads(emu_verdict_file.read_text())
-                   if emu_verdict_file.exists() else {})
-    if emu_verdict.get("gates_hardware") is False:
+    if not emu_verdict_file.exists():
         verdict["accept"] = False
         verdict["reasons"].append(
-            f"the EMU baseline in {emu_dir} does not gate hardware "
-            f"({emu_verdict.get('scope', 'not the device noise model')}) — "
-            "compare against the cloud scan at the real register size")
+            f"no verdict.json in {emu_dir}, so nothing says this baseline gates "
+            "hardware — compare against a validate-emu cloud run")
+    elif json.loads(emu_verdict_file.read_text()).get("gates_hardware") is False:
+        verdict["accept"] = False
+        verdict["reasons"].append(
+            f"the EMU baseline in {emu_dir} says gates_hardware: false (local "
+            "run, or the source's noise model) — compare against a validate-emu "
+            "cloud run on the device noise model")
+    # The error bar is the QPU's alone, so fewer shots make agreement easier.
+    fewest = min((r["n_shots"] for r in qpu_records), default=0)
+    if fewest < spec.get("shots_per_point", 0):
+        verdict["reasons"].append(
+            f"as few as {fewest} shots at a point, against the "
+            f"{spec['shots_per_point']} the spec asks for — wider error bars "
+            "make agreement easier, not more convincing")
 
     (out / "verdict.json").write_text(json.dumps(verdict, indent=2))
 

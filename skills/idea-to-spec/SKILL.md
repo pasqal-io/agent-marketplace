@@ -334,7 +334,12 @@ experiments/<experiment_name>/
 ```
 
 Set `output_dir` to `experiments/<experiment_name>/results` and `sequence_file`
-to `<experiment_name>_sequence.py`.
+to `<experiment_name>_sequence.py`, then check the fields the pipeline reads
+(free, local; `qpu-submit` runs the same check before its plan):
+
+```bash
+python support/validate_spec.py experiments/<experiment_name>/<experiment_name>_spec.json
+```
 
 Add a `"_notes"` field summarising any assumptions or scaling decisions, and fill
 `open_questions` with everything still unresolved. Both are text the user is
