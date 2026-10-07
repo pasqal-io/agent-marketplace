@@ -160,6 +160,14 @@ def main():
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     ids_file = out / "batch_ids.json"
+    # A plain re-run into a directory that already records batches would pay
+    # for the scan twice and overwrite the first set of IDs. Refuse before the
+    # credential load, as validate-emu's run_emu_scan.py does.
+    if ids_file.exists() and not args.resume:
+        raise SystemExit(
+            f"✘ {ids_file} already exists — this scan was already submitted.\n"
+            "  Poll the batches it recorded:  --resume\n"
+            "  Or submit a genuinely new scan into a different --out-dir.")
 
     if args.t_list is not None:
         times = sorted({_round_clock(t) for t in args.t_list})
