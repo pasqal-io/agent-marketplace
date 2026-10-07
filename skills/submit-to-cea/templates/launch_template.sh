@@ -14,6 +14,13 @@ INDICES=($(seq 0 <<N_JOBS_MINUS_1>>))   # all <<N_JOBS>> parameter points (0-ind
 # ================================
 
 N_JOBS=${#INDICES[@]}
+
+# Spends allocation hours and QPU shots, and is not idempotent: refuse unless the
+# user approved this plan. CONFIRM=yes carries that approval, nothing else.
+if [ "${CONFIRM:-}" != "yes" ]; then
+    echo "✘ not launched: $N_JOBS jobs for <<EXPERIMENT_NAME>>. Set CONFIRM=yes once the user approved it."
+    exit 1
+fi
 echo "Submitting $N_JOBS jobs to CEA QPU for experiment: <<EXPERIMENT_NAME>>"
 
 for i in "${INDICES[@]}"; do

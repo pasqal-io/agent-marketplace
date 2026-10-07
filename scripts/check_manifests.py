@@ -93,7 +93,8 @@ CODEX_INSTALLATION = {"AVAILABLE", "INSTALLED_BY_DEFAULT", "NOT_AVAILABLE"}
 CODEX_AUTHENTICATION = {"ON_INSTALL", "ON_USE"}
 
 # Modules vendored byte-identical into every skill's support/ directory.
-VENDORED_MODULES = ("pasqal_auth.py", "spec_noise.py", "batch_tags.py")
+VENDORED_MODULES = ("pasqal_auth.py", "spec_noise.py", "batch_tags.py",
+                    "validate_spec.py")
 
 # Nothing under skills/ may name one harness's tools or variables. Each entry is
 # a pattern and what to write instead; the message is what a contributor reads.
@@ -121,6 +122,9 @@ PULSER_PIN_SOURCES = (
     (".github/workflows/ci.yml", r'pip install "pulser==([0-9.]+)"'),
     ("skills/noise-emulate/SKILL.md", r"CI pins pulser ([0-9.]+)"),
 )
+
+sys.path.insert(0, str(ROOT / "skills/idea-to-spec/support"))
+from validate_spec import spec_problems  # noqa: E402 — the check users run too
 
 errors: list[str] = []
 
@@ -416,6 +420,8 @@ def check_examples() -> None:
                 errors.append(
                     f"examples/{name}/{spec_path.name}: {field} is "
                     f"{spec.get(field)!r}, expected {want!r}")
+        errors.extend(f"examples/{name}/{spec_path.name}: {problem}"
+                      for problem in spec_problems(spec))
 
 
 def check_skill_references() -> None:

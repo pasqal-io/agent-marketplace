@@ -45,8 +45,9 @@ behalf. Two of them spend real resources.
   terminal; the plan is built and shown before any credential is read or the
   cloud is contacted. And it refuses to submit into an output directory that
   already records batch IDs, because a re-run would buy the same shots twice and
-  destroy the record of the first submission. `validate-emu` resumes from that
-  record with `--resume` instead of resubmitting.
+  destroy the record of the first submission. `qpu-submit` has no resume: to
+  recover a recorded submission, point `harvest-and-analyze` at that file with
+  `--batch-ids`.
 
   **There is still no spending cap.** Nothing limits how large a plan you can
   approve, and `--confirm` carries whatever agreement you gave — so read the

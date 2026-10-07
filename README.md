@@ -172,10 +172,11 @@ through `experiment_spec.json` and a sequence file exporting `build_sequence()`
 and `compute_observable()`, so the toolkit carries no experiment of its own and
 yours does not have to look like the examples.
 
-Three rules do not bend, and all three are enforced in the scripts rather than
-asked of the model: **emulation precedes any hardware recommendation**,
+Three rules do not bend: **emulation precedes any hardware recommendation**,
 **nothing is submitted without your explicit go-ahead for the shot count you
-were shown**, and **no run bills a project you did not name**. A runner also
+were shown**, and **no run bills a project you did not name**. The last two are
+enforced in the scripts; the first is an instruction every skill gives the
+model, and no script checks it. A runner also
 refuses to resubmit over batch IDs it already recorded, so a dropped session
 cannot buy the same shots twice.
 

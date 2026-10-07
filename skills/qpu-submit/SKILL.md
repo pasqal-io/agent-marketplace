@@ -97,8 +97,8 @@ Before running anything, state the cost to the user and get an explicit go-ahead
 - **plus the calibration batch**: 50 jobs × 20 shots, unless `--no-calibration`
 - **against** the remaining credits from Step 0a
 
-Say those numbers back to the user, name the device and the project, and wait for
-confirmation. If they change the scan, the shots or the device afterwards,
+Say those numbers back to the user, name the device and the project, read out
+the spec's `open_questions` (the plan lists them), and wait for confirmation. If they change the scan, the shots or the device afterwards,
 confirm again — the previous go-ahead was for a different submission.
 
 **The script enforces this, it does not trust you to.** `submit_qpu.py` prints
@@ -111,11 +111,15 @@ Getting the plan wrong is cheap; getting the flag wrong spends someone's shots.
 
 The same rule covers a re-run after a plan change: new numbers, new go-ahead.
 
+`submit_qpu.py` first checks the spec with `support/validate_spec.py` and
+refuses one missing a field it reads — before the plan, so before anything is
+spent.
+
 Do not submit to hardware before `validate-emu` has returned a GO for this spec.
 If no emulation has been run, say so and offer to run it first. Check the verdict
-you are relying on: `validate-emu`'s local mode writes the same `verdict.json`
-with `"gates_hardware": false`, because it ran a stand-in noise model and often a
-smaller register. That file is not a green light for shots — the cloud verdict at
+you are relying on: `validate-emu`'s local mode, and any run on the source's
+noise model, write `verdict.json` with `"gates_hardware": false` — a stand-in or
+borrowed noise model, often a smaller register. That file is not a green light for shots — the cloud verdict at
 the real size is.
 
 ---
@@ -210,7 +214,7 @@ site-dependent and can be far longer. The experiment batches queue behind it.
 
 ```bash
 tail -f <out-dir>/submit.log | grep --line-buffered \
-    -E "Calibration|omega_offset|batch_ids saved|ERROR|Traceback"
+    -E "Calibration|omega_offset|batch |job |batch_ids saved|ERROR|Traceback"
 ```
 
 ---

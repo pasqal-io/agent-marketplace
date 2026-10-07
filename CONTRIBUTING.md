@@ -42,6 +42,8 @@ mapping belongs in that harness's adapter manifest — see
 `.kimi-plugin/plugin.json`'s `skillInstructions`. CI rejects proprietary tool
 names, harness-specific variables and private config paths anywhere under
 `skills/`, and rejects a skill missing from `AGENTS.md`.
+A skill that asks for a separate (sub)agent or fresh context must say what to do
+when the harness does not provide such access.
 
 Skills carry no experiment of their own. Physics belongs in `examples/`, reached
 through the `experiment_spec.json` contract — see
@@ -252,6 +254,10 @@ plugin.json                         version
 .kimi-plugin/plugin.json            version
 gemini-extension.json               version
 ```
+
+**Every change that should reach users bumps the version — at least the minor
+one.** Harnesses compare the installed version with the published one; a merge
+without a bump is not deployed, and users keep the old skills without any error.
 
 Bump all six in the same PR as the change; a new manifest goes into
 `VERSION_FIELDS` in `scripts/check_manifests.py` in the same PR, or it ships

@@ -67,6 +67,12 @@ STANDIN_NOISE = {
 }
 
 
+def _observable_floor(mod, n_atoms) -> float:
+    """What a disordered state reads, if the sequence file declares it; else 0."""
+    fn = getattr(mod, "observable_floor", None)
+    return float(fn(n_atoms)) if fn and n_atoms else 0.0
+
+
 def _load_seq_module(path: str):
     spec = importlib.util.spec_from_file_location("seq_mod", path)
     mod  = importlib.util.module_from_spec(spec)
@@ -264,8 +270,10 @@ def main():
 
     # ── verdict ──────────────────────────────────────────────────────────────
     # Same fields as the cloud verdict, plus two that keep this one in its lane.
+    # Starts at NO-GO: only a measured retention promotes it, so a run that
+    # compared nothing (--noiseless-only) cannot read as a GO.
     verdict = {
-        "go":             True,
+        "go":             False,
         "reasons":        [],
         "scope":          "local emulator",
         "gates_hardware": False,
@@ -278,6 +286,9 @@ def main():
             "reproduces on its own terms, and gates nothing")
         verdict["noise_source"] = "paper"
 
+    floor = _observable_floor(mod, n_atoms)
+    if floor:
+        verdict["observable_floor"] = floor
     nl_obs = [r["observable"] for r in nl_records if not np.isnan(r["observable"])]
     if not nl_obs and nl_records:
         # Every point nan, with shots in hand at every point, is not physics: the
@@ -286,42 +297,46 @@ def main():
         # while --seq-kwargs emulated a smaller one, so every shot is discarded
         # as the wrong length and nan reads as "no signal". Say that, rather than
         # letting the user conclude the experiment failed.
-        verdict["go"] = False
         verdict["reasons"].append(
             f"compute_observable returned nan at every point, though each ran "
             f"{args.shots} shots on {n_atoms} atoms. That is the observable "
             "rejecting the data, not an absent signal — check that it derives "
             "its geometry from the bitstring length rather than from a fixed N")
-    elif not nl_obs or max(nl_obs) <= 0:
-        verdict["go"] = False
+    elif not nl_obs or max(nl_obs) <= floor:
         verdict["reasons"].append(
-            "noiseless signal is zero or negative — the implementation or the "
-            "scan range is wrong, and no amount of hardware will fix it")
+            f"noiseless signal does not clear the disorder floor ({floor:g}) — "
+            "the implementation or the scan range is wrong, and no amount of "
+            "hardware will fix it")
     else:
         verdict["nl_max"] = float(max(nl_obs))
 
     n_obs = [r["observable"] for r in n_records if not np.isnan(r["observable"])]
-    if nl_obs and n_obs and max(nl_obs) > 0:
-        retention = max(n_obs) / max(nl_obs)
+    if "nl_max" in verdict and n_obs:
+        # Measured above the disorder floor, which is largest at the small sizes
+        # this runner is limited to: counting it as signal inflates the ratio.
+        retention = (max(n_obs) - floor) / (max(nl_obs) - floor)
         verdict["n_max"]     = float(max(n_obs))
         verdict["retention"] = float(retention)
         if retention < min_ret:
-            verdict["go"] = False
             verdict["reasons"].append(
                 f"noise retention {retention:.0%} < threshold {min_ret:.0%}")
         else:
+            verdict["go"] = True
             verdict["reasons"].append(
                 f"noise retention {retention:.0%} ≥ {min_ret:.0%}")
+    elif "nl_max" in verdict:
+        verdict["reasons"].append(
+            "no noisy scan ran, so nothing was compared — a GO needs one")
 
     if n_atoms < spec.get("register", {}).get("N_atoms", n_atoms):
         verdict["reasons"].append(
             f"emulated {n_atoms} atoms, the spec asks for "
             f"{spec['register']['N_atoms']} — a downsized check, not the experiment")
-    if live_noise:
+    if n_obs and live_noise:
         verdict["reasons"].append(
             "noise model came from the live device, but at this register size "
             "only — the cloud scan is still what gates hardware")
-    else:
+    elif n_obs:
         verdict["reasons"].append(
             "noise model is a stand-in, not this device's calibration")
 

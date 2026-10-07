@@ -38,6 +38,7 @@ Outputs (in --out-dir):
 Use plot_noise_emu_cloud.py to render the envelope figure (.png).
 """
 from __future__ import annotations
+
 import argparse
 import importlib.util
 import json
@@ -45,11 +46,9 @@ import time
 from pathlib import Path
 
 import numpy as np
-
 import spec_noise
 from batch_tags import build_tags
 from pasqal_auth import account_summary, ensure_credentials
-
 
 _CLOCK_NS = 4  # FC1 sequence durations must be multiples of 4 ns
 
@@ -89,7 +88,7 @@ def _cloud_noise_model(device, t2_us: float | None = None,
                       else getattr(nm, "temperature", 20.0))
     det_sigma      = (detuning_sigma if detuning_sigma is not None
                       else getattr(nm, "detuning_sigma", 0.0))
-    noise = NoiseModel(
+    noise_model = NoiseModel(
         temperature=temperature,
         dephasing_rate=dephasing_rate,
         detuning_sigma=det_sigma,
@@ -161,6 +160,14 @@ def main():
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     ids_file = out / "batch_ids.json"
+    # A plain re-run into a directory that already records batches would pay
+    # for the scan twice and overwrite the first set of IDs. Refuse before the
+    # credential load, as validate-emu's run_emu_scan.py does.
+    if ids_file.exists() and not args.resume:
+        raise SystemExit(
+            f"✘ {ids_file} already exists — this scan was already submitted.\n"
+            "  Poll the batches it recorded:  --resume\n"
+            "  Or submit a genuinely new scan into a different --out-dir.")
 
     if args.t_list is not None:
         times = sorted({_round_clock(t) for t in args.t_list})
@@ -205,7 +212,7 @@ def main():
                       extra=args.tag) + [f"noise:{noise_label}"]
 
     noisy_cfg = EmulationConfig(
-        noise_model=noise,
+        noise_model=noise_model,
         # n_trajectories left unset: the backend resolves it from its own
         # configuration. The envelope comes from the --n-envelope repeated
         # batches anyway, not from trajectory averaging inside one.

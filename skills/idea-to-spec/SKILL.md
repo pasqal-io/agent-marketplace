@@ -124,8 +124,8 @@ against. `open_questions` is empty only when the source really answered
 everything — see below.
 
 **`geometry`** — one of: `square`, `chain`, `ring`, `triangular_rhombus`, `custom`
-**`pulse.type`** — one of: `adiabatic_ramp`, `eom_quench`
-**`observable.type`** — one of: `structure_factor`, `magnetization`, `occupation`, `custom`
+**`pulse.type`** — a short label, e.g. `adiabatic_ramp`, `eom_quench`; no script reads it
+**`observable.type`** — a short label, e.g. `structure_factor`, `occupation`; no script reads it
 
 ---
 
@@ -334,7 +334,12 @@ experiments/<experiment_name>/
 ```
 
 Set `output_dir` to `experiments/<experiment_name>/results` and `sequence_file`
-to `<experiment_name>_sequence.py`.
+to `<experiment_name>_sequence.py`, then check the fields the pipeline reads
+(free, local; `qpu-submit` runs the same check before its plan):
+
+```bash
+python support/validate_spec.py experiments/<experiment_name>/<experiment_name>_spec.json
+```
 
 Add a `"_notes"` field summarising any assumptions or scaling decisions, and fill
 `open_questions` with everything still unresolved. Both are text the user is
@@ -361,10 +366,9 @@ can pick up and a pile of JSON.
 
 ## Step 5 — Adversarial review
 
-Perform an adversarial review of of the proposed spec.
-You should spawn a subagent with a fresh context to avoid any bias.
+Perform an adversarial review of the proposed spec.
 
-The subagent should read **only** the paper and the spec `<experiment_name>_spec.json`.
+To avoid any bias, run this review in a fresh context that has seen only the paper and the spec – a separate agent, if the harness can start one. If it cannot, say so and ask the user to open a new session with only those two files, rather than reviewing here.
 
 It should report issues, ranked by severity, and proposed improvements: do not implement them blindly and discuss them with the user in case of doubt.
 
