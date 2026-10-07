@@ -1,6 +1,6 @@
 # Neutral Atom Toolkit — skills index
 
-This repository is one plugin: nine [Agent Skills](https://agentskills.io) that
+This repository is one plugin: ten [Agent Skills](https://agentskills.io) that
 carry a neutral-atom (Rydberg) quantum experiment from an idea to hardware and
 back. Each skill is a directory under `skills/` containing a `SKILL.md` plus the
 scripts, templates and reference implementations it runs.
@@ -23,6 +23,7 @@ inline is how a submission gets billed for a wrong sequence.
 | `submit-to-cea` | run one on Ruby at CEA/TGCC, reachable only over SSH through the cluster scheduler | sequence → remote jobs |
 | `harvest-and-analyze` | collect and judge the results of a submission | batch IDs → raw counts + observable + verdict |
 | `create-pasqal-cloud-account` | get access at all — no Pasqal Cloud account, no project ID, or a project that only offers `EMU_FREE` | → an account + project (and optionally Google Cloud billing) |
+| `apply-genci-tgcc-cea` | apply for QPU hours on Ruby at GENCI/CEA TGCC — the French eDARI route or the EuroHPC Quantum Access Pilot, then the TGCC computing account | → an allocation + a cluster account |
 
 The pipeline order is (`application-to-idea`) → `idea-to-spec` →
 `spec-to-sequence` → `validate-emu` → (`noise-emulate`) → `qpu-submit` *or*
@@ -31,8 +32,9 @@ user chooses them: `application-to-idea` is for someone whose problem is not an
 experiment yet and who needs to know which documented method — if any — applies;
 `noise-emulate` is a diagnostic, not a gate. The first is a conversation that
 ends in a prose note, and it may end in a documented "this hardware cannot answer
-that" — which is a result, not a failure. `create-pasqal-cloud-account` sits
-outside this chain: it is a prerequisite, reached for when the user has no
+that" — which is a result, not a failure. `create-pasqal-cloud-account` and
+`apply-genci-tgcc-cea` sit outside this chain: they are the two routes to access
+itself — Pasqal Cloud and GENCI/CEA TGCC — reached for when the user has no
 credentials or no QPU-capable project rather than as a stage of an experiment.
 Skills interoperate only through
 `experiment_spec.json` and a sequence file exporting

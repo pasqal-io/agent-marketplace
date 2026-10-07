@@ -69,6 +69,7 @@ You need:
 
 You should know:
 
+
 - **QPU shots are metered and a submitted batch cannot be recalled.** The
   submission script prints the full shot count — with the project it would be
   billed to and that project's remaining credits — and exits rather than run
@@ -161,6 +162,7 @@ account and nothing spent.
 | `submit-to-cea` | Parametric experiments on Ruby, the QPU at CEA/TGCC, over SSH. Includes a first-time-access guide, and says what a sibling cluster needs changed | an account on the cluster |
 | `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account |
 | `create-pasqal-cloud-account` | *(optional, upstream)* Get access in the first place: the account and project on `portal.pasqal.cloud`, free and enough for `EMU_FREE`, then — only if you want QPUs and the advanced emulators — the Google Cloud Marketplace coupling that bills them | nothing (a card only for the Google Cloud step) |
+| `apply-genci-tgcc-cea` | *(optional, upstream)* Apply for QPU hours on Ruby at GENCI/CEA TGCC — the French eDARI route or the EuroHPC Quantum Access Pilot — then the TGCC computing account that `submit-to-cea` needs | nothing (internet) |
 
 The pipeline order is optionally `application-to-idea`, then `idea-to-spec`,
 `spec-to-sequence`, `validate-emu`, optionally `noise-emulate`, then
