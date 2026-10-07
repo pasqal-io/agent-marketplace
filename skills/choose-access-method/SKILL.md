@@ -42,33 +42,13 @@ This skill does not create accounts, fill forms, or touch either portal.
 
 | | Free (CEA/GENCI/EuroHPC, via Ruby) | Pasqal Cloud pay-as-you-go |
 |---|---|---|
-| Cost | Free | A Google Cloud billing account; QPU hours run into the hundreds of euros/hour past a small monthly tier |
-| Who qualifies | **France**: academia or R&D company (GENCI eDARI). **Other EU / DEP / Horizon-Europe countries**: academia, research, public sector, **and** industry - Horizon-Europe-funded or an SME; a large enterprise doing *unfunded* commercial R&D does not qualify (EuroHPC Quantum Access Pilot) | Anyone, any country |
-| Lead time | **Weeks** - eDARI ~2-week evaluation; EuroHPC is monthly cut-offs plus a technical assessment, then up to ~2 weeks to access | Available today - account creation plus a Google Cloud purchase order, typically same day |
-| Hours granted | eDARI: up to 100 h. EuroHPC: 10-25 h over 3 or 6 months | Metered, no pre-set allocation - billed as used |
+| Cost | Free | QPU hours cost several thousand euros/hour past a small monthly tier |
+| Who qualifies | **EU / DEP / Horizon-Europe countries**: academia, public sector, and industry when doing open research; a large enterprise doing *unfunded* commercial R&D does not qualify | Anyone, any country |
+| Lead time | **Weeks** - Monthly application windows, plus a technical assessment, then up to ~2 weeks to access | Available today - account creation plus a Google Cloud account, typically same day |
+| Hours granted | **French Users**: up to 100 h. **Other**: 10-25 h with subsequent reassessment | Metered, no pre-set allocation - billed as used |
 | Device | Ruby (Orion), 100-qubit analogue neutral-atom, at TGCC | FRESNEL / FRESNEL_CAN1 (100-qubit QPUs) plus the advanced cloud emulators |
 | Hard requirement besides eligibility | An **organisation-managed public IP** with consistent DNS, for the eventual TGCC SSH connection - needs IT support | A Google Cloud billing account with a payment method |
 
-**Outside both** - e.g. a country in neither list, or an organisation type
-EuroHPC excludes - the free route isn't available as-is. Point the user at
-`acces@genci.fr` / `access@eurohpc-ju.europa.eu` for an edge-case read rather
-than forcing a fit, and mention Pasqal Cloud pay-as-you-go remains open to
-them regardless of country or org type.
-
-## The two routes are not mutually exclusive for getting started today
-
-A user eligible for the free route still waits weeks for an allocation. The
-Pasqal Cloud **Explorer tier is free** and available immediately - account
-only, no Google Cloud coupling, no card - and runs the whole pipeline on
-`EMU_FREE` (12 qubits): implementation checks and small-register physics, not
-real cloud emulation at the register sizes `validate-emu`'s cloud scan or
-`noise-emulate`'s cloud mode target (both need `EMU_MPS`, which Explorer
-doesn't have). There is no reason to wait on a CEA/EuroHPC decision before
-getting that: suggest starting the free-route application **and** creating a
-Pasqal Cloud Explorer account in parallel, so there's something to develop
-against while the allocation is pending. The two only compete for the
-same thing - actual QPU hardware time - once an allocation or a paid
-subscription exists.
 
 ## Recommendation logic
 
@@ -93,13 +73,10 @@ subscription exists.
 |---|---|
 | Treating "free for academics" as the whole eligibility story | EuroHPC also covers public sector and funded industry/SMEs - a non-academic user may still qualify |
 | Recommending the free route to someone who needs hardware this week | The lead time (weeks) is as disqualifying as ineligibility would be - ask about urgency before eligibility |
-| Presenting the free route and Pasqal Cloud as exclusive alternatives | A free Explorer account costs nothing and can run in parallel with a pending allocation - there's no reason to make the user wait to start developing |
 | Skipping the country/org-type question and guessing from an email domain | Eligibility is organisation-based, not inferable - always ask |
 | Forgetting the IP/DNS requirement when recommending the free route | A user without a suitable organisation-managed IP cannot complete the TGCC account even after a successful application - `apply-genci-tgcc-cea`'s early IP check exists for exactly this |
 
 ## Reference
 
 - Pasqal Cloud: `create-pasqal-cloud-account` (this toolkit).
-- CEA/GENCI/EuroHPC: `apply-genci-tgcc-cea` (this toolkit); contacts
-  `acces@genci.fr`, `access@eurohpc-ju.europa.eu` for edge cases outside
-  either documented eligibility list.
+- CEA/GENCI/EuroHPC: `apply-genci-tgcc-cea` (this toolkit).
