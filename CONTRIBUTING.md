@@ -42,6 +42,8 @@ mapping belongs in that harness's adapter manifest — see
 `.kimi-plugin/plugin.json`'s `skillInstructions`. CI rejects proprietary tool
 names, harness-specific variables and private config paths anywhere under
 `skills/`, and rejects a skill missing from `AGENTS.md`.
+A skill that asks for a separate (sub)agent or fresh context must say what to do
+when the harness does not provide such access.
 
 Skills carry no experiment of their own. Physics belongs in `examples/`, reached
 through the `experiment_spec.json` contract — see
