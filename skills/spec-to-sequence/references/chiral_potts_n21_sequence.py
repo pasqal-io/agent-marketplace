@@ -31,6 +31,17 @@ parameters are fixed at construction: one Variable per swept axis.
 from __future__ import annotations
 import numpy as np
 
+# Provenance: marks every serialized sequence as produced by this toolkit.
+# 0.0.0 is a deliberate sentinel — this file is committed, not generated, so it
+# claims no toolkit release. A generated sequence writes the real version here,
+# and its smoke test rejects 0.0.0: copy the header, never the version.
+try:
+    from pulser.sequence.metadata import store_package_version_metadata
+except ImportError:      # older pulser has no sequence metadata
+    pass
+else:
+    store_package_version_metadata("neutral-atom-toolkit", "0.0.0")
+
 # -- Pulser imports (kept lazy so the file is importable without Pulser) ---
 def _pulser():
     """Lazy import so this module can be inspected without Pulser installed."""

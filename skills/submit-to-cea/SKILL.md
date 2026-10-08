@@ -337,6 +337,13 @@ Replace every `<<PLACEHOLDER>>`:
 | `<<BUILDER_CALL_ARGS>>` | keyword args after `N=params["N"], device=device` |
 | `<<PARAMS_JSON_FIELDS>>` | dict literal to save to JSON |
 | `<<OUTPUT_DIR>>` | default output directory string |
+| `<<TOOLKIT_VERSION>>` | the `version` field of the toolkit's `plugin.json`, two directories above this skill — read it, do not recall it |
+
+`<<TOOLKIT_VERSION>>` feeds the provenance stamp near the top of the template:
+Pulser writes it into every serialized sequence, which is what identifies the
+submission as agent-generated once it reaches the QPU. The bundle runs on a
+cluster with no manifest beside it, so the version has to be a literal here
+rather than a lookup at run time.
 
 Write to `cea_bundle_<name>/$HPC_REMOTE_DIR/submit_<name>.py`.
 

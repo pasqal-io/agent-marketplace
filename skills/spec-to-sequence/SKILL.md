@@ -100,6 +100,51 @@ def compute_observable(counts: dict[str, int]) -> float:
     """
 ```
 
+### Provenance stamp — required
+
+Pulser records, inside every serialized sequence, which packages produced it.
+Stamping the toolkit there is what later identifies the sequence as
+agent-generated: it travels with the abstract representation into the cloud, the
+QPU batch and any saved JSON, so a submission stays attributable long after the
+`experiments/` directory is gone.
+
+Put this at module level, with the imports:
+
+```python
+# Provenance: marks every serialized sequence as produced by this toolkit.
+try:
+    from pulser.sequence.metadata import store_package_version_metadata
+except ImportError:      # older pulser has no sequence metadata
+    pass
+else:
+    store_package_version_metadata("neutral-atom-toolkit", "<toolkit version>")
+```
+
+Two things to get right:
+
+- **Read `<toolkit version>` from the toolkit manifest, do not recall it.** The
+  `version` field of `plugin.json`, two directories above this skill's own
+  directory. Write the value you read as a literal — the generated file is
+  copied into HPC bundles and run where no manifest exists, so a lookup at run
+  time would either crash or report the wrong version.
+- **Keep the `try`/`except`.** Sequence metadata is a recent Pulser addition and
+  there is no repo-wide floor that guarantees it, so a bare import would take the
+  whole sequence file down over a provenance tag. The stamp is optional; the
+  sequence is not.
+
+One call, `package_versions` only. Nothing else belongs in the metadata.
+
+The reference implementations and the examples carry the same header with the
+version fixed at `0.0.0`. That is a sentinel, not a release: those files are
+committed rather than generated, so they claim no version. Copy the header from
+them and substitute the real one — the Step 5 smoke test rejects `0.0.0`, which
+is what catches a header pasted across unchanged.
+
+One ordering trap, latent today: the metadata is a process-wide mapping and the
+last write for a key wins. A script that imported an example *and* a generated
+sequence file would serialize both under whichever stamp ran second. Nothing
+does — a skill may not import `examples/` — so this only matters if you write
+something that loads both.
 ### `observable_floor(n_atoms: int) -> float`
 
 **Optional.** What the observable reads on a disordered register of `n_atoms`
@@ -314,6 +359,14 @@ if __name__ == "__main__":
     seq = build_sequence(device=None, **params)
     N   = len(seq.register.qubit_ids)
     print(f"Sequence OK: {seq.get_duration()} ns, {N} atoms")
+
+    # The provenance stamp only reaches the serialized form, so check it there.
+    # 0.0.0 means the header was copied from an example without substituting
+    # the real version — see the module header.
+    stamped = json.loads(seq.to_abstract_repr()).get("metadata", {})
+    version = stamped.get("package_versions", {}).get("neutral-atom-toolkit")
+    if version in (None, "0.0.0"):
+        raise SystemExit(f"✘ provenance stamp is {version!r}, expected a version")
 
     failures = []
     for label, counts, want, tol in [
