@@ -84,6 +84,13 @@ to approve names the account, the project and its remaining credits. If the
 `--whoami` account is not theirs, stop — do not work around it, and never type a
 password on their behalf.
 
+**`--whoami` itself errors** with `Pasqal Cloud credentials incomplete` (not
+the separate "no project was chosen" message) — this could mean nothing is
+exported/configured on this machine yet, *or* that the user has no account at
+all; ask rather than assuming either. For the latter, send them to
+`choose-access-method` (or straight to `create-pasqal-cloud-account` if they
+already know they want Pasqal Cloud).
+
 ---
 
 ## Step 0b — Confirm the cost before submitting

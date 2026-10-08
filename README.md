@@ -66,17 +66,10 @@ You need:
 
 - **Python** with `pulser` (plus `numpy`/`scipy`/`matplotlib`). That alone is
   enough to specify an experiment, generate a sequence, and emulate it locally.
-- **A Pasqal Cloud account** for the cloud emulator, and one with **QPU access**
-  to submit to hardware. Larger local emulation wants a GPU.
-- **A cluster account** only for the CEA/TGCC route (`submit-to-cea`).
 
 You should know:
 
-- **Account creation, subscription and payment are not part of this toolkit.**
-  Nothing here signs you up, buys quota or handles an invoice. Bring access you
-  already have; if you do not have it yet, get it through the usual Pasqal
-  channels first. Everything up to and including local emulation works without
-  any account.
+
 - **QPU shots are metered and a submitted batch cannot be recalled.** The
   submission script prints the full shot count — with the project it would be
   billed to and that project's remaining credits — and exits rather than run
@@ -163,11 +156,14 @@ account and nothing spent.
 | `application-to-idea` | *(optional, upstream)* A guided conversation from an application, a problem or a hunch to a first technical idea: which documented method could serve it — MIS, QUBO, an Ising or XY simulation, a graph kernel — with its maturity and its baseline, what would be measured, at what size, and what this hardware cannot do at all | nothing |
 | `idea-to-spec` | Turn an experiment you describe, or a paper or patent you want to reproduce, into `experiment_spec.json`, with its open questions listed | nothing (internet for arXiv) |
 | `spec-to-sequence` | Generate a Pulser `*_sequence.py` from a spec, self-testing | Python + `pulser` |
-| `validate-emu` | Noiseless and noisy scan, then a go/no-go for QPU. Asks where to run: **locally** (free, ~14 atoms) or **cloud emulator** at the real size | nothing for local; account for cloud |
-| `noise-emulate` | *(optional)* Noise emulation with the live device noise model, over time — where in the pulse the signal is lost. Runs **locally**, **on a GPU cluster**, or **via Pasqal Cloud** | account; GPU only for the first two |
-| `qpu-submit` | Calibrated submission of a spec and sequence to a cloud QPU, after you approve the shot count | account with QPU access |
-| `submit-to-cea` | Parametric experiments on Ruby, the QPU at CEA/TGCC, over SSH. Includes a first-time-access guide, and says what a sibling cluster needs changed | an account on the cluster |
-| `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account |
+| `validate-emu` | Noiseless and noisy scan, then a go/no-go for QPU. Asks where to run: **locally** (free, ~14 atoms) or **cloud emulator** at the real size | nothing for local; for cloud, an account — see `choose-access-method` |
+| `noise-emulate` | *(optional)* Noise emulation with the live device noise model, over time — where in the pulse the signal is lost. Runs **locally**, **on a GPU cluster**, or **via Pasqal Cloud** | an account in **every** mode (the noise model is fetched live); GPU only for the first two — no account? see `choose-access-method` |
+| `qpu-submit` | Calibrated submission of a spec and sequence to a cloud QPU, after you approve the shot count | account with QPU access — no account? see `choose-access-method` |
+| `submit-to-cea` | Parametric experiments on Ruby, the QPU at CEA/TGCC, over SSH. Includes a first-time-access guide, and says what a sibling cluster needs changed | a TGCC account — no account? see `apply-genci-tgcc-cea` / `choose-access-method` |
+| `harvest-and-analyze` | Collect raw bitstrings, compute the observable, correct for detection error, accept or reject against the emulated baseline | account — no account? see `choose-access-method` |
+| `create-pasqal-cloud-account` | *(optional, upstream)* Get access in the first place: the account and project on `portal.pasqal.cloud`, free and enough for `EMU_FREE`, then — only if you want QPUs and the advanced emulators — the Google Cloud Marketplace coupling that bills them | nothing (a card only for the Google Cloud step) |
+| `apply-genci-tgcc-cea` | *(optional, upstream)* Apply for QPU hours on Ruby at GENCI/CEA TGCC — the French eDARI route or the EuroHPC Quantum Access Pilot — then the TGCC computing account that `submit-to-cea` needs | nothing (internet) |
+| `choose-access-method` | *(optional, upstream)* Not sure which access route fits? Compares free CEA/GENCI/EuroHPC access against Pasqal Cloud pay-as-you-go and hands off to whichever applies | nothing |
 
 The pipeline order is optionally `application-to-idea`, then `idea-to-spec`,
 `spec-to-sequence`, `validate-emu`, optionally `noise-emulate`, then
@@ -237,6 +233,11 @@ the file where a reviewer can find them.
    export PASQAL_USERNAME=... PASQAL_PASSWORD=... PASQAL_PROJECT_ID=...
    ```
 
+   No account yet? `create-pasqal-cloud-account` walks you through getting one
+   and finding the project ID — and through deciding whether you need the
+   Google Cloud coupling at all, since the free project already runs the whole
+   pipeline on `EMU_FREE`.
+
    `PASQAL_PROJECT_ID` is a convenience, not a decision: every script that
    spends credits requires `--project-id` explicitly, and
    `python <skill>/support/pasqal_auth.py --whoami` prints — free, read-only,
@@ -254,9 +255,11 @@ the file where a reviewer can find them.
    Targeting **SA1**? Also set `PASQAL_REGION=sa` (or `"region": "sa"` in the
    credentials file). **Never commit credentials to this or any repo.**
 
-3. **For `submit-to-cea` only**: an account on the cluster and an ssh
-   alias for it in `~/.ssh/config`. The skill's "Getting access" section covers
-   onboarding at the reference site (TGCC).
+3. **For `submit-to-cea` only**: a TGCC computing account and an ssh
+   alias for it in `~/.ssh/config`. No account yet? See `apply-genci-tgcc-cea`
+   (or `choose-access-method` if you haven't picked a route at all) — the
+   submit skill's own "Getting access" section covers only the ssh setup once
+   an account exists.
 
 ## Background
 

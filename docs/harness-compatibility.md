@@ -1,7 +1,7 @@
 # Harness compatibility
 
 `skills/` is the whole toolkit and it is never forked. Every harness below runs
-the same seven skill directories, byte for byte; what differs is only how they
+the same eleven skill directories, byte for byte; what differs is only how they
 reach the model. Nothing in `skills/` names a proprietary tool or a
 harness-specific variable — `scripts/check.sh` fails if that changes.
 

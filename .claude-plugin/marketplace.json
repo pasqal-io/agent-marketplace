@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "Pasqal's marketplace of agent plugins for quantum computing workflows",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "plugins": [
     {
       "name": "neutral-atom-toolkit",
       "source": "./",
-      "description": "Neutral Atom Toolkit — the full QPU pipeline: application-to-idea, idea-to-spec, spec-to-sequence, validate-emu, noise-emulate (local / SLURM / cloud), qpu-submit (cloud API), submit-to-cea (cluster over SSH), harvest-and-analyze.",
+      "description": "Neutral Atom Toolkit — the full QPU pipeline: application-to-idea, idea-to-spec, spec-to-sequence, validate-emu, noise-emulate (local / SLURM / cloud), qpu-submit (cloud API), submit-to-cea (cluster over SSH), harvest-and-analyze. Plus access: create-pasqal-cloud-account, apply-genci-tgcc-cea, choose-access-method.",
       "category": "science"
     }
   ]

@@ -1,6 +1,6 @@
 # Neutral Atom Toolkit — skills index
 
-This repository is one plugin: eight [Agent Skills](https://agentskills.io) that
+This repository is one plugin: eleven [Agent Skills](https://agentskills.io) that
 carry a neutral-atom (Rydberg) quantum experiment from an idea to hardware and
 back. Each skill is a directory under `skills/` containing a `SKILL.md` plus the
 scripts, templates and reference implementations it runs.
@@ -22,6 +22,9 @@ inline is how a submission gets billed for a wrong sequence.
 | `qpu-submit` | run an experiment on a QPU reachable through a cloud API | spec + sequence → batch IDs |
 | `submit-to-cea` | run one on Ruby at CEA/TGCC, reachable only over SSH through the cluster scheduler | sequence → remote jobs |
 | `harvest-and-analyze` | collect and judge the results of a submission | batch IDs → raw counts + observable + verdict |
+| `create-pasqal-cloud-account` | get access at all — no Pasqal Cloud account, no project ID, or a project that only offers `EMU_FREE` | → an account + project (and optionally Google Cloud billing) |
+| `apply-genci-tgcc-cea` | apply for QPU hours on Ruby at GENCI/CEA TGCC — the French eDARI route or the EuroHPC Quantum Access Pilot, then the TGCC computing account | → an allocation + a cluster account |
+| `choose-access-method` | decide between the two access routes above when it isn't obvious which fits | → a hand-off to one of the other two |
 
 The pipeline order is (`application-to-idea`) → `idea-to-spec` →
 `spec-to-sequence` → `validate-emu` → (`noise-emulate`) → `qpu-submit` *or*
@@ -30,7 +33,14 @@ user chooses them: `application-to-idea` is for someone whose problem is not an
 experiment yet and who needs to know which documented method — if any — applies;
 `noise-emulate` is a diagnostic, not a gate. The first is a conversation that
 ends in a prose note, and it may end in a documented "this hardware cannot answer
-that" — which is a result, not a failure. Skills interoperate only through
+that" — which is a result, not a failure. `create-pasqal-cloud-account`,
+`apply-genci-tgcc-cea` and `choose-access-method` sit outside this chain
+entirely: they are how to get access in the first place — Pasqal Cloud,
+GENCI/CEA TGCC, or (if it isn't obvious which) a comparison that hands off to
+one of the other two — not a stage of an experiment. A user with no
+credentials or no QPU-capable project goes to one of these, not through a
+missing-account error in the pipeline itself.
+Skills interoperate only through
 `experiment_spec.json` and a sequence file exporting
 `build_sequence(device=None, **params)` and `compute_observable(counts)`; they
 contain no experiment of their own — worked experiments live in `examples/`.
@@ -107,7 +117,12 @@ Ten rules hold whatever the harness:
   not permission to spend: run `python support/pasqal_auth.py --whoami`, show
   the user which account was found and what their projects hold, and ask which
   one pays. The scripts that spend refuse to run without `--project-id`, and the
-  plan they ask you to approve names the project and its remaining credits.
+  plan they ask you to approve names the project and its remaining credits. No
+  credentials at all — `--whoami` itself errors — could be a local setup
+  issue (nothing exported or configured yet) or simply no account yet; ask
+  rather than assuming either, and for the latter see
+  `choose-access-method`, `create-pasqal-cloud-account` or
+  `apply-genci-tgcc-cea`.
 - **The important decisions stay with the user, and a broad request does not
   delegate them.** Each `SKILL.md` names its own: the observable and the scan
   range, the register size, the device, the project, the shot count, the noise

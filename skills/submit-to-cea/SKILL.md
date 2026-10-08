@@ -84,20 +84,15 @@ port is roughly: `#MSUB` → `#SBATCH`, `ccc_msub` → `sbatch`, `ccc_mstat` →
 
 ## Getting access — reference site (Ruby at TGCC)
 
-TGCC access is granted per person, per project. If the user has never connected:
+TGCC access is granted per person, per project. **No GENCI/EuroHPC allocation
+or TGCC account yet?** That whole application — eDARI or EuroHPC, then the
+TGCC computing account, identity form and security screening — is the
+`apply-genci-tgcc-cea` skill's job, not this one; send the user there (or to
+`choose-access-method` first if they haven't settled on CEA/GENCI versus
+Pasqal Cloud at all). The two steps below are this skill's own, once that
+account exists:
 
-1. **Join a GENCI project with Ruby QPU hours.** Ask your team lead / project PI
-   for the project's allocation code (format `genXXXXX`). If your team has no
-   allocation, one is requested through the GENCI/eDARI process — your PI or
-   HPC coordinator handles this.
-2. **Request a TGCC computing account** under that project. The PI adds you to
-   the project; CEA then processes your account application (identity form,
-   security screening — this can take a few weeks). For questions:
-   `hotline.tgcc@cea.fr`.
-3. **Network access:** TGCC only accepts SSH from registered IP ranges. Make
-   sure you connect from your institution's network (or its VPN) whose IP range
-   was declared in the account application.
-4. **SSH configuration.** TGCC uses password authentication (`authorized_keys`
+1. **SSH configuration.** TGCC uses password authentication (`authorized_keys`
    is not honored). Add an alias to `~/.ssh/config` so the rest of this skill
    works verbatim, and reuse one connection to avoid re-typing the password:
 
@@ -112,13 +107,19 @@ TGCC access is granted per person, per project. If the user has never connected:
 
    The alias name is what goes in `HPC_HOST`. Then authenticate once
    interactively (`ssh "$HPC_HOST"`) — subsequent calls in this skill ride the
-   shared connection without prompting.
-5. **Remote environment — optional, set up once.** The compute nodes have no
+   shared connection without prompting. (`apply-genci-tgcc-cea` ends at
+   credentials arriving by email from TGCC and explicitly defers this step
+   here — there is no gap between the two skills, just this one thing left
+   to do.)
+2. **Remote environment — optional, set up once.** The compute nodes have no
    internet, so Pulser is pushed from your machine into a container venv
    (`~/pulser-env/`) that persists between sessions. **You do not run this every
    time:** Phase 0 probes for it and only sends you to **Environment setup**
    (below) when it is missing, or when the user asks to rebuild it. A cluster
    that already has a working `~/pulser-env/` needs nothing here.
+
+For questions about the account itself (not the SSH setup above):
+`hotline.tgcc@cea.fr`.
 
 ---
 

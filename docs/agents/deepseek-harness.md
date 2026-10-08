@@ -1,7 +1,7 @@
 # DeepSeek Harness (`dsh`)
 
 DeepSeek Harness reads the Agent Skills format natively, so this repository
-needs no manifest for it. Point `dsh` at `skills/` and the eight skills appear
+needs no manifest for it. Point `dsh` at `skills/` and the eleven skills appear
 in its catalog under their own names.
 
 Checked against [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness)
@@ -19,7 +19,7 @@ for skill in ~/agent-marketplace/skills/*/; do ln -s "$skill" ~/.agents/skills/;
 ```
 
 Symlinks are followed: `dsh` stats each entry and treats a link to a directory
-as a directory. Linking the eight skills individually rather than the whole
+as a directory. Linking the eleven skills individually rather than the whole
 `skills/` tree keeps the root usable by anything else you have put there.
 
 Restart `dsh` and the skills are in the catalog. To scope them to one project
