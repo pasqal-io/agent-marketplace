@@ -275,7 +275,7 @@ def check_skill_names() -> None:
     for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
         directory = skill_md.parent.name
         fields: dict[str, str] = {}
-        lines = skill_md.read_text().splitlines()[1:]
+        lines = skill_md.read_text(encoding="utf-8").splitlines()[1:]
         for i, line in enumerate(lines):
             if line.startswith("---"):
                 break
