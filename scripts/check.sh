@@ -4,6 +4,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 skipped=""   # what did not run: a local green is not CI green
 
+# Every Python this script runs prints µm, a subscript or an arrow somewhere.
+# Windows gives those interpreters a cp1252 stdout, which encodes none of it, so
+# the example smoke tests died on a print rather than on the physics. No-op on
+# Linux, where the locale is UTF-8 already.
+export PYTHONIOENCODING=utf-8
+
 echo "── Claude Code manifest + skill validation"
 if command -v claude >/dev/null 2>&1; then
   claude plugin validate .
