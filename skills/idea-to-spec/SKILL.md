@@ -1,6 +1,13 @@
 ---
 name: idea-to-spec
-description: Turn a source describing a neutral-atom (Rydberg) experiment — a paper, a patent, a PDF, an arXiv ID, an idea note, or a protocol described in conversation — into a structured experiment_spec.json: register, drive, scan, observable, open questions. The spec is the input contract for spec-to-sequence, validate-emu, qpu-submit and harvest-and-analyze. Triggered by phrases like "turn this paper into a neutral-atom experiment spec", "extract the Rydberg protocol", "idea to spec".
+description: >-
+  Turn a source describing a neutral-atom (Rydberg) experiment — a paper, a
+  patent, a PDF, an arXiv ID, an idea note, or a protocol described in
+  conversation — into a structured experiment_spec.json: register, drive,
+  scan, observable, open questions. The spec is the input contract for
+  spec-to-sequence, validate-emu, qpu-submit and harvest-and-analyze.
+  Triggered by phrases like "turn this paper into a neutral-atom experiment
+  spec", "extract the Rydberg protocol", "idea to spec".
 argument-hint: "[pdf-path | arxiv-id | description]"
 ---
 
