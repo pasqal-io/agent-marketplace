@@ -57,6 +57,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# Every read below passes encoding="utf-8". The repository is UTF-8, but
+# `read_text()` without it uses the locale's codec — cp1252 on Windows, which
+# raises on the first em dash in a SKILL.md. Python 3.15 makes UTF-8 the default
+# (PEP 686); until then it is spelled out at each call.
+
 # manifest path -> dotted path to the version string
 VERSION_FIELDS = {
     "plugin.json": "version",
@@ -129,19 +134,12 @@ from validate_spec import spec_problems  # noqa: E402 — the check users run to
 errors: list[str] = []
 
 
-def read(path: Path, errors: str = "strict") -> str:
-    """Every file in this repository is UTF-8. `Path.read_text()` without an
-    encoding uses the locale's instead, which on Windows is cp1252 and raises on
-    the first em dash."""
-    return path.read_text(encoding="utf-8", errors=errors)
-
-
 def load(rel: str) -> dict:
     path = ROOT / rel
     if not path.is_file():
         errors.append(f"{rel}: missing")
         return {}
-    return json.loads(read(path))
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def dig(data: dict, dotted: str):
@@ -252,7 +250,7 @@ def check_skill_portability() -> None:
     for path in sorted((ROOT / "skills").rglob("*")):
         if not path.is_file() or path.suffix not in TEXT_SUFFIXES:
             continue
-        text = read(path, errors="replace")
+        text = path.read_text(encoding="utf-8", errors="replace")
         for pattern, why in HARNESS_SPECIFIC:
             for match in re.finditer(pattern, text, re.M):
                 line = text.count("\n", 0, match.start()) + 1
@@ -268,7 +266,7 @@ def check_agents_index() -> None:
         errors.append("AGENTS.md: missing — tier-C harnesses have no other "
                       "way to learn the skills exist")
         return
-    text = read(index)
+    text = index.read_text(encoding="utf-8")
     for skill in sorted(p.name for p in (ROOT / "skills").iterdir() if p.is_dir()):
         if skill not in text:
             errors.append(f"AGENTS.md: does not mention skill {skill!r}")
@@ -282,7 +280,7 @@ def check_skill_names() -> None:
     for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
         directory = skill_md.parent.name
         fields: dict[str, str] = {}
-        for line in read(skill_md).splitlines()[1:]:
+        for line in skill_md.read_text(encoding="utf-8").splitlines()[1:]:
             if line.startswith("---"):
                 break
             for key in ("name", "description"):
@@ -359,7 +357,7 @@ def check_vendored_modules() -> None:
     for script in sorted((ROOT / "skills").glob("*/support/*.py")):
         if script.name in VENDORED_MODULES:
             continue
-        if loader.search(read(script)):
+        if loader.search(script.read_text(encoding="utf-8")):
             errors.append(
                 f"{script.relative_to(ROOT)} defines its own credential loader "
                 "— import it from pasqal_auth instead")
@@ -380,7 +378,7 @@ def check_example_isolation() -> None:
     for path in sorted((ROOT / "skills").rglob("*")):
         if not path.is_file() or path.suffix not in {".py", ".sh"}:
             continue
-        text = read(path, errors="replace")
+        text = path.read_text(encoding="utf-8", errors="replace")
         for match in dependency.finditer(text):
             line = text.count("\n", 0, match.start()) + 1
             errors.append(
@@ -416,7 +414,7 @@ def check_examples() -> None:
         if not spec_path.is_file():
             continue
         try:
-            spec = json.loads(read(spec_path))
+            spec = json.loads(spec_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             errors.append(f"examples/{name}/{spec_path.name}: invalid JSON — {exc}")
             continue
@@ -449,7 +447,7 @@ def check_skill_references() -> None:
         r"(?<![>/\w])(?:support|templates|references)/[A-Za-z0-9_./-]+\.[A-Za-z0-9]+")
     for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
         directory = skill_md.parent
-        text = read(skill_md)
+        text = skill_md.read_text(encoding="utf-8")
 
         for match in bundled.finditer(text):
             cited = match.group(0).rstrip(".,;:")
@@ -497,7 +495,7 @@ def check_markdown_links() -> None:
     for md in sorted(ROOT.rglob("*.md")):
         if ".git" in md.parts:
             continue
-        text = read(md, errors="replace")
+        text = md.read_text(encoding="utf-8", errors="replace")
         for match in link.finditer(text):
             target = match.group(1)
             if target.startswith(("http://", "https://", "mailto:")):
@@ -535,7 +533,7 @@ def check_pulser_pins() -> None:
         if not path.is_file():
             errors.append(f"{rel}: missing — it states the tested Pulser version")
             continue
-        match = re.search(pattern, read(path))
+        match = re.search(pattern, path.read_text(encoding="utf-8"))
         if match is None:
             errors.append(f"{rel}: no Pulser version matching /{pattern}/ — the "
                           "pin was reworded; update PULSER_PIN_SOURCES with it")
