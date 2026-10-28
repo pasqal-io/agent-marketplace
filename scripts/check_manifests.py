@@ -495,9 +495,7 @@ def check_markdown_links() -> None:
 
     link = re.compile(r"\[[^\]]*\]\(([^)#\s]+)(?:#[^)\s]*)?\)")
     for md in sorted(ROOT.rglob("*.md")):
-        # Dot-directories are not ours to check: .git, and .claude/worktrees,
-        # which holds whole nested checkouts whose files this clone never tracks.
-        if any(part.startswith(".") for part in md.relative_to(ROOT).parts):
+        if ".git" in md.parts:
             continue
         text = read(md, errors="replace")
         for match in link.finditer(text):
