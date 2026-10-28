@@ -275,12 +275,29 @@ def check_skill_names() -> None:
     for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
         directory = skill_md.parent.name
         fields: dict[str, str] = {}
-        for line in skill_md.read_text().splitlines()[1:]:
+        lines = skill_md.read_text(encoding="utf-8").splitlines()[1:]
+        for i, line in enumerate(lines):
             if line.startswith("---"):
                 break
             for key in ("name", "description"):
-                if line.startswith(f"{key}:"):
-                    fields[key] = line.split(":", 1)[1].strip()
+                if not line.startswith(f"{key}:"):
+                    continue
+                value = line.split(":", 1)[1].strip()
+                if value in (">", ">-", "|", "|-"):
+                    # Folded/literal block: the value is the indented lines below.
+                    body = []
+                    for cont in lines[i + 1:]:
+                        if cont.strip() and not cont.startswith((" ", "\t")):
+                            break
+                        body.append(cont.strip())
+                    value = " ".join(b for b in body if b)
+                elif ": " in value and value[:1] not in "'\"":
+                    # An unquoted plain scalar containing ": " is not valid YAML;
+                    # a lenient harness may read it, a strict loader will not.
+                    errors.append(f"skills/{directory}/SKILL.md: `{key}` is an "
+                                  f"unquoted scalar containing ': ' — use a "
+                                  f"'>-' block scalar")
+                fields[key] = value
 
         declared = fields.get("name")
         if declared is None:

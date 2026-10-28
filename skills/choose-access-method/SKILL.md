@@ -1,15 +1,13 @@
 ---
 name: choose-access-method
 description: >-
-  Helps a user who does not yet have QPU access decide which route to pursue -
-  free CEA/GENCI/EuroHPC access to Ruby (weeks of lead time, specific
-  eligibility) versus Pasqal Cloud pay-as-you-go (available today, any
-  country, a card). Relevant to requests such as "how do I get QPU access",
-  "which account should I use", "Pasqal Cloud vs CEA", "do I qualify for free
-  QPU time", "I don't have an account yet and don't know where to start", or
-  "what's the fastest way to run on real hardware". Once the route is decided,
-  hand off by name to create-pasqal-cloud-account or apply-genci-tgcc-cea -
-  this skill is for the decision itself, not either account-creation flow.
+  Decide which neutral-atom QPU access route to pursue - free CEA/GENCI/
+  EuroHPC access to Ruby (weeks of lead time, specific eligibility) versus
+  Pasqal Cloud pay-as-you-go (today, any country, a card). For requests such
+  as "how do I get QPU access", "which account should I use", "Pasqal Cloud vs
+  CEA", "do I qualify for free QPU time", or "fastest way to real hardware".
+  Hands off to create-pasqal-cloud-account or apply-genci-tgcc-cea: this skill
+  is the decision, not the sign-up flow.
 ---
 
 # Choose a QPU access route

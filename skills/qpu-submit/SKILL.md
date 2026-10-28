@@ -1,6 +1,13 @@
 ---
 name: qpu-submit
-description: Submit a neutral-atom experiment_spec.json plus its Pulser sequence file to a Rydberg QPU on Pasqal Cloud, with an optional pre-calibration batch that measures the device's Rabi frequency and Rydberg resonance and compensates the submitted jobs. Writes batch IDs for harvest-and-analyze. For a QPU reached over SSH through a cluster scheduler, use submit-to-cea. Triggered by phrases like "submit this spec to the QPU", "run this sequence on Fresnel", "send it to the neutral-atom hardware".
+description: >-
+  Submit a neutral-atom experiment_spec.json plus its Pulser sequence file to
+  a Rydberg QPU on Pasqal Cloud, with an optional pre-calibration batch that
+  measures the device's Rabi frequency and Rydberg resonance and compensates
+  the submitted jobs. Writes batch IDs for harvest-and-analyze. For a QPU
+  reached over SSH through a cluster scheduler, use submit-to-cea. Triggered
+  by phrases like "submit this spec to the QPU", "run this sequence on
+  Fresnel", "send it to the neutral-atom hardware".
 argument-hint: "[spec-file] [sequence-file]"
 ---
 
