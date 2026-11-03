@@ -1,6 +1,13 @@
 ---
 name: validate-emu
-description: Scan a neutral-atom experiment_spec.json and its Pulser sequence, noiseless and noisy, and return a go/no-go on whether the signal survives the Rydberg device's noise well enough to be worth QPU time. Asks where to run: locally (free, small registers, offered first) or on Pasqal Cloud emulators at the real size. This is the gate before a QPU submission, not the submission. Triggered by phrases like "validate this sequence on the emulator", "check noise retention", "is this worth QPU time".
+description: >-
+  Scan a neutral-atom experiment_spec.json and its Pulser sequence, noiseless
+  and noisy, and return a go/no-go on whether the signal survives the Rydberg
+  device's noise well enough to be worth QPU time. Asks where to run:
+  locally (free, small registers, offered first) or on Pasqal Cloud emulators
+  at the real size. This is the gate before a QPU submission, not the
+  submission. Triggered by phrases like "validate this sequence on the
+  emulator", "check noise retention", "is this worth QPU time".
 argument-hint: "[spec-file] [seq-file]"
 ---
 

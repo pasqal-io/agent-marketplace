@@ -1,15 +1,13 @@
 ---
 name: create-pasqal-cloud-account
 description: >-
-  Guides a user who has decided on Pasqal Cloud through getting access to it -
-  creating the account on portal.pasqal.cloud, and optionally coupling it to
-  Google Cloud Marketplace so real QPUs and the advanced emulators become
-  available. Relevant to requests such as "create a Pasqal Cloud account",
-  "sign up for Pasqal Cloud", "I need a PASQAL_PROJECT_ID", "connect Pasqal to
-  Google Cloud", "subscribe to Pasqal on GCP Marketplace", "how do I run on
-  FRESNEL", or "my project only shows EMU_FREE". Concerns obtaining access
-  only, not building sequences, submitting jobs, or analysing results. Not
-  sure whether Pasqal Cloud or CEA/GENCI fits? Use choose-access-method first.
+  Get access to Pasqal Cloud - create the account on portal.pasqal.cloud and
+  optionally couple it to Google Cloud Marketplace, which is what makes real
+  QPUs and the advanced emulators available. For requests such as "create a
+  Pasqal Cloud account", "I need a PASQAL_PROJECT_ID", "subscribe to Pasqal on
+  GCP Marketplace", "how do I run on FRESNEL", or "my project only shows
+  EMU_FREE". Access only, not running experiments. Unsure which route fits?
+  Use choose-access-method.
 ---
 
 # Get access to Pasqal Cloud (account, and optional Google Cloud coupling)

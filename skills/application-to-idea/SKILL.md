@@ -1,6 +1,13 @@
 ---
 name: application-to-idea
-description: Scope a rough problem or application into a first technical idea for a neutral-atom (Rydberg) QPU: which documented Pulser method could serve it — MIS, QUBO, an Ising or XY simulation, a graph kernel — what would be measured, at what size, or an honest no-fit. Writes a note for idea-to-spec; use idea-to-spec when a protocol or paper exists. Triggered by phrases like "can neutral atoms do anything with my problem", "is this a fit for a Rydberg QPU", "I don't know what to measure on the QPU".
+description: >-
+  Scope a rough problem or application into a first technical idea for a
+  neutral-atom (Rydberg) QPU: which documented Pulser method could serve it —
+  MIS, QUBO, an Ising or XY simulation, a graph kernel — what would be
+  measured, at what size, or an honest no-fit. Writes a note for idea-to-spec;
+  use idea-to-spec when a protocol or paper exists. Triggered by phrases like
+  "can neutral atoms do anything with my problem", "is this a fit for a Rydberg
+  QPU", "I don't know what to measure on the QPU".
 argument-hint: "[the problem or the wish, in your own words]"
 ---
 

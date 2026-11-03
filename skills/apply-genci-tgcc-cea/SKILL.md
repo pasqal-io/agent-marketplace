@@ -1,18 +1,13 @@
 ---
 name: apply-genci-tgcc-cea
 description: >-
-  Guides a user who has decided on the CEA/GENCI route through applying for
-  QPU hours on the Pasqal Ruby (Orion) analogue neutral-atom quantum computer
-  at GENCI/CEA TGCC - via either the French GENCI eDARI portal or the EuroHPC
-  Quantum Access Pilot call - and through the follow-on TGCC computing
-  account. Relevant to requests such as "apply for TGCC hours", "eDARI
-  application", "apply for Ruby/Pasqal QPU allocation", "GENCI allocation",
-  "request a TGCC computing account", "EuroHPC quantum hours", "Quantum
-  Access Pilot", "apply on access.eurohpc-ju.europa.eu", or "attach to a
-  project / rattachement". Concerns obtaining access only, not running
-  sequences, submitting jobs, or analysing results on already-granted
-  hardware. Not sure whether CEA/GENCI or Pasqal Cloud fits? Use
-  choose-access-method first.
+  Apply for QPU hours on Ruby (Pasqal Orion), the analogue neutral-atom
+  machine at GENCI/CEA TGCC - via the French eDARI portal or the EuroHPC
+  Quantum Access Pilot call - then get the TGCC computing account. For
+  requests such as "apply for TGCC hours", "eDARI application", "apply for
+  Ruby/Pasqal QPU allocation", "EuroHPC quantum hours", "Quantum Access
+  Pilot", or "attach to a project / rattachement". Access only, not running
+  experiments. Unsure which route fits? Use choose-access-method.
 ---
 
 # Apply for QPU hours on Ruby at GENCI/CEA TGCC (eDARI or EuroHPC route)
