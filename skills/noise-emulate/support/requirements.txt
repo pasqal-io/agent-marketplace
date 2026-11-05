@@ -13,7 +13,7 @@
 pulser>=1.8.0,<2.0
 pasqal-cloud>=0.23.0
 emu-mps>=2.7.0
-torch>=2.0.0
+torch>=2.14.0
 matplotlib>=3.5.0
 numpy>=1.24.0
 keyring>=24.0.0      # optional but recommended — stores password in OS keyring
